@@ -1,0 +1,6 @@
+{
+  "name": "Prism App Store",
+  "description": "The next-generation open application store featuring interactive test-drive playgrounds, privacy nutrition audits, version rollback, and side-by-side app comparisons.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

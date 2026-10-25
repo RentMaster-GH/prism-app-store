@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, Star, Download, Play, Smartphone, Monitor, ArrowRight, Terminal, BookOpen, Trash2, Upload } from 'lucide-react';
 import { APPS_DATA } from './data/appsData';
 import { AppItem, CategoryType, DevicePlatform, InstalledAppState, DeletedAppAuditItem } from './types';
@@ -20,11 +20,12 @@ import { SafeAreaProvider } from './context/SafeAreaContext';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { resolveAppMedia, getAppCategoryPlaceholder, APP_MEDIA_ASSETS } from './utils/media';
 import { createClient } from '@supabase/supabase-js';
+import { useSupabaseSearch } from './hooks/useSupabaseSearch';
+import { BecauseYouInstalled } from './components/BecauseYouInstalled';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
-
 const PAGE_SIZE = 12;
 
 function AppStoreContent() {
@@ -102,14 +103,12 @@ function AppStoreContent() {
   const [selectedPriceModel, setSelectedPriceModel] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'rating' | 'downloads' | 'size'>('rating');
 
-  // PAGINATION STATE
+  // INSTANT SUPABASE SEARCH
+  const { supabaseResults, isSearching } = useSupabaseSearch(searchQuery, apps.length);
+
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-
-  // Reset pagination when filters change
   useEffect(() => { setVisibleCount(PAGE_SIZE); }, [searchQuery, selectedCategory, selectedDevice, selectedPriceModel, sortBy, currentTab]);
-
-  // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setVisibleCount(v => v + PAGE_SIZE); }, { rootMargin: '400px' });
     if (loadMoreRef.current) observer.observe(loadMoreRef.current);
@@ -122,12 +121,15 @@ function AppStoreContent() {
   useEffect(() => { try { localStorage.setItem('prism_current_tab', currentTab); } catch {} }, [currentTab]);
   useEffect(() => { try { localStorage.setItem('prism_installed_map', JSON.stringify(installedMap)); } catch {} }, [installedMap]);
   useEffect(() => { setInstalledMap(prev => { let changed = false; const copy = { ...prev }; Object.keys(copy).forEach(appId => { const storeApp = apps.find(a => a.id === appId); if (storeApp && copy[appId].status === 'installed' && copy[appId].installedVersion !== storeApp.currentVersion) { copy[appId] = { ...copy[appId], installedVersion: storeApp.currentVersion, installedAt: 'Auto-updated silently' }; changed = true; } }); return changed ? copy : prev; }); }, [apps]);
+
   const handleInstallApp = (app: AppItem, targetVersion?: string) => {
     const versionToInstall = targetVersion || app.currentVersion;
     setInstalledMap(prev => ({ ...prev, [app.id]: { appId: app.id, installedVersion: versionToInstall, installedAt: 'Just now', storageUsedMB: app.sizeMB, status: 'installing', progress: 15 } }));
     setTimeout(() => { setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], progress: 55 } } : prev); }, 400);
     setTimeout(() => { setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], progress: 85 } } : prev); }, 800);
     setTimeout(() => { setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], status: 'installed', progress: 100 } } : prev); }, 1200);
+    // Trust: open live URL if exists after install
+    if (app.liveAppUrl) { setTimeout(() => window.open(app.liveAppUrl, '_blank'), 1400); }
   };
   const handleUninstallApp = (appId: string) => { setInstalledMap(prev => { const copy = { ...prev }; delete copy[appId]; return copy; }); };
   const handleUpdateApp = (app: AppItem) => {
@@ -137,9 +139,7 @@ function AppStoreContent() {
   };
   const handleUpdateAll = () => { Object.keys(installedMap).forEach(appId => { const app = apps.find(a => a.id === appId); if (app && installedMap[appId].installedVersion !== app.currentVersion) handleUpdateApp(app); }); };
   const handleStartCompare = (app: AppItem) => { setCompareAppA(app.id); const otherApp = apps.find(a => a.id !== app.id); if (otherApp) setCompareAppB(otherApp.id); setSelectedApp(null); setCurrentTab('compare'); };
-  const handleAddReview = (appId: string, rating: number, title: string, content: string) => {
-    setApps(prev => prev.map(a => { if (a.id === appId) { const newRev = { id: `rev-user-${Date.now()}`, author: 'You (Local User)', rating, date: 'Just now', device: 'Desktop Studio', title, content, helpfulCount: 0, verifiedPurchase: true }; return { ...a, reviewCount: a.reviewCount + 1, reviews: [newRev, ...a.reviews] }; } return a; }));
-  };
+  const handleAddReview = (appId: string, rating: number, title: string, content: string) => { setApps(prev => prev.map(a => { if (a.id === appId) { const newRev = { id: `rev-user-${Date.now()}`, author: 'You (Local User)', rating, date: 'Just now', device: 'Desktop Studio', title, content, helpfulCount: 0, verifiedPurchase: true }; return { ...a, reviewCount: a.reviewCount + 1, reviews: [newRev, ...a.reviews] }; } return a; })); };
   const handleAppPublished = (newApp: AppItem) => { setApps(prev => { const next = [newApp, ...prev]; try { const userApps = next.filter(a => a.isUserUploaded); localStorage.setItem('prism_user_uploaded_apps', JSON.stringify(userApps)); localStorage.setItem('prism_apps_registry', JSON.stringify(next)); } catch {} return next; }); };
   const handleAppDeleted = (appId: string, reason: string, deletedBy: 'Owner' | 'Prism Store Developer / Manager') => {
     const targetApp = apps.find(a => a.id === appId);
@@ -156,7 +156,20 @@ function AppStoreContent() {
 
   const filteredApps = useMemo(() => {
     const seen = new Set<string>();
-    return apps.filter(app => {
+    // Merge Supabase live search results into base list when searching
+    let baseList = [...apps];
+    if (searchQuery.trim().length >= 2 && supabaseResults.length > 0) {
+      const converted: AppItem[] = supabaseResults.map((row: any) => {
+        const isAdinkra = (row.title || '').toLowerCase().includes('adinkra');
+        return { id: row.id, name: row.title, tagline: row.tagline || row.description || 'User published', developer: row.developer_name || 'Indie Engineer', developerVerified: true, category: row.category || 'Developer Tools', price: row.price || 0, priceFormatted: row.price_model === 'Open Source' ? 'Free (Open Source)' : 'Free', priceModel: (row.price_model as any) || 'Free', rating: 5.0, reviewCount: 1, downloadsCount: String(row.downloads || 1), sizeMB: row.size_mb || 15, currentVersion: row.version || '1.0.0', minOS: 'Android 12 / iOS 16 / macOS / Web', supportedDevices: ['Phone', 'Tablet', 'Desktop', 'Vision'], heroImage: isAdinkra ? APP_MEDIA_ASSETS.adinkraStudio : APP_MEDIA_ASSETS.luminaShowcase, thumbnail: isAdinkra ? APP_MEDIA_ASSETS.adinkraStudio : APP_MEDIA_ASSETS.luminaShowcase, accentColor: isAdinkra ? '#f97316' : '#38bdf8', summary: row.description || row.tagline || '', features: ['Zero trackers', 'Permanent hosting'], offlineCapable: true, zeroTrackers: true, openSource: row.price_model === 'Open Source', isUserUploaded: true, ownerId: row.owner_id, uploadedAt: 'Just now', liveAppUrl: row.download_url || row.live_app_url, websiteUrl: row.download_url || row.live_app_url, sourceCodeUrl: row.source_code_url, packageBundleName: row.package_bundle_name, privacyGrade: 'A+', permissions: [], dataCollected: [], versionHistory: [{ version: row.version || '1.0.0', releaseDate: 'Today', sizeMB: row.size_mb || 15, isLatest: true, highlights: ['Live search result'] }], reviews: [], sandboxType: 'terminal' } as AppItem;
+      });
+      const map = new Map<string, AppItem>();
+      converted.forEach(c => map.set(c.id, c));
+      baseList.forEach(b => { if (!map.has(b.id)) map.set(b.id, b); });
+      baseList = Array.from(map.values());
+    }
+
+    return baseList.filter(app => {
       if (seen.has(app.id)) return false; seen.add(app.id);
       const matchesSearch = searchQuery === '' || app.name.toLowerCase().includes(searchQuery.toLowerCase()) || app.tagline.toLowerCase().includes(searchQuery.toLowerCase()) || app.developer.toLowerCase().includes(searchQuery.toLowerCase()) || app.category.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = selectedCategory === 'All' || app.category === selectedCategory;
@@ -164,7 +177,7 @@ function AppStoreContent() {
       const matchesPrice = selectedPriceModel === 'All' || app.priceModel === selectedPriceModel;
       return matchesSearch && matchesCategory && matchesDevice && matchesPrice;
     }).sort((a, b) => { if (sortBy === 'rating') return b.rating - a.rating; if (sortBy === 'size') return a.sizeMB - b.sizeMB; return parseInt(b.downloadsCount) - parseInt(a.downloadsCount); });
-  }, [apps, searchQuery, selectedCategory, selectedDevice, selectedPriceModel, sortBy]);
+  }, [apps, searchQuery, selectedCategory, selectedDevice, selectedPriceModel, sortBy, supabaseResults]);
 
   const paginatedApps = useMemo(() => filteredApps.slice(0, visibleCount), [filteredApps, visibleCount]);
   const hasMore = visibleCount < filteredApps.length;
@@ -174,11 +187,11 @@ function AppStoreContent() {
     <div ref={loadMoreRef} className="col-span-full flex flex-col items-center justify-center py-8 gap-3">
       {hasMore ? (
         <>
-          <div className="flex items-center gap-2 text-xs text-slate-400"><div className="w-4 h-4 rounded-full border-2 border-slate-600 border-t-indigo-400 animate-spin" /><span>Loading {Math.min(PAGE_SIZE, filteredApps.length - visibleCount)} more apps...</span></div>
+          <div className="flex items-center gap-2 text-xs text-slate-400"><div className="w-4 h-4 rounded-full border-2 border-slate-600 border-t-indigo-400 animate-spin" /><span>Loading {Math.min(PAGE_SIZE, filteredApps.length - visibleCount)} more...</span></div>
           <button onClick={() => setVisibleCount(v => v + PAGE_SIZE)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-medium">Load More ({filteredApps.length - visibleCount} left)</button>
         </>
       ) : filteredApps.length > PAGE_SIZE ? (
-        <div className="text-[11px] text-slate-500 font-mono">You've reached the end — {filteredApps.length} apps shown</div>
+        <div className="text-[11px] text-slate-500 font-mono">End — {filteredApps.length} apps shown • Live search from Supabase</div>
       ) : null}
     </div>
   );
@@ -188,10 +201,10 @@ function AppStoreContent() {
       <TopBar currentTab={currentTab} onSelectTab={setCurrentTab} onOpenDevModal={() => { setDevModalInitialTab('publish'); setIsDevModalOpen(true); }} onOpenOwnerGuide={() => { setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} onOpenInstallModal={() => setIsInstallModalOpen(true)} onDirectInstall={handleDirectInstall} onOpenSyncHub={() => setIsSyncHubOpen(true)} isStandalone={isStandalone} installedCount={Object.keys(installedMap).length} userUID={userUID} isStoreManager={isStoreManager} onOpenManagerAuth={() => setIsManagerAuthModalOpen(true)} />
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-28 md:pb-8 overflow-x-hidden">
         <DirectInstallBanner onOpenManualModal={() => setIsInstallModalOpen(true)} />
-        {isSupabaseSyncing && <div className="mb-4 px-3 py-2 bg-indigo-950/50 border border-indigo-800/50 rounded-xl text-xs text-indigo-300 flex items-center gap-2"><div className="w-3 h-3 rounded-full border-2 border-indigo-400/30 border-t-indigo-400 animate-spin" /><span>Syncing permanent apps...</span></div>}
+        {isSupabaseSyncing && <div className="mb-4 px-3 py-2 bg-indigo-950/50 border border-indigo-800/50 rounded-xl text-xs text-indigo-300 flex items-center gap-2"><div className="w-3 h-3 rounded-full border-2 border-indigo-400/30 border-t-indigo-400 animate-spin" /><span>Syncing permanent apps from Supabase...</span></div>}
 
         {currentTab === 'discover' && (
-          <div className="space-y-8 sm:space-y-12 overflow-x-hidden">
+          <div className="space-y-8 sm:space-y-10 overflow-x-hidden">
             {heroApp && (
               <section className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl">
                 <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
@@ -200,15 +213,32 @@ function AppStoreContent() {
                 </div>
               </section>
             )}
-            <section className="bg-slate-900/60 p-3 sm:p-4 rounded-xl border border-slate-800 w-full overflow-hidden"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full"><div className="min-w-0"><h3 className="text-sm font-semibold text-white">Target Hardware Ecosystem</h3><p className="text-[11px] text-slate-400">Discover binaries for your device</p></div><div className="grid grid-cols-3 sm:flex sm:flex-wrap items-center gap-1 p-1 bg-slate-950 rounded-lg border border-slate-800 w-full sm:w-auto">{(['All', 'Phone', 'Tablet', 'Desktop', 'Watch', 'Vision'] as DevicePlatform[]).map(dev => (<button key={dev} onClick={() => setSelectedDevice(dev)} className={`py-1.5 px-2 sm:px-3 rounded-md font-medium text-[11px] sm:text-xs transition-colors text-center truncate ${selectedDevice === dev ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>{dev}</button>))}</div></div></section>
-            <section className="overflow-hidden"><div className="flex flex-wrap items-center justify-between gap-2 mb-4"><div className="min-w-0"><h3 className="text-base sm:text-lg font-bold text-white tracking-tight">Editor's Choice: Precision Software</h3><p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Zero surveillance telemetry, independent developers.</p></div><button onClick={() => setCurrentTab('apps')} className="text-xs font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 shrink-0"><span>View All</span><ArrowRight className="w-3 h-3" /></button></div><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">{paginatedApps.slice(0, 6).map(app => (<AppCard key={app.id} app={app} installedState={installedMap[app.id]} onOpenDetails={appToOpen => openAppDetails(appToOpen, 'overview')} onQuickInstall={handleInstallApp} onOpenSandbox={appToTest => openAppDetails(appToTest, 'test-drive')} />))}</div></section>
+
+            {/* TRUST: Because you installed */}
+            {Object.keys(installedMap).length > 0 && (
+              <BecauseYouInstalled installedMap={installedMap} allApps={apps} onOpenDetails={openAppDetails} onQuickInstall={handleInstallApp} onOpenSandbox={(a)=>openAppDetails(a,'test-drive')} />
+            )}
+
+            <section className="bg-slate-900/60 p-3 sm:p-4 rounded-xl border border-slate-800 w-full overflow-hidden"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full"><div className="min-w-0"><h3 className="text-sm font-semibold text-white">Target Hardware Ecosystem</h3><p className="text-[11px] text-slate-400">Discover binaries for your device • Verified hardware</p></div><div className="grid grid-cols-3 sm:flex sm:flex-wrap items-center gap-1 p-1 bg-slate-950 rounded-lg border border-slate-800 w-full sm:w-auto">{(['All', 'Phone', 'Tablet', 'Desktop', 'Watch', 'Vision'] as DevicePlatform[]).map(dev => (<button key={dev} onClick={() => setSelectedDevice(dev)} className={`py-1.5 px-2 sm:px-3 rounded-md font-medium text-[11px] sm:text-xs transition-colors text-center truncate ${selectedDevice === dev ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>{dev}</button>))}</div></div></section>
+            
+            <section className="overflow-hidden"><div className="flex flex-wrap items-center justify-between gap-2 mb-4"><div className="min-w-0"><h3 className="text-base sm:text-lg font-bold text-white tracking-tight">Editor's Choice: Precision Software</h3><p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Zero surveillance telemetry, independent developers, live install counts.</p></div><button onClick={() => setCurrentTab('apps')} className="text-xs font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 shrink-0"><span>View All</span><ArrowRight className="w-3 h-3" /></button></div><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">{paginatedApps.slice(0, 6).map(app => (<AppCard key={app.id} app={app} installedState={installedMap[app.id]} onOpenDetails={appToOpen => openAppDetails(appToOpen, 'overview')} onQuickInstall={handleInstallApp} onOpenSandbox={appToTest => openAppDetails(appToTest, 'test-drive')} />))}</div></section>
           </div>
         )}
 
         {currentTab === 'apps' && (
           <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-5 space-y-3 sm:space-y-4 w-full overflow-hidden">
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full"><div className="relative flex-1 min-w-0"><Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-500" /><input type="text" placeholder="Search software..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500" /></div><div className="flex items-center gap-2 shrink-0 text-xs w-full sm:w-auto"><span className="text-slate-400 whitespace-nowrap">Sort:</span><select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="flex-1 sm:flex-none bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium"><option value="rating">Rating</option><option value="downloads">Installed</option><option value="size">Size</option></select></div></div>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-500" />
+                  <input type="text" placeholder="Instant search Supabase + local..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
+                  <div className="absolute right-3 top-3 flex items-center gap-2">
+                    {isSearching && <div className="w-3 h-3 rounded-full border-2 border-indigo-400/30 border-t-indigo-400 animate-spin" />}
+                    {searchQuery.length >=2 && !isSearching && supabaseResults.length > 0 && <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-800/50">{supabaseResults.length} cloud</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 text-xs w-full sm:w-auto"><span className="text-slate-400 whitespace-nowrap">Sort:</span><select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="flex-1 sm:flex-none bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium"><option value="rating">Rating</option><option value="downloads">Installed</option><option value="size">Size</option></select></div>
+              </div>
               <div className="space-y-3 pt-3 border-t border-slate-800 w-full overflow-hidden">
                 <div className="w-full overflow-hidden"><p className="text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-1.5">Categories</p><div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap gap-1.5 w-full">{(['All', 'Audio & Music', 'Design & Creative', 'Health & Biometrics', 'Developer Tools', 'Productivity & Notes', 'Sports'] as CategoryType[]).map(cat => (<button key={cat} onClick={() => setSelectedCategory(cat)} className={`py-2 px-2 sm:px-3 rounded-lg font-medium text-[11px] sm:text-xs text-center truncate transition-colors ${selectedCategory === cat ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'}`}>{cat}</button>))}</div></div>
                 <div className="w-full overflow-hidden"><p className="text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-1.5">Price Model</p><div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1 p-1 bg-slate-950 rounded-lg border border-slate-800 w-full sm:w-auto">{['All', 'Free', 'One-Time', 'Subscription', 'Open Source'].map(pm => (<button key={pm} onClick={() => setSelectedPriceModel(pm)} className={`py-1.5 px-2 sm:px-2.5 rounded text-[10px] sm:text-[11px] font-medium text-center truncate transition-colors ${selectedPriceModel === pm ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'}`}>{pm}</button>))}</div></div>
@@ -217,11 +247,9 @@ function AppStoreContent() {
             </div>
 
             <div className="overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] sm:text-xs text-slate-400 mb-3 sm:mb-4 px-1"><span className="truncate">Showing {paginatedApps.length} of {filteredApps.length} packages {isSupabaseSyncing ? '(syncing...)' : ''}</span><span className="hidden sm:inline">Zero tracker beacons certified</span></div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] sm:text-xs text-slate-400 mb-3 sm:mb-4 px-1"><span className="truncate">Showing {paginatedApps.length} of {filteredApps.length} packages {isSupabaseSyncing || isSearching ? '(live syncing...)' : ''}</span><span className="hidden sm:inline">Zero tracker beacons certified • Live ticker</span></div>
               {filteredApps.length === 0 ? (<div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 sm:p-12 text-center text-slate-400 space-y-3"><p className="text-sm sm:text-base text-slate-200 font-semibold">No software matched</p><button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); setSelectedPriceModel('All'); setSelectedDevice('All'); }} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium rounded-lg transition-colors mt-2">Reset Filters</button></div>) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">{paginatedApps.map(app => (<AppCard key={app.id} app={app} installedState={installedMap[app.id]} onOpenDetails={appToOpen => openAppDetails(appToOpen, 'overview')} onQuickInstall={handleInstallApp} onOpenSandbox={appToTest => openAppDetails(appToTest, 'test-drive')} />))}<LoadMoreSentinel /></div>
-                </>
+                <><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">{paginatedApps.map(app => (<AppCard key={app.id} app={app} installedState={installedMap[app.id]} onOpenDetails={appToOpen => openAppDetails(appToOpen, 'overview')} onQuickInstall={handleInstallApp} onOpenSandbox={appToTest => openAppDetails(appToTest, 'test-drive')} />))}<LoadMoreSentinel /></div></>
               )}
             </div>
           </div>
@@ -233,8 +261,8 @@ function AppStoreContent() {
 
       <footer className="mt-12 sm:mt-16 border-t border-slate-800/80 bg-slate-950 py-6 sm:py-8 text-xs text-slate-500 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-center sm:text-left">
-          <div className="flex flex-wrap items-center justify-center gap-2"><span className="w-2 h-2 rounded-sm bg-indigo-500 inline-block" /><span className="font-semibold text-slate-300">Prism App Store</span><span className="text-slate-600 hidden sm:inline">·</span><span className="text-[11px]">Independent Distribution {supabase ? '· Permanent' : ''} · {filteredApps.length} apps · {paginatedApps.length} rendered</span></div>
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-[11px]"><span>0% Commission</span><span>Local Sandboxing</span><span>Privacy Grades</span></div>
+          <div className="flex flex-wrap items-center justify-center gap-2"><span className="w-2 h-2 rounded-sm bg-indigo-500 inline-block" /><span className="font-semibold text-slate-300">Prism App Store</span><span className="text-slate-600 hidden sm:inline">·</span><span className="text-[11px]">Independent Distribution {supabase ? '· Permanent' : ''} · {filteredApps.length} apps · Live ticker</span></div>
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-[11px]"><span>0% Commission</span><span>Verified</span><span>Privacy Grades</span></div>
         </div>
       </footer>
 

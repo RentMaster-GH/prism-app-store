@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Star, Download, Play, Check, ShieldCheck, ExternalLink } from 'lucide-react';
 import { AppItem, InstalledAppState } from '../types';
 import { resolveAppMedia, getAppCategoryPlaceholder, getOptimizedImageUrl } from '../utils/media';
+import { VerifiedBadge } from './VerifiedBadge';
+import { DownloadTicker } from './DownloadTicker';
 
 interface AppCardProps {
   app: AppItem;
@@ -81,13 +83,25 @@ export const AppCard = React.memo<AppCardProps>(({ app, installedState, onOpenDe
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mb-1.5 min-w-0">
-          <span className="truncate">{app.category}</span>
+        {/* FIXED: Now uses VerifiedBadge + DownloadTicker */}
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400 mb-1.5 min-w-0">
+          <span className="truncate max-w-[90px]">{app.category}</span>
           <span className="text-slate-600">·</span>
-          <span className="truncate">{app.developer}</span>
-          {app.developerVerified && <ShieldCheck className="w-3.5 h-3.5 text-indigo-400 inline shrink-0" />}
-          {app.isFlagged && <><span className="text-slate-600">·</span><span className="text-rose-400 font-mono text-[10px] font-bold">Flagged</span></>}
-          {(app.isUserUploaded || app.id === 'adinkra-studio') && <><span className="text-slate-600">·</span><span className="text-amber-300 font-mono text-[10px]">Owner: You</span></>}
+          <VerifiedBadge verified={app.developerVerified} size="sm" />
+          <span className="text-slate-600">·</span>
+          <DownloadTicker baseCount={app.downloadsCount} />
+          {(app.isUserUploaded || app.id === 'adinkra-studio') && (
+            <>
+              <span className="text-slate-600">·</span>
+              <span className="text-amber-300 font-mono text-[10px]">Owner: You</span>
+            </>
+          )}
+          {app.isFlagged && (
+            <>
+              <span className="text-slate-600">·</span>
+              <span className="text-rose-400 font-mono text-[10px] font-bold">Flagged</span>
+            </>
+          )}
         </div>
 
         <h3 onClick={() => onOpenDetails(app)} className="text-base font-semibold text-white tracking-tight hover:text-indigo-300 transition-colors cursor-pointer truncate">{app.name}</h3>

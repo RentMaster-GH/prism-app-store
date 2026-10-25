@@ -1,32 +1,45 @@
-import { useState, useEffect, useMemo } from 'react';
-import { supabase } from './lib/supabase';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
-
-export function useSupabaseSearch(query: string, localAppsCount: number) {
+export function useSupabaseSearch(query: string, _appsLength: number) {
   const [supabaseResults, setSupabaseResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    if (!supabase || query.trim().length < 2) {
+    if (!query || query.trim().length < 2) {
+      setSupabaseResults([]);
+      setIsSearching(false);
+      return;
+    }
+    if (!supabase) {
       setSupabaseResults([]);
       return;
     }
-    const debounce = setTimeout(async () => {
+
+    const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('marketplace_apps')
           .select('*')
-          .or(`title.ilike.%${query}%,description.ilike.%${query}%,category.ilike.%${query}%`)
+          .or(`title.ilike.%${query}%,description.ilike.%${query}%,tagline.ilike.%${query}%`)
           .limit(20);
-        setSupabaseResults(data || []);
-      } catch {} finally { setIsSearching(false); }
+        if (error) {
+          console.warn('Supabase search error', error);
+          setSupabaseResults([]);
+        } else {
+          setSupabaseResults(data || []);
+        }
+      } catch (e) {
+        console.warn('Search failed', e);
+        setSupabaseResults([]);
+      } finally {
+        setIsSearching(false);
+      }
     }, 300);
-    return () => clearTimeout(debounce);
-  }, [query, localAppsCount]);
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   return { supabaseResults, isSearching };
 }

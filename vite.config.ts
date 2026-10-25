@@ -1,102 +1,27 @@
-import tailwindcss from '@tailwindcss/vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
-import { defineConfig } from 'vite';
-import { VitePWA } from 'vite-plugin-pwa';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-export default defineConfig(() => {
-  return {
-    plugins: [
-      react(),
-      tailwindcss(),
-      VitePWA({
-        registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
-        manifest: {
-          id: '/',
-          name: 'Prism App Store',
-          short_name: 'PrismStore',
-          description: 'The next-generation open application store featuring interactive test-drive playgrounds, privacy nutrition audits, and version rollback.',
-          theme_color: '#020617',
-          background_color: '#020617',
-          display: 'standalone',
-          orientation: 'any',
-          start_url: '/',
-          scope: '/',
-          icons: [
-            { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: '/pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-          ],
-        },
-        workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,jpg,jpeg,webp}'],
-          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-          skipWaiting: true,
-          clientsClaim: true,
-          cleanupOutdatedCaches: true,
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'supabase-permanent-cache',
-                expiration: { maxEntries: 150, maxAgeSeconds: 60 * 60 * 24 * 90 },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-            {
-              urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'unsplash-images-cache',
-                expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 60 },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-cache',
-                expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-            {
-              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'gstatic-fonts-cache',
-                expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-          ],
-        },
-        devOptions: { enabled: true, type: 'module' },
-      }),
-    ],
-    resolve: { alias: { '@': path.resolve(__dirname, '.') } },
-    build: {
-      target: 'esnext',
-      cssCodeSplit: true,
-      sourcemap: false,
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom'],
-            'vendor-supabase': ['@supabase/supabase-js'],
-            'vendor-icons': ['lucide-react'],
-            'modals-heavy': ['./src/components/AppDetailModal', './src/components/DevSubmitModal', './src/components/EdgeSyncManagerModal'],
-          },
-        },
-      },
-      chunkSizeWarningLimit: 800,
-    },
-    server: {
-      hmr: process.env.DISABLE_HMR !== 'true',
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
-    },
-  };
-});
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        // FIXED: must be a function, not object
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) return 'react-vendor'
+            if (id.includes('lucide-react')) return 'icons'
+            if (id.includes('@supabase')) return 'supabase'
+            return 'vendor'
+          }
+        }
+      }
+    }
+  },
+  server: {
+    port: 5173
+  }
+})

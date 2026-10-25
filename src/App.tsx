@@ -24,9 +24,7 @@ import { useSupabaseSearch } from './hooks/useSupabaseSearch';
 import { BecauseYouInstalled } from './components/BecauseYouInstalled';
 import { CommandPalette } from './components/CommandPalette';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+import { supabase } from './lib/supabase';
 const PAGE_SIZE = 12;
 
 function AppStoreContent() {

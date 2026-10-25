@@ -24,12 +24,8 @@ export function useSupabaseSearch(query: string, _appsLength: number) {
           .select('*')
           .or(`title.ilike.%${query}%,description.ilike.%${query}%,tagline.ilike.%${query}%`)
           .limit(20);
-        if (error) {
-          console.warn('Supabase search error', error);
-          setSupabaseResults([]);
-        } else {
-          setSupabaseResults(data || []);
-        }
+        if (error) throw error;
+        setSupabaseResults(data || []);
       } catch (e) {
         console.warn('Search failed', e);
         setSupabaseResults([]);

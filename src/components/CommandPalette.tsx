@@ -36,7 +36,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 10);
-      setQuery(''); setSelectedIdx(0);
+      setQuery(''); 
+      setSelectedIdx(0);
     }
   }, [isOpen]);
 
@@ -65,13 +66,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
   }, [apps, installedMap, query, supabaseResults]);
 
   useEffect(() => { setSelectedIdx(0); }, [query]);
+  
   const handleSelect = (app: AppItem) => { onClose(); onOpenDetails(app); };
+  
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i+1, results.length-1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIdx(i => Math.max(i-1, 0)); }
     else if (e.key === 'Enter') { e.preventDefault(); if (results[selectedIdx]) handleSelect(results[selectedIdx]); }
     else if (e.key === 'Escape') { onClose(); }
   };
+  
   if (!isOpen) return null;
 
   return (
@@ -83,7 +87,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
           {isSearching ? <Loader2 className="w-4 h-4 text-slate-500 animate-spin" /> : <div className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-slate-500 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded"><span>ESC</span></div>}
         </div>
         <div className="max-h-96 overflow-y-auto p-2">
-          {results.length === 0 ? <div className="p-8 text-center text-sm text-slate-500"><PackageOpen className="w-6 h-6 mx-auto mb-2 text-slate-600" />{isSearching ? 'Searching...' : `No apps found for "${query}"`}</div> : (
+          {results.length === 0 ? (
+            <div className="p-8 text-center text-sm text-slate-500"><PackageOpen className="w-6 h-6 mx-auto mb-2 text-slate-600" />{isSearching ? 'Searching...' : `No apps found for "${query}"`}</div>
+          ) : (
             <div className="space-y-1">
               {!query && <div className="px-3 py-2 text-[11px] font-mono text-slate-500 uppercase tracking-wider flex items-center gap-1"><Sparkles className="w-3 h-3" /> {Object.keys(installedMap).length > 0 ? 'Installed & Featured' : 'Featured'}</div>}
               {results.map((app, idx) => {
@@ -92,7 +98,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
                 return (
                   <button key={app.id} onClick={()=>handleSelect(app)} onMouseEnter={()=>setSelectedIdx(idx)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${isSelected ? 'bg-slate-800 border border-slate-700' : 'border border-transparent hover:bg-slate-800/50'}`}>
                     <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
-                      <img src={getOptimizedImageUrl(resolveAppMedia(app.thumbnail),80)} alt={app.name} className="w-7 h-7 object-contain" loading="lazy" />
+                      <img 
+                        src={getOptimizedImageUrl(resolveAppMedia(app.thumbnail),80)} 
+                        alt={app.name} 
+                        className="w-7 h-7 object-contain" 
+                        loading={idx < 4 ? "eager" : "lazy"}
+                        decoding="async"
+                        width={80}
+                        height={80}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-white truncate flex items-center gap-2"><Highlight text={app.name} query={query} />{installed && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 rounded font-mono">Installed</span>}</div>

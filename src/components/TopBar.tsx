@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Terminal, Download, Check, BookOpen, ShieldCheck, UserCheck, Globe, Wifi, WifiOff } from 'lucide-react';
 import { useSafeArea } from '../context/SafeAreaContext';
+import { Sun, Moon } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 interface TopBarProps {
   currentTab: 'discover' | 'apps' | 'compare' | 'library';
@@ -32,6 +34,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenSyncHub
 }) => {
   const { insets } = useSafeArea();
+  const { theme, toggle } = useTheme();
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [showReconnected, setShowReconnected] = useState(false);
 
@@ -138,6 +141,10 @@ export const TopBar: React.FC<TopBarProps> = ({
             )}
 
             <button onClick={onOpenSyncHub} className="flex px-2.5 py-1.5 text-xs font-medium text-sky-300 bg-sky-950/40 border border-sky-800/60 rounded-lg items-center gap-1.5"><Globe className="w-3.5 h-3.5" /><span className="hidden sm:inline">Sync</span></button>
+
+	    <button onClick={toggle} className="p-2 rounded-lg bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+</button>
 
             <button onClick={onOpenDevModal} className="flex px-3 py-1.5 text-xs font-medium text-slate-300 bg-slate-900 border border-slate-700/80 rounded-lg hover:bg-slate-800 items-center gap-1.5"><Terminal className="w-3.5 h-3.5 text-indigo-400" /><span className="hidden md:inline">Studio</span></button>
           </div>

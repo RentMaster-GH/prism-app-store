@@ -29,7 +29,7 @@ export const AppCard: React.FC<Props> = ({ app, installedState, onOpenDetails, o
   };
 
   return (
-    <div onClick={()=>onOpenDetails(app)} className="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-700 transition-all cursor-pointer flex flex-col">
+    <div onClick={()=>onOpenDetails(app)} className="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-indigo-500/30 hover:shadow-[0_0_30px_-12px_rgba(99,102,241,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex flex-col">
       <div className="relative h-36 bg-slate-950 overflow-hidden">
         <img src={getOptimizedImageUrl(resolveAppMedia(app.heroImage || app.thumbnail),400)} alt={app.name} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" loading="lazy" onError={e=>{ const t=e.currentTarget; const fb=getAppCategoryPlaceholder(app.category, app.name); if(t.src!==fb) t.src=fb; }} />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />

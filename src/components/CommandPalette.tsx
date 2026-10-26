@@ -122,4 +122,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
       </div>
     </div>
   );
+<<<<<<< HEAD
 };
+=======
+};
+>>>>>>> 7eae3b97ca419c5e6ab0a3fa10ce8483a9cb32d0

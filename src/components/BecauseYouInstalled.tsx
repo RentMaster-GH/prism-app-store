@@ -1,17 +1,76 @@
+import React, { useRef } from 'react';
 import { AppItem, InstalledAppState } from '../types';
+import { Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppCard } from './AppCard';
 
-export const BecauseYouInstalled: React.FC<{ installedMap: Record<string, InstalledAppState>; allApps: AppItem[]; onOpenDetails: (a: AppItem) => void; onQuickInstall: (a: AppItem) => void; onOpenSandbox: (a: AppItem) => void; }> = ({ installedMap, allApps, onOpenDetails, onQuickInstall, onOpenSandbox }) => {
-  const installedIds = Object.keys(installedMap).filter(id => installedMap[id].status === 'installed');
-  if (installedIds.length === 0) return null;
-  const lastInstalled = allApps.find(a => a.id === installedIds[0]);
-  if (!lastInstalled) return null;
-  const recommendations = allApps.filter(a => !installedIds.includes(a.id) && (a.category === lastInstalled.category || a.supportedDevices.some(d => lastInstalled.supportedDevices.includes(d)))).slice(0, 6);
-  if (recommendations.length === 0) return null;
+interface Props {
+  apps: AppItem[];
+  installedMap: Record<string, InstalledAppState>;
+  onOpenDetails: (app: AppItem) => void;
+  onQuickInstall: (app: AppItem) => void;
+  onOpenSandbox: (app: AppItem) => void;
+}
+
+export const BecauseYouInstalled: React.FC<Props> = ({ apps, installedMap, onOpenDetails, onQuickInstall, onOpenSandbox }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  if (apps.length === 0) return null;
+
+  const scroll = (dir: 'left' | 'right') => {
+    if (!scrollRef.current) return;
+    const cardWidth = 280 + 16; // card + gap
+    scrollRef.current.scrollBy({ left: dir === 'left' ? -cardWidth * 2 : cardWidth * 2, behavior: 'smooth' });
+  };
+
   return (
-    <section className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
-      <div className="flex items-center justify-between"><h3 className="text-sm font-bold text-white">Because you installed <span className="text-indigo-300">{lastInstalled.name}</span></h3><span className="text-[10px] font-mono text-slate-500">{recommendations.length} picks</span></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{recommendations.map(app => <AppCard key={app.id} app={app} installedState={installedMap[app.id]} onOpenDetails={onOpenDetails} onQuickInstall={onQuickInstall} onOpenSandbox={onOpenSandbox} />)}</div>
-    </section>
+    <div className="relative">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5 text-white" />
+          </span>
+          Because you installed
+          <span className="px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-mono text-indigo-200 tracking-widest">FOR YOU</span>
+        </h3>
+        <div className="hidden sm:flex items-center gap-1">
+          <button onClick={() => scroll('left')} className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center hover:bg-white/[0.10] text-slate-400 hover:text-white transition active:scale-95">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button onClick={() => scroll('right')} className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center hover:bg-white/[0.10] text-slate-400 hover:text-white transition active:scale-95">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* GPU-accelerated native scroll */}
+      <div
+        ref={scrollRef}
+        className="flex gap-4 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory pb-2 -mx-1 px-1"
+        style={{
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          WebkitOverflowScrolling: 'touch',
+          willChange: 'scroll-position',
+        } as React.CSSProperties}
+      >
+        {apps.map((app, i) => (
+          <div key={app.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] will-change-transform" style={{ transform: 'translateZ(0)' }}>
+            <AppCard
+              app={app}
+              installedState={installedMap[app.id]}
+              onOpenDetails={onOpenDetails}
+              onQuickInstall={onQuickInstall}
+              onOpenSandbox={onOpenSandbox}
+              index={i}
+            />
+          </div>
+        ))}
+      </div>
+
+      <style>{`
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+    </div>
   );
 };

@@ -22,7 +22,6 @@ export const AppCard: React.FC<Props> = ({ app, installedState, onOpenDetails, o
     if (app.liveAppUrl) window.open(app.liveAppUrl, '_blank', 'noopener,noreferrer');
     else onOpenSandbox(app);
   };
-
   const handleInstall = (e: React.MouseEvent) => {
     e.stopPropagation();
     if ('vibrate' in navigator) navigator.vibrate(10);
@@ -34,6 +33,10 @@ export const AppCard: React.FC<Props> = ({ app, installedState, onOpenDetails, o
       <div className="relative h-36 bg-slate-950 overflow-hidden">
         <img src={getOptimizedImageUrl(resolveAppMedia(app.heroImage || app.thumbnail),400)} alt={app.name} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" loading="lazy" onError={e=>{ const t=e.currentTarget; const fb=getAppCategoryPlaceholder(app.category, app.name); if(t.src!==fb) t.src=fb; }} />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
+        {/* WHITE container for app icon - fixes black logo invisible in dark mode */}
+        <div className="absolute bottom-3 left-3 w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-lg flex items-center justify-center overflow-hidden">
+          <img src={getOptimizedImageUrl(resolveAppMedia(app.thumbnail),80)} alt="" className="w-8 h-8 object-contain" loading="lazy" onError={e=>{ const t=e.currentTarget as HTMLImageElement; t.style.display='none'; }} />
+        </div>
         <div className="absolute top-3 left-3 flex items-center gap-1.5">
           {app.liveAppUrl && <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-full flex items-center gap-1"><span className="w-1 h-1 bg-white rounded-full animate-pulse" />LIVE</span>}
           {app.offlineCapable && <span className="px-2 py-0.5 bg-slate-800/80 backdrop-blur border border-slate-700 text-slate-300 text-[10px] font-mono rounded-full flex items-center gap-1"><Zap className="w-3 h-3" />Offline</span>}
@@ -41,7 +44,7 @@ export const AppCard: React.FC<Props> = ({ app, installedState, onOpenDetails, o
         <div className="absolute top-3 right-3">
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${app.privacyGrade==='A+' ? 'bg-emerald-950/70 text-emerald-300 border-emerald-800/50' : 'bg-slate-800/80 text-slate-400 border-slate-700'}`}><ShieldCheck className="w-3 h-3 inline mr-0.5" />{app.privacyGrade}</span>
         </div>
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+        <div className="absolute bottom-3 left-16 right-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-[11px] text-white/80"><Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" /><span className="font-mono font-bold text-white">{app.rating.toFixed(1)}</span><span className="text-white/60">· {app.downloadsCount}</span></div>
           {installed && <span className="px-2 py-0.5 bg-white text-slate-900 text-[10px] font-bold rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Installed</span>}
         </div>

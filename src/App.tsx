@@ -242,12 +242,19 @@ function AppStoreContent() {
                     <div><div className="text-[10px] text-indigo-400 font-mono mb-2">EDITOR'S SPOTLIGHT</div><h1 className="text-xl sm:text-4xl font-extrabold tracking-tight">{heroApp.editorialHighlight?.headline || heroApp.name}</h1><p className="text-xs sm:text-sm text-slate-300 mt-3">{heroApp.summary}</p><div className="flex items-center gap-2 text-xs text-slate-400 mt-4"><Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />{heroApp.rating.toFixed(1)} · {heroApp.category} · Privacy {heroApp.privacyGrade}</div></div>
                     <div className="flex gap-2 mt-6"><button onClick={() => openAppDetails(heroApp)} className="px-4 py-2.5 bg-white text-slate-950 font-bold rounded-xl text-sm flex items-center gap-2"><Download className="w-4 h-4" />Get {heroApp.name}</button><button onClick={() => openAppDetails(heroApp,'test-drive')} className="px-3 py-2.5 bg-indigo-950/60 border border-indigo-700/60 text-indigo-300 rounded-xl text-sm flex items-center gap-2"><Play className="w-3.5 h-3.5 fill-current" />Test Drive</button></div>
                   </div>
-                  <div className="lg:col-span-6 relative min-h-[260px] bg-slate-950">{heroApp.heroImage && <img src={resolveAppMedia(heroApp.heroImage)} alt={heroApp.name} className="w-full h-full object-cover lg:absolute lg:inset-0" onError={(e)=>{ const t=e.currentTarget; const fb=getAppCategoryPlaceholder(heroApp.category, heroApp.name); if(t.src!==fb) t.src=fb; }} />}</div>
+                  <div className="lg:col-span-6 relative min-h-[260px] bg-slate-950">
+                    {heroApp.heroImage && <img src={resolveAppMedia(heroApp.heroImage)} alt={heroApp.name} loading="eager" decoding="async" width={600} height={400} className="w-full h-full object-cover lg:absolute lg:inset-0" onError={(e)=>{ const t=e.currentTarget; const fb=getAppCategoryPlaceholder(heroApp.category, heroApp.name); if(t.src!==fb) t.src=fb; }} />}
+                  </div>
                 </div>
               </section>
             )}
             {Object.keys(installedMap).length > 0 && <BecauseYouInstalled installedMap={installedMap} allApps={apps} onOpenDetails={openAppDetails} onQuickInstall={handleInstallApp} onOpenSandbox={(a)=>openAppDetails(a,'test-drive')} />}
-            <section><div className="flex items-center justify-between mb-4"><h3 className="text-base font-bold">Editor's Choice</h3><button onClick={() => setCurrentTab('apps')} className="text-xs text-indigo-400 flex items-center gap-1">View All<ArrowRight className="w-3 h-3" /></button></div><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{paginatedApps.slice(0,6).map(app => (<AppCard key={app.id} app={app} installedState={installedMap[app.id]} onOpenDetails={openAppDetails} onQuickInstall={handleInstallApp} onOpenSandbox={a=>openAppDetails(a,'test-drive')} />))}</div></section>
+            <section>
+              <div className="flex items-center justify-between mb-4"><h3 className="text-base font-bold">Editor's Choice</h3><button onClick={() => setCurrentTab('apps')} className="text-xs text-indigo-400 flex items-center gap-1">View All<ArrowRight className="w-3 h-3" /></button></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {paginatedApps.slice(0,6).map((app, idx) => (<AppCard key={app.id} index={idx} app={app} installedState={installedMap[app.id]} onOpenDetails={openAppDetails} onQuickInstall={handleInstallApp} onOpenSandbox={a=>openAppDetails(a,'test-drive')} />))}
+              </div>
+            </section>
           </div>
         )}
 
@@ -259,7 +266,10 @@ function AppStoreContent() {
                 <button onClick={()=>setCommandOpen(true)} className="px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs flex items-center gap-1"><Command className="w-3.5 h-3.5" />K</button>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{paginatedApps.map(app => (<AppCard key={app.id} app={app} installedState={installedMap[app.id]} onOpenDetails={openAppDetails} onQuickInstall={handleInstallApp} onOpenSandbox={a=>openAppDetails(a,'test-drive')} />))}<div ref={loadMoreRef} className="col-span-full py-6 flex justify-center">{hasMore && <button onClick={()=>setVisibleCount(v=>v+PAGE_SIZE)} className="px-4 py-2 bg-slate-800 rounded-xl text-xs">Load More ({filteredApps.length - visibleCount})</button>}</div></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {paginatedApps.map((app, idx) => (<AppCard key={app.id} index={idx} app={app} installedState={installedMap[app.id]} onOpenDetails={openAppDetails} onQuickInstall={handleInstallApp} onOpenSandbox={a=>openAppDetails(a,'test-drive')} />))}
+              <div ref={loadMoreRef} className="col-span-full py-6 flex justify-center">{hasMore && <button onClick={()=>setVisibleCount(v=>v+PAGE_SIZE)} className="px-4 py-2 bg-slate-800 rounded-xl text-xs">Load More ({filteredApps.length - visibleCount})</button>}</div>
+            </div>
           </div>
         )}
 

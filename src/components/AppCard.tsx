@@ -9,12 +9,15 @@ interface Props {
   onOpenDetails: (app: AppItem) => void;
   onQuickInstall: (app: AppItem) => void;
   onOpenSandbox: (app: AppItem) => void;
+  index?: number;
 }
 
-export const AppCard: React.FC<Props> = ({ app, installedState, onOpenDetails, onQuickInstall, onOpenSandbox }) => {
+export const AppCard: React.FC<Props> = ({ app, installedState, onOpenDetails, onQuickInstall, onOpenSandbox, index }) => {
   const installed = !!installedState && installedState.status === 'installed';
   const installing = installedState?.status === 'installing' || installedState?.status === 'updating';
   const progress = installedState?.progress || 0;
+
+  const isEager = index !== undefined && index < 6;
 
   const handleLaunch = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -31,11 +34,29 @@ export const AppCard: React.FC<Props> = ({ app, installedState, onOpenDetails, o
   return (
     <div onClick={()=>onOpenDetails(app)} className="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-indigo-500/30 hover:shadow-[0_0_30px_-12px_rgba(99,102,241,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex flex-col">
       <div className="relative h-36 bg-slate-950 overflow-hidden">
-        <img src={getOptimizedImageUrl(resolveAppMedia(app.heroImage || app.thumbnail),400)} alt={app.name} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" loading="lazy" onError={e=>{ const t=e.currentTarget; const fb=getAppCategoryPlaceholder(app.category, app.name); if(t.src!==fb) t.src=fb; }} />
+        <img 
+          src={getOptimizedImageUrl(resolveAppMedia(app.heroImage || app.thumbnail),400)} 
+          alt={app.name} 
+          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" 
+          loading={isEager ? "eager" : "lazy"}
+          decoding="async"
+          width={400}
+          height={144}
+          onError={e=>{ const t=e.currentTarget; const fb=getAppCategoryPlaceholder(app.category, app.name); if(t.src!==fb) t.src=fb; }} 
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
         {/* WHITE container for app icon - fixes black logo invisible in dark mode */}
         <div className="absolute bottom-3 left-3 w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-lg flex items-center justify-center overflow-hidden">
-          <img src={getOptimizedImageUrl(resolveAppMedia(app.thumbnail),80)} alt="" className="w-8 h-8 object-contain" loading="lazy" onError={e=>{ const t=e.currentTarget as HTMLImageElement; t.style.display='none'; }} />
+          <img 
+            src={getOptimizedImageUrl(resolveAppMedia(app.thumbnail),80)} 
+            alt="" 
+            className="w-8 h-8 object-contain" 
+            loading={isEager ? "eager" : "lazy"}
+            decoding="async"
+            width={80}
+            height={80}
+            onError={e=>{ const t=e.currentTarget as HTMLImageElement; t.style.display='none'; }} 
+          />
         </div>
         <div className="absolute top-3 left-3 flex items-center gap-1.5">
           {app.liveAppUrl && <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-full flex items-center gap-1"><span className="w-1 h-1 bg-white rounded-full animate-pulse" />LIVE</span>}

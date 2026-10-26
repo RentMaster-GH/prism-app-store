@@ -1,4 +1,3 @@
-cat > src/components/CommandPalette.tsx << 'EOF'
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AppItem, InstalledAppState } from '../types';
 import { Search, ArrowRight, Command, PackageOpen, Sparkles } from 'lucide-react';

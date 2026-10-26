@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AppItem, InstalledAppState } from '../types';
 import { Search, ArrowRight, Command, PackageOpen, Sparkles, Loader2 } from 'lucide-react';
 import { getOptimizedImageUrl, resolveAppMedia } from '../utils/media';
@@ -14,7 +14,20 @@ interface CommandPaletteProps {
   onClose: () => void;
 }
 
-export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedMap, onOpenDetails, onOpenSandbox, onInstall, isOpen, onClose }) => {
+function Highlight({ text, query }: { text: string; query: string }) {
+  if (!query || query.length < 2) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-amber-300/30 text-amber-600 dark:text-amber-200 px-0.5 rounded font-bold">{text.slice(idx, idx + query.length)}</mark>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
+export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedMap, onOpenDetails, isOpen, onClose }) => {
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -23,8 +36,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 10);
-      setQuery('');
-      setSelectedIdx(0);
+      setQuery(''); setSelectedIdx(0);
     }
   }, [isOpen]);
 
@@ -34,46 +46,32 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
       developer: row.developer_name || 'Indie Engineer', developerVerified: true,
       category: row.category || 'Developer Tools', price: 0, priceFormatted: 'Free', priceModel: 'Free' as any,
       rating: 5.0, reviewCount: 1, downloadsCount: String(row.downloads || 1), sizeMB: row.size_mb || 15,
-      currentVersion: row.version || '1.0.0', minOS: 'Android 12 / iOS 16 / macOS / Web',
-      supportedDevices: ['Phone','Tablet','Desktop','Vision'] as any,
-      heroImage: row.download_url || '', thumbnail: row.download_url || '',
-      accentColor: '#38bdf8', summary: row.description || row.title,
-      features: [], offlineCapable: true, zeroTrackers: true, openSource: false, isUserUploaded: true,
+      currentVersion: row.version || '1.0.0', minOS: 'Web', supportedDevices: ['Phone','Tablet','Desktop','Vision'] as any,
+      heroImage: row.download_url || '', thumbnail: row.download_url || '', accentColor: '#38bdf8',
+      summary: row.description || '', features: [], offlineCapable: true, zeroTrackers: true, openSource: false, isUserUploaded: true,
       liveAppUrl: row.download_url || row.live_app_url, websiteUrl: row.download_url || row.live_app_url,
       privacyGrade: 'A+', permissions: [], dataCollected: [], versionHistory: [], reviews: [], sandboxType: 'terminal' as any
     } as AppItem));
-
     if (!query.trim()) {
       const installed = apps.filter(a => installedMap[a.id]).slice(0,5);
       const featured = apps.filter(a => a.editorialHighlight).slice(0,5);
       return [...installed, ...featured].slice(0,8);
     }
     const q = query.toLowerCase();
-    const local = apps.filter(a => 
-      a.name.toLowerCase().includes(q) ||
-      a.category.toLowerCase().includes(q) ||
-      a.developer.toLowerCase().includes(q) ||
-      a.tagline.toLowerCase().includes(q)
-    ).slice(0,12);
+    const local = apps.filter(a => a.name.toLowerCase().includes(q) || a.category.toLowerCase().includes(q) || a.developer.toLowerCase().includes(q) || a.tagline.toLowerCase().includes(q)).slice(0,12);
     const seen = new Set(local.map(l => l.id));
     const extra = mappedSupabase.filter(m => !seen.has(m.id)).slice(0,6);
     return [...local, ...extra].slice(0,18);
   }, [apps, installedMap, query, supabaseResults]);
 
   useEffect(() => { setSelectedIdx(0); }, [query]);
-
-  const handleSelect = (app: AppItem) => {
-    onClose();
-    onOpenDetails(app);
-  };
-
+  const handleSelect = (app: AppItem) => { onClose(); onOpenDetails(app); };
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i+1, results.length-1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIdx(i => Math.max(i-1, 0)); }
     else if (e.key === 'Enter') { e.preventDefault(); if (results[selectedIdx]) handleSelect(results[selectedIdx]); }
     else if (e.key === 'Escape') { onClose(); }
   };
-
   if (!isOpen) return null;
 
   return (
@@ -85,9 +83,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
           {isSearching ? <Loader2 className="w-4 h-4 text-slate-500 animate-spin" /> : <div className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-slate-500 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded"><span>ESC</span></div>}
         </div>
         <div className="max-h-96 overflow-y-auto p-2">
-          {results.length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-500"><PackageOpen className="w-6 h-6 mx-auto mb-2 text-slate-600" />{isSearching ? 'Searching...' : `No apps found for "${query}"`}</div>
-          ) : (
+          {results.length === 0 ? <div className="p-8 text-center text-sm text-slate-500"><PackageOpen className="w-6 h-6 mx-auto mb-2 text-slate-600" />{isSearching ? 'Searching...' : `No apps found for "${query}"`}</div> : (
             <div className="space-y-1">
               {!query && <div className="px-3 py-2 text-[11px] font-mono text-slate-500 uppercase tracking-wider flex items-center gap-1"><Sparkles className="w-3 h-3" /> {Object.keys(installedMap).length > 0 ? 'Installed & Featured' : 'Featured'}</div>}
               {results.map((app, idx) => {
@@ -99,8 +95,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
                       <img src={getOptimizedImageUrl(resolveAppMedia(app.thumbnail),80)} alt={app.name} className="w-7 h-7 object-contain" loading="lazy" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white truncate flex items-center gap-2">{app.name}{installed && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 rounded font-mono">Installed</span>}</div>
-                      <div className="text-xs text-slate-400 truncate">{app.category} · {app.tagline}</div>
+                      <div className="text-sm font-medium text-white truncate flex items-center gap-2"><Highlight text={app.name} query={query} />{installed && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 rounded font-mono">Installed</span>}</div>
+                      <div className="text-xs text-slate-400 truncate"><Highlight text={app.category} query={query} /> · {app.tagline}</div>
                     </div>
                     {isSelected && <ArrowRight className="w-3 h-3 text-slate-500 shrink-0" />}
                   </button>

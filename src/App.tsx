@@ -23,6 +23,7 @@ import { useSupabaseSearch } from './hooks/useSupabaseSearch';
 import { BecauseYouInstalled } from './components/BecauseYouInstalled';
 import { CommandPalette } from './components/CommandPalette';
 import { supabase } from './lib/supabase';
+import { useInstallAnalytics } from './hooks/useInstallAnalytics';
 
 const PAGE_SIZE = 12;
 
@@ -44,6 +45,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 }
 
 function AppStoreContent() {
+  useInstallAnalytics();
   const [apps, setApps] = useState<AppItem[]>(() => {
     try {
       const savedUserAppsRaw = localStorage.getItem('prism_user_uploaded_apps');

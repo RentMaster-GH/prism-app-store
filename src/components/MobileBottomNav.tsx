@@ -1,110 +1,59 @@
 import React from 'react';
-import { Compass, LayoutGrid, Columns, Download, Globe, Sparkles } from 'lucide-react';
-import { useSafeArea } from '../context/SafeAreaContext';
+import { LayoutGrid, Search, Columns2, Library, HardDrive } from 'lucide-react';
 
-interface MobileBottomNavProps {
+interface Props {
   currentTab: 'discover' | 'apps' | 'compare' | 'library';
   onSelectTab: (tab: 'discover' | 'apps' | 'compare' | 'library') => void;
   installedCount: number;
   onOpenSyncHub: () => void;
 }
 
-export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
-  currentTab,
-  onSelectTab,
-  installedCount,
-  onOpenSyncHub
-}) => {
-  const { insets, platform } = useSafeArea();
-
-  const isIOS = platform === 'ios';
+export const MobileBottomNav: React.FC<Props> = ({ currentTab, onSelectTab, installedCount, onOpenSyncHub }) => {
+  const tabs = [
+    { id: 'discover', label: 'Discover', icon: LayoutGrid },
+    { id: 'apps', label: 'Search', icon: Search },
+    { id: 'compare', label: 'Compare', icon: Columns2 },
+    { id: 'library', label: 'Library', icon: Library, badge: installedCount },
+  ] as const;
 
   return (
-    <nav 
-      aria-label="Mobile Navigation"
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 transition-all"
-      style={{
-        paddingBottom: `max(${insets.bottom}px, env(safe-area-inset-bottom, 12px))`
-      }}
-    >
-      <div className="flex items-center justify-around px-2 pt-2 pb-1">
-        {/* Discover Tab */}
-        <button
-          onClick={() => onSelectTab('discover')}
-          className={`flex flex-col items-center justify-center min-w-[56px] py-1 transition-all ${
-            currentTab === 'discover'
-              ? 'text-indigo-400 font-semibold'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className={`p-1 rounded-xl transition-all ${currentTab === 'discover' ? 'bg-indigo-500/15' : ''}`}>
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] tracking-tight mt-0.5">Discover</span>
-        </button>
+    <>
+      {/* Spacer to prevent content being hidden behind nav */}
+      <div className="md:hidden h-[88px]" />
 
-        {/* All Software Tab */}
-        <button
-          onClick={() => onSelectTab('apps')}
-          className={`flex flex-col items-center justify-center min-w-[56px] py-1 transition-all ${
-            currentTab === 'apps'
-              ? 'text-indigo-400 font-semibold'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className={`p-1 rounded-xl transition-all ${currentTab === 'apps' ? 'bg-indigo-500/15' : ''}`}>
-            <LayoutGrid className="w-5 h-5" />
+      {/* Floating pill nav */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-50 pointer-events-none">
+        <div className="pointer-events-auto mx-auto mb-[max(12px,env(safe-area-inset-bottom))] w-[calc(100%-16px)] max-w-[420px]">
+          <div className="flex items-center justify-between gap-1 p-1.5 rounded-[24px] bg-[#0e0f22]/90 backdrop-blur-2xl border border-white/[0.10] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)]">
+            {tabs.map(t => {
+              const active = currentTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => onSelectTab(t.id as any)}
+                  className={`relative flex-1 h-[48px] rounded-[16px] flex flex-col items-center justify-center gap-0.5 transition-all active:scale-[0.96] ${active ? 'bg-white text-black shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                  <div className="relative">
+                    <t.icon className={`w-5 h-5 ${active ? 'text-black' : ''}`} />
+                    {'badge' in t && t.badge > 0 && (
+                      <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-indigo-500 text-white text-[9px] font-bold flex items-center justify-center border border-[#0e0f22]">
+                        {t.badge}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-medium tracking-wide">{t.label}</span>
+                </button>
+              );
+            })}
+            
+            <div className="w-px h-8 bg-white/[0.08] mx-0.5" />
+            
+            <button onClick={onOpenSyncHub} className="w-[48px] h-[48px] rounded-[16px] bg-white/[0.06] border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.10] transition active:scale-[0.96]">
+              <HardDrive className="w-5 h-5" />
+            </button>
           </div>
-          <span className="text-[10px] tracking-tight mt-0.5">Apps</span>
-        </button>
-
-        {/* Compare Tab */}
-        <button
-          onClick={() => onSelectTab('compare')}
-          className={`flex flex-col items-center justify-center min-w-[56px] py-1 transition-all ${
-            currentTab === 'compare'
-              ? 'text-indigo-400 font-semibold'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className={`p-1 rounded-xl transition-all ${currentTab === 'compare' ? 'bg-indigo-500/15' : ''}`}>
-            <Columns className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] tracking-tight mt-0.5">Compare</span>
-        </button>
-
-        {/* Library Tab */}
-        <button
-          onClick={() => onSelectTab('library')}
-          className={`relative flex flex-col items-center justify-center min-w-[56px] py-1 transition-all ${
-            currentTab === 'library'
-              ? 'text-indigo-400 font-semibold'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className={`p-1 rounded-xl transition-all ${currentTab === 'library' ? 'bg-indigo-500/15' : ''}`}>
-            <Download className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] tracking-tight mt-0.5">Library</span>
-          {installedCount > 0 && (
-            <span className="absolute top-0.5 right-2 px-1.5 py-0.2 bg-indigo-500 text-white rounded-full text-[9px] font-mono font-bold leading-none">
-              {installedCount}
-            </span>
-          )}
-        </button>
-
-        {/* Edge & Sync Hub Button */}
-        <button
-          onClick={onOpenSyncHub}
-          className="flex flex-col items-center justify-center min-w-[56px] py-1 text-sky-400 hover:text-sky-300 transition-all"
-          title="CDN Edge Propagation & Cache Manager"
-        >
-          <div className="p-1 rounded-xl hover:bg-sky-500/15 transition-all">
-            <Globe className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] tracking-tight mt-0.5 text-slate-300">Sync & CDN</span>
-        </button>
+        </div>
       </div>
-    </nav>
+    </>
   );
 };

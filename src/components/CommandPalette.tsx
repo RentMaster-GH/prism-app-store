@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AppItem, InstalledAppState } from '../types';
 import { Search, ArrowRight, Command, PackageOpen, Sparkles, Loader2 } from 'lucide-react';
 import { getOptimizedImageUrl, resolveAppMedia } from '../utils/media';
@@ -29,7 +29,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
   }, [isOpen]);
 
   const results = useMemo(() => {
-    // Map Supabase rows to AppItem shape for display
     const mappedSupabase: AppItem[] = supabaseResults.map((row: any) => ({
       id: row.id, name: row.title, tagline: row.tagline || row.description || 'User published',
       developer: row.developer_name || 'Indie Engineer', developerVerified: true,
@@ -54,11 +53,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
       a.name.toLowerCase().includes(q) ||
       a.category.toLowerCase().includes(q) ||
       a.developer.toLowerCase().includes(q) ||
-      a.tagline.toLowerCase().includes(q) ||
-      (a.summary && a.summary.toLowerCase().includes(q))
+      a.tagline.toLowerCase().includes(q)
     ).slice(0,12);
-
-    // Merge: local first, then supabase deduped
     const seen = new Set(local.map(l => l.id));
     const extra = mappedSupabase.filter(m => !seen.has(m.id)).slice(0,6);
     return [...local, ...extra].slice(0,18);
@@ -69,7 +65,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
   const handleSelect = (app: AppItem) => {
     onClose();
     onOpenDetails(app);
-    if ('vibrate' in navigator) navigator.vibrate(10);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -100,7 +95,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
                 const isSelected = idx === selectedIdx;
                 return (
                   <button key={app.id} onClick={()=>handleSelect(app)} onMouseEnter={()=>setSelectedIdx(idx)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${isSelected ? 'bg-slate-800 border border-slate-700' : 'border border-transparent hover:bg-slate-800/50'}`}>
-                    {/* WHITE background for logo - fixes dark mode invisibility */}
                     <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
                       <img src={getOptimizedImageUrl(resolveAppMedia(app.thumbnail),80)} alt={app.name} className="w-7 h-7 object-contain" loading="lazy" />
                     </div>
@@ -122,8 +116,4 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ apps, installedM
       </div>
     </div>
   );
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 7eae3b97ca419c5e6ab0a3fa10ce8483a9cb32d0

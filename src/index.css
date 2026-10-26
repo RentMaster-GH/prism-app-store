@@ -2,20 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --bg: #020617; --card: #0f172a; --border: #1e293b; --text: #f8fafc; --muted: #94a3b8; }
-[data-theme='light'] { --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; --text: #0f172a; --muted: #64748b; }
+* {
+  font-family: 'Inter', system-ui, sans-serif;
+}
 
-html { background: var(--bg); }
-body { background: var(--bg); color: var(--text); transition: background 0.3s, color 0.3s; }
-
-/* Light mode overrides for common Tailwind classes used in app */
-[data-theme='light'] .bg-slate-950 { background-color: #ffffff !important; }
-[data-theme='light'] .bg-slate-950\/90 { background-color: rgba(255,255,255,0.9) !important; }
-[data-theme='light'] .bg-slate-900 { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
-[data-theme='light'] .bg-slate-800 { background-color: #f1f5f9 !important; }
-[data-theme='light'] .border-slate-800 { border-color: #e2e8f0 !important; }
-[data-theme='light'] .border-slate-700 { border-color: #cbd5e1 !important; }
-[data-theme='light'] .text-white { color: #0f172a !important; }
-[data-theme='light'] .text-slate-300 { color: #334155 !important; }
-[data-theme='light'] .text-slate-400 { color: #64748b !important; }
-[data-theme='light'] .text-slate-500 { color: #94a3b8 !important; }
+body {
+  background: #020617;
+  color: #f1f5f9;
+}

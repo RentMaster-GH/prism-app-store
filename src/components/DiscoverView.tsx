@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Search, TrendingUp, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AppCard } from './AppCard';
+import { useApprovedApps } from '../hooks/useApprovedApps'
 
 interface App {
   id: string;
@@ -18,10 +19,8 @@ interface App {
   status: string;
 }
 
-const MOCK_APPS: App[] = [
-  { id: '1', title: 'Prism Synth', studio: 'Prism Labs', tagline: 'The DAW-grade synthesizer that refuses subscription lock-in', thumbnail_url: '', live_web_url: 'https://example.com', category: 'Synth', rating: 4.9, package_size: '36.4 MB', monetization: 'Free', installs: 1200, status: 'approved' },
-  { id: '2', title: 'Prism FX', studio: 'Prism Labs', tagline: 'Analog modeled FX chain', thumbnail_url: '', live_web_url: 'https://example.com', category: 'Effect', rating: 4.7, package_size: '18.2 MB', monetization: 'Free', installs: 800, status: 'approved' },
-];
+const { apps: realApps, loading } = useApprovedApps()
+const apps = realApps.length > 0 ? realApps : MOCK_APPS
 
 export const DiscoverView: React.FC<{ onInstall: (app: any) => void; onOpen: (app: any) => void }> = ({ onInstall, onOpen }) => {
   const [apps, setApps] = useState<App[]>([]);

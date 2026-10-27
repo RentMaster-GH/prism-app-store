@@ -158,8 +158,16 @@ function AppStoreContent() {
     } catch {}
   }, []);
 
-  const [userUID, setUserUID] = useState<string>(() => { try { const saved = localStorage.getItem('prism_user_uid'); if (saved) return saved; } catch {} const id = `PRISM-UID-${Math.floor(1000 + Math.random() * 9000)}-${Math.random().toString(36).substring(2,6).toUpperCase()}`; try { localStorage.setItem('prism_user_uid', id); } catch {} return id; });
-  const [isStoreManager, setIsStoreManager] = useState<boolean>(() => { try { return localStorage.getItem('prism_is_store_manager') === 'true'; } catch {} return false; });
+    const [userUID] = useState(()=> {
+    const existing = localStorage.getItem('prism_user_uid');
+    if (existing) return existing;
+    const backup = localStorage.getItem('prism_user_uid_backup');
+    if (backup) return backup;
+    const newUid = 'PRISM-UID-' + Math.random().toString(36).substring(2,6).toUpperCase() + '-' + Math.random().toString(36).substring(2,5).toUpperCase();
+    localStorage.setItem('prism_user_uid', newUid);
+    localStorage.setItem('prism_user_uid_backup', newUid);
+    return newUid;
+  });  const [isStoreManager, setIsStoreManager] = useState<boolean>(() => { try { return localStorage.getItem('prism_is_store_manager') === 'true'; } catch {} return false; });
   const [showMyApps, setShowMyApps] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
   const [isManagerAuthModalOpen, setIsManagerAuthModalOpen] = useState(false);
@@ -346,8 +354,8 @@ function AppStoreContent() {
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2 items-center">
               <button onClick={()=>setView('all')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='all' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>All Software ({baseApps.length})</button>
-              <button onClick={()=>setView('featured')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='featured' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}>Featured</button>
-              <button onClick={()=>setView('my')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='my' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>My Uploads ({myApps.length})</button>
+              <button onClick={()=>{setDebouncedSearch(''); setSearch(''); setView('featured')}} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='featured' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}>Featured</button>
+              <button onClick={()=>{setDebouncedSearch(''); setSearch(''); setStoreCategory('All'); setView('my')}} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='my' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>My Uploads ({myApps.length})</button>
               <button onClick={()=>{setReportAppContext(null); setShowReportPortal(true);}} className="px-4 py-2 rounded-full text-xs font-bold bg-amber-100 text-amber-800 hover:bg-amber-200">Report Issue</button>
               {view==='my' && myApps.length===0 && <span className="text-xs text-white/30 ml-2">No uploads yet - UID: {userUID}</span>}
             </div>
@@ -419,6 +427,8 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+
 
 
 

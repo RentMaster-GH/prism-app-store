@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { 
   BookOpen, CheckCircle2, Globe, ShieldCheck, ArrowRight, 
   Trash2, AlertTriangle, ExternalLink, Sparkles, Layers,
@@ -233,7 +233,7 @@ export const OwnerGuidePortal: React.FC<OwnerGuidePortalProps> = ({
                   Live Hosted App URL (e.g. https://adinkra-studio.app)
                 </div>
                 <p>
-                  As soon as you provide this URL, Prism Store automatically generates a prominent <strong className="text-emerald-400">"Launch Live App"</strong> button on your app’s store listing and card. When visitors click it, they are instantly transported to your hosted app without needing manual file downloads.
+                  As soon as you provide this URL, Prism Store automatically generates a prominent <strong className="text-emerald-400">"Launch Live App"</strong> button on your appâ€™s store listing and card. When visitors click it, they are instantly transported to your hosted app without needing manual file downloads.
                 </p>
               </div>
 
@@ -360,7 +360,7 @@ export const OwnerGuidePortal: React.FC<OwnerGuidePortalProps> = ({
                   <span>3. Direct 1-Click Device Installation (Zero 3-Dots Hassle)</span>
                 </div>
                 <p className="text-slate-400 leading-relaxed">
-                  Users can install directly from the Prism Store page with 1 click — completely avoiding the long process of searching through browser three-dot menus. Works across Android, iPhone, iPad, and desktop with offline support.
+                  Users can install directly from the Prism Store page with 1 click â€” completely avoiding the long process of searching through browser three-dot menus. Works across Android, iPhone, iPad, and desktop with offline support.
                 </p>
               </div>
 
@@ -561,3 +561,4 @@ export const OwnerGuidePortal: React.FC<OwnerGuidePortalProps> = ({
     </div>
   );
 };
+

@@ -1,4 +1,5 @@
 ﻿import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { ClaimPanel } from './components/ClaimPanel';
 import { Search, Loader2, Edit3, Ban, BarChart3, Megaphone, Star } from 'lucide-react';
 import { APPS_DATA } from './data/appsData';
 import { AppItem, CategoryType, DevicePlatform, InstalledAppState, DeletedAppAuditItem } from './types';
@@ -280,7 +281,7 @@ function AppStoreContent() {
     const seen = new Set<string>();
     let list = view === 'my' ? [...myApps] : view==='featured' ? baseApps.filter((a:any)=>a.is_featured||a.isUserUploaded) : [...baseApps];
     if (storeCategory!=='All') list = list.filter((a:any)=> (a.category||a.category_raw||'').toLowerCase().includes(storeCategory.toLowerCase()) || a.category===storeCategory);
-    if (debouncedSearch.trim().length >= 2 && supabaseResults.length > 0) {
+    if (view !== 'my' && debouncedSearch.trim().length >= 2 && supabaseResults.length > 0) {
       const converted: AppItem[] = supabaseResults.map((row: any) => ({
         id: row.id, name: row.title, tagline: row.tagline || row.description || '', developer: row.developer_name || 'Indie', developerVerified: true, category: row.category || 'Labyrinth', price: 0, priceFormatted: 'Free', priceModel: 'Free' as any, rating: 5.0, reviewCount: 1, downloadsCount: '1', sizeMB: row.size_mb || 15, currentVersion: row.version || '1.0.0', minOS: 'Web', supportedDevices: ['Phone','Tablet','Desktop','Vision'] as any, heroImage: row.download_url || '', thumbnail: row.download_url || '', accentColor: '#38bdf8', summary: row.description || '', features: [], offlineCapable: true, zeroTrackers: true, openSource: false, isUserUploaded: true, ownerId: row.owner_id, owner_uid: row.owner_id, uploadedAt: 'Just now', liveAppUrl: row.download_url || row.live_app_url, websiteUrl: row.download_url || row.live_app_url, sourceCodeUrl: row.source_code_url, packageBundleName: row.package_bundle_name, privacyGrade: 'A+', permissions: [], dataCollected: [], versionHistory: [{ version: '1.0.0', releaseDate: 'Today', sizeMB: 15, isLatest: true, highlights: [] } as any], reviews: [], sandboxType: 'terminal' as any, status: row.status
       } as any));
@@ -415,5 +416,7 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+
 
 

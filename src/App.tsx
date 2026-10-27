@@ -289,8 +289,9 @@ function AppStoreContent() {
       } as any));
       const map = new Map<string, AppItem>(); converted.forEach(c => { if((c as any).status !== 'deleted') map.set(c.id, c); }); list.forEach(b => { if (!map.has(b.id)) map.set(b.id, b); }); list = Array.from(map.values());
     }
-    return list.filter(app => {
-      if (seen.has(app.id)) return false; seen.add(app.id);
+    const seen = new Set<string>();
+      return list.filter(app => {
+        if (seen.has(app.id)) return false; seen.add(app.id);
       const q = debouncedSearch.toLowerCase();
       const matchesSearch = !debouncedSearch || app.name.toLowerCase().includes(q) || app.tagline.toLowerCase().includes(q) || app.developer.toLowerCase().includes(q) || app.category.toLowerCase().includes(q);
       const matchesCategory = selectedCategory === 'All' || app.category === selectedCategory;
@@ -418,6 +419,7 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
 
 
 

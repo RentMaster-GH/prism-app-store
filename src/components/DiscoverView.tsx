@@ -1,7 +1,7 @@
-﻿import React, { useState, useMemo } from 'react';
+﻿import React, { useEffect, useState, useMemo } from 'react';
 import { Search, TrendingUp, Sparkles } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { AppCard } from './AppCard';
-import { useApprovedApps } from '../hooks/useApprovedApps'
 
 const MOCK_APPS = [
   { id: '1', title: 'Prism Synth', studio: 'Prism Labs', tagline: 'The DAW-grade synthesizer that refuses subscription lock-in', thumbnail_url: '', live_web_url: 'https://example.com', category: 'Synth', rating: 4.9, package_size: '36.4 MB', monetization: 'Free', installs: 1200, status: 'approved' },
@@ -9,14 +9,23 @@ const MOCK_APPS = [
 ];
 
 export const DiscoverView: React.FC<{ onInstall: (app: any) => void; onOpen: (app: any) => void }> = ({ onInstall, onOpen }) => {
-  const { apps: realApps, loading } = useApprovedApps();
-  const apps = realApps.length > 0 ? realApps : MOCK_APPS;
+  const [apps, setApps] = useState<any[]>(MOCK_APPS);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase.from('apps').select('*').eq('status','approved').order('installs',{ascending:false}).limit(24);
+      if (data && data.length > 0) setApps(data);
+      setLoading(false);
+    })();
+  }, []);
 
   const filtered = useMemo(() => {
     if (!search) return apps;
     const q = search.toLowerCase();
-    return apps.filter((a:any) => a.title.toLowerCase().includes(q) || a.tagline?.toLowerCase().includes(q) || a.studio?.toLowerCase().includes(q));
+    return apps.filter((a:any) => a.title?.toLowerCase().includes(q) || a.tagline?.toLowerCase().includes(q) || a.studio?.toLowerCase().includes(q));
   }, [apps, search]);
 
   const trending = filtered.slice(0, 6);
@@ -34,21 +43,8 @@ export const DiscoverView: React.FC<{ onInstall: (app: any) => void; onOpen: (ap
       </div>
       <div>
         <div className="flex items-center gap-2 mb-3"><TrendingUp className="w-4 h-4 text-white"/><h2 className="text-[13px] font-bold text-white">Trending now {loading && '(loading...)'}</h2></div>
-        {filtered.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/10 p-10 text-center">
-            <p className="text-[13px] text-slate-400">No apps found for "{search}"</p>
-            <button onClick={()=>setSearch('')} className="mt-3 h-8 px-4 rounded-full bg-white text-black text-[11px] font-bold">Clear search</button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {trending.map((app:any) => <AppCard key={app.id} app={app} onInstall={()=>onInstall(app)} onOpen={()=>onOpen(app)} />)}
-          </div>
-        )}
-      </div>
-      <div>
-        <h2 className="text-[13px] font-bold text-white mb-3">Because you installed</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.slice(0,3).map((app:any) => <AppCard key={'rec-'+app.id} app={app} onInstall={()=>onInstall(app)} onOpen={()=>onOpen(app)} />)}
+          {trending.map((app:any) => <AppCard key={app.id} app={app} onInstall={()=>onInstall(app)} onOpen={()=>onOpen(app)} />)}
         </div>
       </div>
     </div>

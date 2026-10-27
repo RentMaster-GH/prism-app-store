@@ -1,10 +1,9 @@
 ﻿import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, Star, Download, Play, ArrowRight, Command, Filter, SlidersHorizontal, X, Loader2 } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { APPS_DATA } from './data/appsData';
 import { AppItem, CategoryType, DevicePlatform, InstalledAppState, DeletedAppAuditItem } from './types';
 import { MySubmissionsView } from './components/MySubmissionsView';
 import { ManagerPendingView } from './components/ManagerPendingView';
-
 import { MyAppsDashboard } from './components/MyAppsDashboard';
 import { TrashModal, addToTrash } from './components/TrashManager';
 import { OfflineIndicator, UpdateNotificationToast } from './components/OfflinePWA';
@@ -16,17 +15,14 @@ import { LibraryView } from './components/LibraryView';
 import { DevSubmitModal } from './components/DevSubmitModal';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { DirectInstallBanner } from './components/DirectInstallBanner';
-import { OfflineIndicator } from './components/OfflineIndicator';
-import { UpdateNotificationToast } from './components/UpdateNotificationToast';
 import { ManagerAuthModal } from './components/ManagerAuthModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { EdgeSyncManagerModal } from './components/EdgeSyncManagerModal';
 import { AdaptiveDeviceWrapper } from './components/AdaptiveDeviceWrapper';
 import { SafeAreaProvider } from './context/SafeAreaContext';
 import { usePWAInstall } from './hooks/usePWAInstall';
-import { resolveAppMedia, getAppCategoryPlaceholder } from './utils/media';
+import { resolveAppMedia } from './utils/media';
 import { useSupabaseSearch } from './hooks/useSupabaseSearch';
-import { BecauseYouInstalled } from './components/BecauseYouInstalled';
 import { CommandPalette } from './components/CommandPalette';
 import { DiscoverView } from './components/DiscoverView';
 import { AppsSearchBar } from './components/AppsSearchBar';
@@ -86,9 +82,8 @@ function AppStoreContent() {
     const loadPermanentApps = async () => {
       setIsSupabaseSyncing(true);
       try {
-        const { data: mpData } = await supabase.from('marketplace_apps').select('*').order('created_at', { ascending: false });
-        const { data: appsTableData } = await supabase.from('apps').select('*').eq('status','approved').order('created_at', { ascending: false });
-        const data = [...(mpData||[]), ...(appsTableData||[])];
+        // 1. FILTER DELETED
+        const { data } = await supabase.from('marketplace_apps').select('*').neq('status','deleted').order('created_at', { ascending: false });
         if (!data || data.length === 0) return;
         const permanentApps: AppItem[] = data.map((row: any) => ({
           id: row.id, name: row.title, tagline: row.tagline || row.description || 'User published',
@@ -98,18 +93,18 @@ function AppStoreContent() {
           minOS: 'Android 12 / iOS 16 / macOS / Web', supportedDevices: ['Phone', 'Tablet', 'Desktop', 'Vision'] as any,
           heroImage: row.download_url || '', thumbnail: row.download_url || '', accentColor: '#38bdf8',
           summary: row.description || row.title, features: ['Zero trackers', 'Permanent hosting'], offlineCapable: true, zeroTrackers: true,
-          openSource: false, isUserUploaded: true, ownerId: row.owner_id, uploadedAt: 'Just now',
+          openSource: false, isUserUploaded: true, ownerId: row.owner_id, owner_uid: row.owner_id, uploadedAt: 'Just now',
           liveAppUrl: row.download_url || row.live_app_url, websiteUrl: row.download_url || row.live_app_url,
           sourceCodeUrl: row.source_code_url, packageBundleName: row.package_bundle_name, privacyGrade: 'A+', permissions: [], dataCollected: [],
           versionHistory: [{ version: row.version || '1.0.0', releaseDate: 'Today', sizeMB: row.size_mb || 15, isLatest: true, highlights: ['Live'] } as any],
-          reviews: [], sandboxType: 'terminal' as any
-        }));
-        setApps(prev => { const map = new Map<string, AppItem>(); permanentApps.forEach(a => map.set(a.id, a)); prev.forEach(a => { if (!map.has(a.id)) map.set(a.id, a); }); return Array.from(map.values()); });
+          reviews: [], sandboxType: 'terminal' as any, status: row.status
+        } as any));
+        setApps(prev => { const map = new Map<string, AppItem>(); permanentApps.forEach(a => map.set(a.id, a)); prev.forEach(a => { if (!map.has(a.id)) map.set(a.id, a); }); return Array.from(map.values()).filter((a:any)=> a.status !== 'deleted'); });
       } catch {} finally { setIsSupabaseSyncing(false); }
     };
     loadPermanentApps();
     try {
-      const channel = supabase.channel('marketplace_apps_realtime').on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_apps' }, () => { loadPermanentApps(); }).on('postgres_changes', { event: '*', schema: 'public', table: 'apps' }, () => { loadPermanentApps(); }).subscribe();
+      const channel = supabase.channel('marketplace_apps_realtime').on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_apps' }, () => { loadPermanentApps(); }).subscribe();
       return () => { try { supabase.removeChannel(channel); } catch {} };
     } catch {}
   }, []);
@@ -122,7 +117,11 @@ function AppStoreContent() {
   const handleUpdateUID = (newUID: string) => { setUserUID(newUID); try { localStorage.setItem('prism_user_uid', newUID); } catch {} };
   const handleSetStoreManager = (status: boolean) => { setIsStoreManager(status); try { localStorage.setItem('prism_is_store_manager', status ? 'true' : 'false'); } catch {} };
 
-  const [currentTab, setCurrentTab] = useState<'discover' | 'apps' | 'compare' | 'library'>(() => { try { const saved = localStorage.getItem('prism_current_tab'); if (saved && ['discover','apps','compare','library'].includes(saved)) return saved as any; } catch {} return 'discover'; });
+  const [currentTab, setCurrentTab] = useState<'discover' | 'apps' | 'compare' | 'library' | 'myapps'>(() => { try { const saved = localStorage.getItem('prism_current_tab'); if (saved && ['discover','apps','compare','library','myapps'].includes(saved)) return saved as any; } catch {} return 'discover'; });
+  
+  // 2. VIEW STATE FOR MY UPLOADS
+  const [view, setView] = useState<'all' | 'my'>('all');
+
   const [selectedApp, setSelectedApp] = useState<AppItem | null>(null);
   const [modalInitialTab, setModalInitialTab] = useState<'overview' | 'test-drive'>('overview');
   const [isDevModalOpen, setIsDevModalOpen] = useState(false);
@@ -177,7 +176,7 @@ function AppStoreContent() {
 
   useEffect(() => { try { localStorage.setItem('prism_current_tab', currentTab); } catch {} }, [currentTab]);
   useEffect(() => { try { localStorage.setItem('prism_installed_map', JSON.stringify(installedMap)); } catch {} }, [installedMap]);
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [searchQuery, selectedCategory, selectedDevice, selectedPriceModel, sortBy, currentTab]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [searchQuery, selectedCategory, selectedDevice, selectedPriceModel, sortBy, currentTab, view]);
 
   const handleInstallApp = useCallback((app: AppItem) => {
     setInstalledMap(prev => ({ ...prev, [app.id]: { appId: app.id, installedVersion: app.currentVersion, installedAt: 'Just now', storageUsedMB: app.sizeMB, status: 'installing', progress: 15 } as any }));
@@ -201,24 +200,31 @@ function AppStoreContent() {
   const handleAppDeleted = useCallback((appId: string, reason: string, deletedBy: any) => {
     const target = apps.find(a => a.id === appId);
     if (target) { const entry: DeletedAppAuditItem = { id: `del-${Date.now()}`, name: target.name, developer: target.developer, category: target.category, reason, deletedBy, deletedAt: new Date().toLocaleTimeString(), originalApp: target } as any; setDeletedAppsLog(prev => { const n=[entry,...prev]; try{localStorage.setItem('prism_deleted_apps_log', JSON.stringify(n));}catch{} return n; }); }
-    if (supabase) { supabase.from('marketplace_apps').delete().eq('id', appId).then(()=>{}); }
+    if (supabase) { supabase.from('marketplace_apps').update({ status: 'deleted', deleted_at: new Date().toISOString(), deleted_by: userUID }).eq('id', appId).then(()=>{}); }
     setApps(prev => prev.filter(a => a.id !== appId)); setInstalledMap(prev => { const c = { ...prev }; delete c[appId]; return c; }); if (selectedApp?.id === appId) setSelectedApp(null);
-  }, [apps, selectedApp]);
+  }, [apps, selectedApp, userUID]);
   const handleRestoreApp = useCallback((appToRestore: AppItem) => { setApps(prev => prev.some(a => a.id === appToRestore.id) ? prev : [appToRestore, ...prev]); setDeletedAppsLog(prev => prev.filter(d => d.originalApp.id !== appToRestore.id)); }, []);
 
   const CATEGORIES = useMemo(() => ['All', ...Array.from(new Set(APPS_DATA.map(a => a.category)))], []);
   const activeFilterCount = useMemo(() => [selectedCategory !== 'All', selectedDevice !== 'All', selectedPriceModel !== 'All', sortBy !== 'rating'].filter(Boolean).length, [selectedCategory, selectedDevice, selectedPriceModel, sortBy]);
 
+  // 3. BASE FILTER + MY UPLOADS FILTER
+  const baseApps = useMemo(() => apps.filter((a:any) => (a as any).status !== 'deleted'), [apps]);
+  const myApps = useMemo(() => baseApps.filter((a:any) => {
+    const owner = (a as any).ownerId || (a as any).owner_id || (a as any).owner_uid;
+    return owner === userUID;
+  }), [baseApps, userUID]);
+
   const filteredApps = useMemo(() => {
     const seen = new Set<string>();
-    let baseList = [...apps];
+    let list = view === 'my' ? [...myApps] : [...baseApps];
     if (searchQuery.trim().length >= 2 && supabaseResults.length > 0) {
       const converted: AppItem[] = supabaseResults.map((row: any) => ({
-        id: row.id, name: row.title, tagline: row.tagline || row.description || '', developer: row.developer_name || 'Indie', developerVerified: true, category: row.category || 'Developer Tools', price: 0, priceFormatted: 'Free', priceModel: 'Free' as any, rating: 5.0, reviewCount: 1, downloadsCount: '1', sizeMB: row.size_mb || 15, currentVersion: row.version || '1.0.0', minOS: 'Web', supportedDevices: ['Phone','Tablet','Desktop','Vision'] as any, heroImage: row.download_url || '', thumbnail: row.download_url || '', accentColor: '#38bdf8', summary: row.description || '', features: [], offlineCapable: true, zeroTrackers: true, openSource: false, isUserUploaded: true, ownerId: row.owner_id, uploadedAt: 'Just now', liveAppUrl: row.download_url || row.live_app_url, websiteUrl: row.download_url || row.live_app_url, sourceCodeUrl: row.source_code_url, packageBundleName: row.package_bundle_name, privacyGrade: 'A+', permissions: [], dataCollected: [], versionHistory: [{ version: '1.0.0', releaseDate: 'Today', sizeMB: 15, isLatest: true, highlights: [] } as any], reviews: [], sandboxType: 'terminal' as any
-      }));
-      const map = new Map<string, AppItem>(); converted.forEach(c => map.set(c.id, c)); baseList.forEach(b => { if (!map.has(b.id)) map.set(b.id, b); }); baseList = Array.from(map.values());
+        id: row.id, name: row.title, tagline: row.tagline || row.description || '', developer: row.developer_name || 'Indie', developerVerified: true, category: row.category || 'Developer Tools', price: 0, priceFormatted: 'Free', priceModel: 'Free' as any, rating: 5.0, reviewCount: 1, downloadsCount: '1', sizeMB: row.size_mb || 15, currentVersion: row.version || '1.0.0', minOS: 'Web', supportedDevices: ['Phone','Tablet','Desktop','Vision'] as any, heroImage: row.download_url || '', thumbnail: row.download_url || '', accentColor: '#38bdf8', summary: row.description || '', features: [], offlineCapable: true, zeroTrackers: true, openSource: false, isUserUploaded: true, ownerId: row.owner_id, owner_uid: row.owner_id, uploadedAt: 'Just now', liveAppUrl: row.download_url || row.live_app_url, websiteUrl: row.download_url || row.live_app_url, sourceCodeUrl: row.source_code_url, packageBundleName: row.package_bundle_name, privacyGrade: 'A+', permissions: [], dataCollected: [], versionHistory: [{ version: '1.0.0', releaseDate: 'Today', sizeMB: 15, isLatest: true, highlights: [] } as any], reviews: [], sandboxType: 'terminal' as any, status: row.status
+      } as any));
+      const map = new Map<string, AppItem>(); converted.forEach(c => { if((c as any).status !== 'deleted') map.set(c.id, c); }); list.forEach(b => { if (!map.has(b.id)) map.set(b.id, b); }); list = Array.from(map.values());
     }
-    return baseList.filter(app => {
+    return list.filter(app => {
       if (seen.has(app.id)) return false; seen.add(app.id);
       const q = searchQuery.toLowerCase();
       const matchesSearch = !searchQuery || app.name.toLowerCase().includes(q) || app.tagline.toLowerCase().includes(q) || app.developer.toLowerCase().includes(q) || app.category.toLowerCase().includes(q);
@@ -227,12 +233,12 @@ function AppStoreContent() {
       const matchesPrice = selectedPriceModel === 'All' || app.priceModel === selectedPriceModel;
       return matchesSearch && matchesCategory && matchesDevice && matchesPrice;
     }).sort((a,b) => { if (sortBy === 'rating') return b.rating - a.rating; if (sortBy === 'size') return a.sizeMB - b.sizeMB; return parseInt((b.downloadsCount||'0').replace(/[^0-9]/g,'')) - parseInt((a.downloadsCount||'0').replace(/[^0-9]/g,'')); });
-  }, [apps, searchQuery, selectedCategory, selectedDevice, selectedPriceModel, sortBy, supabaseResults]);
+  }, [baseApps, myApps, view, searchQuery, selectedCategory, selectedDevice, selectedPriceModel, sortBy, supabaseResults]);
 
   const paginatedApps = useMemo(() => filteredApps.slice(0, visibleCount), [filteredApps, visibleCount]);
   const hasMore = visibleCount < filteredApps.length;
-  const featuredApp = useMemo(() => apps.find(a => a.editorialHighlight) || apps[0], [apps]);
-  const becauseApps = useMemo(() => apps.filter(a => !installedMap[a.id]).slice(0, 8), [apps, installedMap]);
+  const featuredApp = useMemo(() => baseApps.find(a => a.editorialHighlight) || baseApps[0], [baseApps]);
+  const becauseApps = useMemo(() => baseApps.filter(a => !installedMap[a.id]).slice(0, 8), [baseApps, installedMap]);
 
   useEffect(() => {
     const obs = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setVisibleCount(v => v + PAGE_SIZE); }, { rootMargin: '600px' });
@@ -268,6 +274,13 @@ function AppStoreContent() {
 
         {currentTab === 'apps' && (
           <div className="space-y-4">
+            {/* MY UPLOADS TOGGLE */}
+            <div className="flex gap-2 items-center">
+              <button onClick={()=>setView('all')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='all' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>All Software ({baseApps.length})</button>
+              <button onClick={()=>setView('my')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='my' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>My Uploads ({myApps.length})</button>
+              {view==='my' && myApps.length===0 && <span className="text-xs text-white/30 ml-2">No uploads yet â€” UID: {userUID}</span>}
+            </div>
+
             <AppsSearchBar
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -289,8 +302,9 @@ function AppStoreContent() {
             {filteredApps.length === 0 ? (
               <div className="py-20 text-center">
                 <div className="w-12 h-12 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center mx-auto mb-3"><Search className="w-5 h-5 text-slate-500" /></div>
-                <p className="text-sm font-medium">No apps found</p>
-                <p className="text-xs text-slate-500 mt-1">Try different search or clear filters</p>
+                <p className="text-sm font-medium">{view==='my' ? 'You have no uploads' : 'No apps found'}</p>
+                <p className="text-xs text-slate-500 mt-1">{view==='my' ? `Publish with UID ${userUID}` : 'Try different search or clear filters'}</p>
+                {view==='my' && <button onClick={()=>{ setDevModalInitialTab('publish'); setIsDevModalOpen(true); }} className="mt-4 h-10 px-5 bg-white text-black rounded-full text-xs font-bold">Publish App</button>}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -310,21 +324,21 @@ function AppStoreContent() {
             )}
           </div>
         )}
-        {currentTab === 'compare' && <AppCompareView apps={apps} initialAppAId={compareAppA} initialAppBId={compareAppB} onOpenDetails={openAppDetails} />}
-        {currentTab === 'library' && <LibraryView apps={apps} installedMap={installedMap} onOpenDetails={openAppDetails} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onUninstall={handleUninstallApp} onUpdateApp={handleUpdateApp} onUpdateAll={handleUpdateAll} />}
-          {currentTab === 'myapps' && <MySubmissionsView userUID={userUID} />}
+        {currentTab === 'compare' && <AppCompareView apps={baseApps} initialAppAId={compareAppA} initialAppBId={compareAppB} onOpenDetails={openAppDetails} />}
+        {currentTab === 'library' && <LibraryView apps={baseApps} installedMap={installedMap} onOpenDetails={openAppDetails} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onUninstall={handleUninstallApp} onUpdateApp={handleUpdateApp} onUpdateAll={handleUpdateAll} />}
+        {currentTab === 'myapps' && <MySubmissionsView userUID={userUID} />}
       </main>
 
-      {selectedApp && <AppDetailModal key={`${selectedApp.id}-${modalInitialTab}`} app={selectedApp} initialTab={modalInitialTab} installedState={installedMap[selectedApp.id]} onClose={() => setSelectedApp(null)} onInstall={handleInstallApp} onUninstall={handleUninstallApp} onStartCompare={handleStartCompare} onAddReview={handleAddReview} onAppDeleted={handleAppDeleted} onOpenOwnerGuide={() => { setSelectedApp(null); setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} allApps={apps} />}
-      {isDevModalOpen && <DevSubmitModal onClose={() => setIsDevModalOpen(false)} apps={apps} initialTab={devModalInitialTab} onAppPublished={handleAppPublished} onAppDeleted={handleAppDeleted} onRestoreApp={handleRestoreApp} deletedAppsLog={deletedAppsLog} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} onUpdateUID={handleUpdateUID} />}
+      {selectedApp && <AppDetailModal key={`${selectedApp.id}-${modalInitialTab}`} app={selectedApp} initialTab={modalInitialTab} installedState={installedMap[selectedApp.id]} onClose={() => setSelectedApp(null)} onInstall={handleInstallApp} onUninstall={handleUninstallApp} onStartCompare={handleStartCompare} onAddReview={handleAddReview} onAppDeleted={handleAppDeleted} onOpenOwnerGuide={() => { setSelectedApp(null); setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} allApps={baseApps} />}
+      {isDevModalOpen && <DevSubmitModal onClose={() => setIsDevModalOpen(false)} apps={baseApps} initialTab={devModalInitialTab} onAppPublished={handleAppPublished} onAppDeleted={handleAppDeleted} onRestoreApp={handleRestoreApp} deletedAppsLog={deletedAppsLog} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} onUpdateUID={handleUpdateUID} />}
       <ManagerAuthModal isOpen={isManagerAuthModalOpen} onClose={() => setIsManagerAuthModalOpen(false)} userUID={userUID} onUpdateUID={handleUpdateUID} isStoreManager={isStoreManager} onSetStoreManager={handleSetStoreManager} />
       {isInstallModalOpen && <PWAInstallModal onClose={() => setIsInstallModalOpen(false)} />}
-      <MyAppsDashboard isOpen={showMyApps} onClose={()=>setShowMyApps(false)} apps={apps} userUID={userUID} isManager={isStoreManager} onEdit={(app:any)=>{ setSelectedApp(app); }} onDelete={(app:any)=>{ const d = apps.find((a:any)=>a.id===app.id); if(d) addToTrash(d, 'Deleted', userUID); setApps((prev:any)=>prev.filter((a:any)=>a.id!==app.id)); }} onSelectApp={(app:any)=>setSelectedApp(app)} />
+      <MyAppsDashboard isOpen={showMyApps} onClose={()=>setShowMyApps(false)} apps={baseApps} userUID={userUID} isManager={isStoreManager} onEdit={(app:any)=>{ setSelectedApp(app); }} onDelete={(app:any)=>{ const d = baseApps.find((a:any)=>a.id===app.id); if(d) addToTrash(d, 'Deleted', userUID); setApps((prev:any)=>prev.filter((a:any)=>a.id!==app.id)); }} onSelectApp={(app:any)=>setSelectedApp(app)} />
       <TrashModal isOpen={showTrash} onClose={()=>setShowTrash(false)} onRestore={(app:any)=>{ setApps((prev:any)=>[app, ...prev]); }} />
       <OfflineIndicator /><UpdateNotificationToast />
-      <EdgeSyncManagerModal isOpen={isSyncHubOpen} onClose={() => setIsSyncHubOpen(false)} apps={apps} installedApps={installedMap} onForcePurgeCache={handleForcePurgeCache} onRefreshRegistry={()=>{}} />
+      <EdgeSyncManagerModal isOpen={isSyncHubOpen} onClose={() => setIsSyncHubOpen(false)} apps={baseApps} installedApps={installedMap} onForcePurgeCache={handleForcePurgeCache} onRefreshRegistry={()=>{}} />
       <MobileBottomNav currentTab={currentTab} onSelectTab={setCurrentTab} installedCount={Object.keys(installedMap).length} onOpenSyncHub={() => setIsSyncHubOpen(true)} />
-      <CommandPalette apps={apps} installedMap={installedMap} onOpenDetails={a=>openAppDetails(a)} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onInstall={handleInstallApp} isOpen={commandOpen} onClose={()=>setCommandOpen(false)} />
+      <CommandPalette apps={baseApps} installedMap={installedMap} onOpenDetails={a=>openAppDetails(a)} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onInstall={handleInstallApp} isOpen={commandOpen} onClose={()=>setCommandOpen(false)} />
       <button onClick={()=>setCommandOpen(true)} className="fixed bottom-[88px] right-4 md:hidden z-40 w-12 h-12 bg-white text-slate-900 rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition"><Search className="w-5 h-5" /></button>
     </div>
   );
@@ -339,17 +353,3 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

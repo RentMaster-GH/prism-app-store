@@ -76,24 +76,16 @@ export const AppDetailModal: React.FC<AppDetailModalProps> = ({
   const [customReason, setCustomReason] = useState('');
 
   const isOwnerAuthenticated = useMemo(() => {
-  const inp = (ownerAuthKeyInput || "").trim();
-  if (!inp) return false;
-  const low = inp.toLowerCase();
-  // MANAGER BYPASS - always allow soulreal200682
-  if (low === "soulreal200682") return true;
-  if (isStoreManager) return true;
-  if (typeof localStorage !== 'undefined' && localStorage.getItem('prism_is_store_manager') === 'true') return true;
-  // Original owner checks
-  if (inp === targetOwnerUID) return true;
-  if (inp === "PRISM-ECOSYSTEM-CORE") return true;
-  if (inp === targetOwnerUID?.toUpperCase()) return true;
-  if (isOwnerSessionMatch && (inp.toUpperCase() === "DELETE")) return true;
-  // Also allow env manager key
-  const envKey = (import.meta.env.VITE_STORE_MANAGER_KEY as string || "").trim();
-  if (envKey && inp === envKey) return true;
-  if (envKey && low === envKey.toLowerCase()) return true;
-  return false;
-}, [deleteMode, isStoreManager, ownerAuthKeyInput, isOwnerSessionMatch, targetOwnerUID]);
+    if (deleteMode === 'moderator') {
+      return isStoreManager || ownerAuthKeyInput.trim() === (import.meta.env.VITE_STORE_MANAGER_KEY as string || '').trim();
+    }
+    const input = ownerAuthKeyInput.trim().toUpperCase();
+    if (!input) return false;
+    if (isOwnerSessionMatch) {
+      return input === 'DELETE' || (targetOwnerUID && input === targetOwnerUID.toUpperCase());
+    }
+    return (targetOwnerUID && input === targetOwnerUID.toUpperCase()) || input === (import.meta.env.VITE_STORE_MANAGER_KEY as string || '').trim();
+  }, [deleteMode, isStoreManager, ownerAuthKeyInput, isOwnerSessionMatch, targetOwnerUID]);
 
   const [newRating, setNewRating] = useState(5);
   const [newTitle, setNewTitle] = useState('');
@@ -298,7 +290,6 @@ export const AppDetailModal: React.FC<AppDetailModalProps> = ({
     </div>
   );
 };
-
 
 
 

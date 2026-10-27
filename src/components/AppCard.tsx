@@ -1,55 +1,74 @@
 import React from 'react';
+import { ExternalLink, Download, Star, Globe } from 'lucide-react';
 import { AppItem, InstalledAppState } from '../types';
-import { Star, Download, Play, ShieldCheck } from 'lucide-react';
-import { resolveAppMedia, getAppCategoryPlaceholder } from '../utils/media';
 
-export const AppCard: React.FC<any> = ({ app, installedState, onOpenDetails, onQuickInstall, onOpenSandbox, index = 0 }) => {
-  const installed = !!installedState;
-  const isInstalling = installedState?.status === 'installing' || installedState?.status === 'updating';
-  const progress = installedState?.progress || 0;
-  
+interface Props {
+  index: number;
+  app: AppItem;
+  installedState?: InstalledAppState;
+  onOpenDetails: (app: AppItem) => void;
+  onQuickInstall: (app: AppItem) => void;
+  onOpenSandbox: (app: AppItem) => void;
+}
+
+export function AppCard({ app, installedState, onOpenDetails, onQuickInstall }: Props) {
+  const thumbnail = (app as any).thumbnail || (app as any).heroImage || `https://picsum.photos/seed/${app.id}/600/400`;
+  const isExternal = !!(app as any).liveAppUrl && (app as any).liveAppUrl.startsWith('http') && !(app as any).download_url;
+  const liveUrl = (app as any).liveAppUrl || (app as any).websiteUrl || (app as any).raw?.live_web_url || '';
+  const isApproved = (app as any).status === 'approved';
+  const studio = (app as any).studio || app.developer;
+
+  const handleAction = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isExternal && liveUrl) {
+      window.open(liveUrl, '_blank');
+    } else {
+      onQuickInstall(app);
+    }
+  };
+
   return (
-    <div className="group relative rounded-[20px] bg-[#12132a] border border-white/[0.08] hover:border-white/[0.16] hover:bg-[#161730] transition-all duration-300 overflow-hidden hover:shadow-[0_16px_48px_-16px_rgba(99,102,241,0.4)] hover:-translate-y-[2px] flex flex-col">
-      {isInstalling && <div className="absolute top-0 left-0 h-[2px] bg-gradient-to-r from-violet-500 to-indigo-500 z-20 transition-all" style={{width:`${progress}%`}} />}
-      
-      {/* Top image area - brighter than your video */}
-      <div className="relative h-[132px] overflow-hidden bg-gradient-to-br from-violet-600/80 via-indigo-600/80 to-fuchsia-600/80">
-        <img src={resolveAppMedia(app.thumbnail) || getAppCategoryPlaceholder(app.category, app.name)} alt={app.name} className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-80 group-hover:scale-[1.05] transition duration-700" loading="lazy" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#12132a] via-transparent to-transparent" />
-        
-        {/* Badges - visible in your video but now cleaner */}
-        <div className="absolute top-3 left-3 right-3 flex justify-between">
-          <div className="flex gap-1.5">
-            <span className="px-2 py-1 rounded-full bg-emerald-500 text-[9px] font-bold text-white">LIVE</span>
-            <span className="px-2 py-1 rounded-full bg-black/40 backdrop-blur border border-white/10 text-[9px] font-medium text-white/80 flex items-center gap-1">OFFline</span>
+    <div onClick={() => onOpenDetails(app)} className="group relative overflow-hidden rounded-[24px] bg-[#12131f] border border-white/10 hover:border-white/20 transition-all cursor-pointer flex flex-col">
+      <div className="relative h-[160px] w-full overflow-hidden bg-[#0a0b14]">
+        <img 
+          src={thumbnail} 
+          alt={app.name} 
+          loading={app.name.includes('Rent Master') || app.name.includes('Ivory') ? "eager" : "lazy"}
+          onError={(e) => { (e.target as any).src = `https://picsum.photos/seed/${app.id}/600/400`; }}
+          className="w-full h-full object-cover group-hover:scale-105 transition duration-500" 
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#12131f] via-transparent to-transparent" />
+        {isApproved && (
+          <div className="absolute top-3 left-3 px-2.5 py-1 bg-emerald-400 text-black text-[10px] font-bold rounded-full flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-black rounded-full animate-pulse" /> Approved
           </div>
-          <span className="px-2 py-1 rounded-full bg-black/40 backdrop-blur border border-white/10 text-[9px] font-medium text-white/80">{app.privacyGrade || 'A+'}</span>
-        </div>
-        
-        <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
-          <span className="flex items-center gap-1 text-[10px] text-white"><Star className="w-3 h-3 fill-amber-400 text-amber-400" />{app.rating.toFixed(1)}</span>
-          <span className="text-[10px] text-white/60">• {app.reviewCount > 1000 ? `${Math.floor(app.reviewCount/1000)}K+` : app.reviewCount}</span>
+        )}
+        <div className="absolute top-3 right-3 px-2 py-1 bg-black/60 backdrop-blur text-[10px] text-white/70 rounded-full flex items-center gap-1">
+          <Star className="w-3 h-3 text-amber-400" /> {app.rating?.toFixed(1) || '5.0'}
         </div>
       </div>
-      
-      <div className="p-3.5 flex-1 flex flex-col">
-        <h4 className="text-[13px] font-bold text-white leading-tight truncate">{app.name}</h4>
-        <p className="text-[11px] text-slate-400 truncate mt-1 line-clamp-1">{app.tagline}</p>
-        <p className="text-[10px] text-slate-500 mt-1">{app.category} • {app.sizeMB} MB • {app.priceFormatted}</p>
-        
-        <div className="mt-3 flex items-center gap-2">
-          {installed ? (
-            <button onClick={()=>{ if (app.liveAppUrl) window.open(app.liveAppUrl,'_blank'); else onOpenSandbox(app); }} className="flex-1 h-8 rounded-full bg-white text-black text-xs font-bold hover:bg-slate-100 active:scale-[0.98] transition flex items-center justify-center gap-1">
-              {installedState?.installedVersion !== app.currentVersion ? 'Update' : 'Launch'}
-            </button>
-          ) : (
-            <button onClick={()=>onQuickInstall(app)} disabled={isInstalling} className="flex-1 h-8 rounded-full bg-white text-black text-xs font-bold hover:bg-slate-100 active:scale-[0.98] transition flex items-center justify-center gap-1.5 disabled:opacity-60">
-              {isInstalling ? `${progress}%` : <><Download className="w-3.5 h-3.5" />Install</>}
-            </button>
-          )}
-          <button onClick={()=>onOpenSandbox(app)} className="h-8 px-3 rounded-full bg-white/[0.06] border border-white/10 text-white/70 text-[11px] hover:bg-white/[0.10] hover:text-white transition">Test</button>
+
+      <div className="p-4 flex flex-col gap-2 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-bold text-[14px] leading-tight text-white line-clamp-1">{app.name}</h3>
+          <span className="text-[10px] text-white/40 shrink-0">{app.sizeMB}MB</span>
         </div>
+        <p className="text-[12px] text-white/50 line-clamp-2 leading-relaxed">{app.tagline || (app as any).summary || 'No description'}</p>
+        <div className="flex items-center gap-1.5 mt-1 text-[11px] text-white/30">
+          <Globe className="w-3 h-3" /> <span className="truncate">{studio}</span>
+        </div>
+
+        <div className="flex gap-2 mt-3">
+          <button onClick={handleAction} className={`flex-1 h-9 rounded-full text-[12px] font-bold flex items-center justify-center gap-1.5 transition ${isExternal ? 'bg-white text-black hover:bg-white/90' : 'bg-white text-black hover:bg-white/90'}`}>
+            {isExternal ? <><ExternalLink className="w-3.5 h-3.5" /> Open</> : <><Download className="w-3.5 h-3.5" /> {installedState ? 'Open' : 'Install'}</>}
+          </button>
+          <button onClick={(e)=>{ e.stopPropagation(); onOpenDetails(app); }} className="h-9 px-4 bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 rounded-full text-[11px] font-medium text-white/70">
+            Details
+          </button>
+        </div>
+
+        {isExternal && <div className="text-[10px] text-white/30 text-center mt-1 truncate">{liveUrl}</div>}
       </div>
     </div>
   );
-};
+}

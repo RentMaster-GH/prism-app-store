@@ -68,9 +68,15 @@ function getUniqueThumbnail(row: any) {
   if (row.thumbnail_url) return row.thumbnail_url;
   if (row.download_url) return row.download_url;
   if (row.hero_image) return row.hero_image;
-  // Rent Master has live_web_url only - generate unique image from uuid
+  // FIX 1: Real screenshot for Rent Master https://rentmastergh.com
+  if (row.live_web_url) {
+    // mshots generates live screenshot, no API key needed
+    return `https://s.wordpress.com/mshots/v1/${encodeURIComponent(row.live_web_url)}?w=600&h=400`;
+  }
+  if (row.live_app_url) {
+    return `https://s.wordpress.com/mshots/v1/${encodeURIComponent(row.live_app_url)}?w=600&h=400`;
+  }
   const seed = (row.uuid || row.id || row.title || 'prism').toString();
-  // Use picsum with seed = unique per app, not same
   return `https://picsum.photos/seed/${encodeURIComponent(seed)}/600/400`;
 }
 

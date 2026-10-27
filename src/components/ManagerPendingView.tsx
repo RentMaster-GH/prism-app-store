@@ -1,42 +1,59 @@
-﻿import { useEffect, useState } from "react"
-import { supabase } from "../lib/supabase"
+﻿import React, { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { Check, X, Star, Loader2, ExternalLink } from 'lucide-react';
 
-export function ManagerPendingView({ managerKey }: { managerKey?: string }) {
-  const [apps, setApps] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<"pending"|"deleted"|"all">("pending")
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [search, setSearch] = useState("")
+export function ManagerPendingView({ managerKey }: { managerKey: string }) {
+  const [apps, setApps] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    setLoading(true)
-    let query = supabase.from("marketplace_apps").select("*").order("created_at",{ascending:false})
-    if(tab==="pending") query = query.eq("status","pending")
-    if(tab==="deleted") query = query.eq("status","deleted")
-    const { data } = await query
-    setApps((data||[]).filter((a:any)=> tab==="deleted" ? true : search ? true : true))
-    setLoading(false)
-  }
-  useEffect(()=>{ load(); setSelected(new Set()) }, [tab])
+    if (!supabase) return;
+    setLoading(true);
+    const { data } = await supabase.from('apps').select('*').order('created_at', { ascending: false }).limit(100);
+    setApps(data || []);
+    setLoading(false);
+  };
 
-  const toggle = (id:string) => { const n = new Set(selected); if(n.has(id)) n.delete(id); else n.add(id); setSelected(n) }
-  const toggleAll = () => { if(selected.size===filtered.length) setSelected(new Set()); else setSelected(new Set(filtered.map((a:any)=>a.id))) }
-  const bulkUpdate = async (status:string) => { if(selected.size===0) return; if(!confirm(`${status} ${selected.size} apps?`)) return; await supabase.from("marketplace_apps").update({ status }).in("id", Array.from(selected)); setSelected(new Set()); load() }
-  const bulkDelete = async () => { if(selected.size===0) return; if(!confirm(`Soft-delete ${selected.size} apps?`)) return; await supabase.from("marketplace_apps").update({ status:"deleted", deleted_at: new Date().toISOString(), deleted_by: "manager:"+(managerKey||"soulreal200682") }).in("id", Array.from(selected)); setSelected(new Set()); load() }
+  useEffect(() => { load(); }, []);
 
-  const filtered = apps.filter((a:any)=> !search || a.title?.toLowerCase().includes(search.toLowerCase()) || a.owner_uid?.toLowerCase().includes(search.toLowerCase()) || a.id?.toLowerCase().includes(search.toLowerCase()))
+  const updateStatus = async (uuid: string, status: string) => {
+    if (!supabase) return;
+    await supabase.from('apps').update({ status, updated_at: new Date().toISOString() }).eq('uuid', uuid);
+    load();
+  };
 
-  if(loading) return <div className="text-white/60 text-sm p-4">Loading...</div>
+  const toggleFeatured = async (uuid: string, current: boolean) => {
+    if (!supabase) return;
+    await supabase.from('apps').update({ is_featured: !current } as any).eq('uuid', uuid);
+    load();
+  };
+
+  if (loading) return <div className="flex gap-2 text-xs text-white/50"><Loader2 className="w-4 h-4 animate-spin"/> Loading apps...</div>;
+
   return (
-    <div className="space-y-4 bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex gap-2"><button onClick={()=>setTab("pending")} className={`px-4 py-2 rounded-full text-xs ${tab==="pending"?"bg-white text-black":"bg-white/10 text-white"}`}>Pending</button><button onClick={()=>setTab("deleted")} className={`px-4 py-2 rounded-full text-xs ${tab==="deleted"?"bg-white text-black":"bg-white/10 text-white"}`}>Deleted</button><button onClick={()=>setTab("all")} className={`px-4 py-2 rounded-full text-xs ${tab==="all"?"bg-white text-black":"bg-white/10 text-white"}`}>All</button></div>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search title or owner (ECOSYSTEM-CORE)" className="bg-black/30 border border-white/10 rounded-full px-3 py-2 text-xs text-white w-64" />
+    <div className="space-y-3">
+      <div className="text-xs text-white/50">{apps.length} total • {apps.filter(a=>a.status==='approved').length} approved • {apps.filter(a=>a.status==='pending').length} pending</div>
+      <div className="grid gap-2 max-h-[400px] overflow-auto pr-2">
+        {apps.map(app => (
+          <div key={app.uuid} className="flex items-center gap-3 p-3 bg-white/[0.04] border border-white/10 rounded-xl">
+            <img src={app.thumbnail_url || app.download_url || `https://picsum.photos/seed/${app.uuid}/100/100`} className="w-12 h-12 rounded-lg object-cover" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold truncate">{app.title || app.jamz}</p>
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${app.status==='approved'?'bg-emerald-400 text-black':app.status==='pending'?'bg-amber-300 text-black':'bg-white/10 text-white/50'}`}>{app.status}</span>
+                {app.is_featured && <Star className="w-3 h-3 text-amber-400" />}
+              </div>
+              <p className="text-[11px] text-white/40 truncate">{app.studio || app.owner_uid} • {app.live_web_url || app.live_app_url || ''}</p>
+            </div>
+            <div className="flex gap-1">
+              {app.live_web_url && <a href={app.live_web_url} target="_blank" className="w-7 h-7 bg-white/10 rounded-full flex items-center justify-center"><ExternalLink className="w-3.5 h-3.5"/></a>}
+              <button onClick={()=>toggleFeatured(app.uuid, app.is_featured)} className={`w-7 h-7 rounded-full flex items-center justify-center ${app.is_featured?'bg-amber-400 text-black':'bg-white/10'}`}><Star className="w-3.5 h-3.5"/></button>
+              <button onClick={()=>updateStatus(app.uuid,'approved')} className="w-7 h-7 bg-emerald-400 text-black rounded-full flex items-center justify-center"><Check className="w-3.5 h-3.5"/></button>
+              <button onClick={()=>updateStatus(app.uuid,'rejected')} className="w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center"><X className="w-3.5 h-3.5"/></button>
+            </div>
+          </div>
+        ))}
       </div>
-      {selected.size>0 && (<div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex gap-2 items-center"><span className="text-amber-300 text-xs">{selected.size} selected</span><button onClick={()=>bulkUpdate("approved")} className="px-3 py-1 bg-white text-black rounded-full text-xs font-bold">Approve</button><button onClick={()=>bulkUpdate("rejected")} className="px-3 py-1 bg-white/10 text-white rounded-full text-xs">Reject</button><button onClick={bulkDelete} className="px-3 py-1 bg-rose-600 text-white rounded-full text-xs">Soft Delete</button>{tab==="deleted" && <button onClick={()=>bulkUpdate("approved")} className="px-3 py-1 bg-emerald-600 text-white rounded-full text-xs">Restore</button>}</div>)}
-      <div className="flex items-center gap-2 text-white/40 text-xs px-2"><input type="checkbox" checked={selected.size===filtered.length && filtered.length>0} onChange={toggleAll} /><span>Select all ({filtered.length})</span></div>
-      <div className="space-y-2 max-h-[60vh] overflow-auto pr-1">{filtered.map((app:any)=>(<div key={app.id} className="bg-white/5 border border-white/10 rounded-xl p-3 flex gap-3 items-center"><input type="checkbox" checked={selected.has(app.id)} onChange={()=>toggle(app.id)} /><div className="flex-1 min-w-0"><div className="text-white font-medium text-sm truncate">{app.title || app.id}</div><div className="text-white/40 text-xs truncate">{app.id} • {app.owner_uid} • {app.status}</div>{app.deleted_at && <div className="text-rose-400/60 text-[10px]">Deleted {new Date(app.deleted_at).toLocaleString()} by {app.deleted_by}</div>}</div><div className="flex gap-1.5">{tab!=="deleted" ? <><button onClick={async()=>{ await supabase.from("marketplace_apps").update({status:"rejected"}).eq("id",app.id); load() }} className="px-2.5 py-1 bg-white/10 text-white rounded-full text-[10px]">Reject</button><button onClick={async()=>{ await supabase.from("marketplace_apps").update({status:"approved"}).eq("id",app.id); load() }} className="px-2.5 py-1 bg-white text-black rounded-full text-[10px] font-bold">Approve</button></> : <button onClick={async()=>{ await supabase.from("marketplace_apps").update({status:"approved", deleted_at:null}).eq("id",app.id); load() }} className="px-2.5 py-1 bg-emerald-600 text-white rounded-full text-[10px]">Restore</button>}</div></div>))}{filtered.length===0 && <div className="text-white/30 text-sm p-8 text-center border border-dashed border-white/10 rounded-xl">No apps in {tab}</div>}</div>
     </div>
-  )
+  );
 }
-

@@ -91,7 +91,7 @@ function AppStoreContent() {
   });
 
   const [isSupabaseSyncing, setIsSupabaseSyncing] = useState(false);
-  // MIGRATE_OWNER_IDS - Fix My Uploads showing 0
+  // MIGRATE_owner_uidS - Fix My Uploads showing 0
   useEffect(()=>{
     try {
       const currentUID = localStorage.getItem('prism_user_uid');
@@ -143,7 +143,7 @@ function AppStoreContent() {
           minOS: 'Android 12 / iOS 16 / macOS / Web', supportedDevices: ['Phone', 'Tablet', 'Desktop', 'Vision'] as any,
           heroImage: row.download_url || '', thumbnail: row.download_url || '', accentColor: '#38bdf8',
           summary: row.description || row.title, features: [row.changelog||'Live'], offlineCapable: true, zeroTrackers: true,
-          openSource: false, isUserUploaded: true, ownerId: row.owner_id, owner_uid: row.owner_id, uploadedAt: 'Just now',
+          openSource: false, isUserUploaded: true, ownerId: row.owner_uid, owner_uid: row.owner_uid, uploadedAt: 'Just now',
           liveAppUrl: row.download_url || row.live_app_url, websiteUrl: row.download_url || row.live_app_url,
           sourceCodeUrl: row.source_code_url, packageBundleName: row.package_bundle_name, privacyGrade: 'A+', permissions: [], dataCollected: [],
           versionHistory: [{ version: row.version || '1.0.0', releaseDate: row.updated_at || 'Today', sizeMB: row.size_mb || 15, isLatest: true, highlights: [row.changelog||'Live'] } as any],
@@ -273,7 +273,7 @@ function AppStoreContent() {
 
   const baseApps = useMemo(() => apps.filter((a:any) => (a as any).status !== 'deleted'), [apps]);
   const myApps = useMemo(() => baseApps.filter((a:any) => {
-    const owner = (a as any).ownerId || (a as any).owner_id || (a as any).owner_uid;
+    const owner = (a as any).ownerId || (a as any).owner_uid || (a as any).owner_uid;
     return owner === userUID;
   }), [baseApps, userUID]);
 
@@ -283,7 +283,7 @@ function AppStoreContent() {
     if (storeCategory!=='All') list = list.filter((a:any)=> (a.category||a.category_raw||'').toLowerCase().includes(storeCategory.toLowerCase()) || a.category===storeCategory);
     if (view !== 'my' && debouncedSearch.trim().length >= 2 && supabaseResults.length > 0) {
       const converted: AppItem[] = supabaseResults.map((row: any) => ({
-        id: row.id, name: row.title, tagline: row.tagline || row.description || '', developer: row.developer_name || 'Indie', developerVerified: true, category: row.category || 'Labyrinth', price: 0, priceFormatted: 'Free', priceModel: 'Free' as any, rating: 5.0, reviewCount: 1, downloadsCount: '1', sizeMB: row.size_mb || 15, currentVersion: row.version || '1.0.0', minOS: 'Web', supportedDevices: ['Phone','Tablet','Desktop','Vision'] as any, heroImage: row.download_url || '', thumbnail: row.download_url || '', accentColor: '#38bdf8', summary: row.description || '', features: [], offlineCapable: true, zeroTrackers: true, openSource: false, isUserUploaded: true, ownerId: row.owner_id, owner_uid: row.owner_id, uploadedAt: 'Just now', liveAppUrl: row.download_url || row.live_app_url, websiteUrl: row.download_url || row.live_app_url, sourceCodeUrl: row.source_code_url, packageBundleName: row.package_bundle_name, privacyGrade: 'A+', permissions: [], dataCollected: [], versionHistory: [{ version: '1.0.0', releaseDate: 'Today', sizeMB: 15, isLatest: true, highlights: [] } as any], reviews: [], sandboxType: 'terminal' as any, status: row.status
+        id: row.id, name: row.title, tagline: row.tagline || row.description || '', developer: row.developer_name || 'Indie', developerVerified: true, category: row.category || 'Labyrinth', price: 0, priceFormatted: 'Free', priceModel: 'Free' as any, rating: 5.0, reviewCount: 1, downloadsCount: '1', sizeMB: row.size_mb || 15, currentVersion: row.version || '1.0.0', minOS: 'Web', supportedDevices: ['Phone','Tablet','Desktop','Vision'] as any, heroImage: row.download_url || '', thumbnail: row.download_url || '', accentColor: '#38bdf8', summary: row.description || '', features: [], offlineCapable: true, zeroTrackers: true, openSource: false, isUserUploaded: true, ownerId: row.owner_uid, owner_uid: row.owner_uid, uploadedAt: 'Just now', liveAppUrl: row.download_url || row.live_app_url, websiteUrl: row.download_url || row.live_app_url, sourceCodeUrl: row.source_code_url, packageBundleName: row.package_bundle_name, privacyGrade: 'A+', permissions: [], dataCollected: [], versionHistory: [{ version: '1.0.0', releaseDate: 'Today', sizeMB: 15, isLatest: true, highlights: [] } as any], reviews: [], sandboxType: 'terminal' as any, status: row.status
       } as any));
       const map = new Map<string, AppItem>(); converted.forEach(c => { if((c as any).status !== 'deleted') map.set(c.id, c); }); list.forEach(b => { if (!map.has(b.id)) map.set(b.id, b); }); list = Array.from(map.values());
     }
@@ -416,6 +416,7 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
 
 
 

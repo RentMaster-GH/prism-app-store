@@ -4,8 +4,8 @@ export function ClaimPanel({ userUID }: { userUID: string }) {
   const claimSupabase = async () => {
     try {
       // Claim all anon apps to your current UID
-      const { data: anonApps } = await supabase.from('apps').select('id, title').eq('owner_id', 'anon');
-      const { data: nullApps } = await supabase.from('apps').select('id, title').is('owner_id', null);
+      const { data: anonApps } = await supabase.from('apps').select('id, title').eq('owner_uid', 'anon');
+      const { data: nullApps } = await supabase.from('apps').select('id, title').is('owner_uid', null);
       const total = (anonApps?.length||0) + (nullApps?.length||0);
       if(total===0) {
         alert('No anon/null apps in Supabase. Your 115 are local.');
@@ -13,8 +13,8 @@ export function ClaimPanel({ userUID }: { userUID: string }) {
       }
       if(!confirm(`Found ${total} apps with owner anon/null. Migrate to ${userUID}?`)) return;
       
-      await supabase.from('apps').update({ owner_id: userUID }).eq('owner_id', 'anon');
-      await supabase.from('apps').update({ owner_id: userUID }).is('owner_id', null);
+      await supabase.from('apps').update({ owner_uid: userUID }).eq('owner_uid', 'anon');
+      await supabase.from('apps').update({ owner_uid: userUID }).is('owner_uid', null);
       alert(`Migrated ${total} apps in Supabase to ${userUID}`);
       location.reload();
     } catch(e:any){ alert(e.message); }
@@ -27,7 +27,7 @@ export function ClaimPanel({ userUID }: { userUID: string }) {
       try {
         const arr = JSON.parse(localStorage.getItem(k)||'');
         if(Array.isArray(arr) && arr[0]?.id) {
-          const fixed = arr.map((a:any)=>({...a, ownerId: uid, owner_id: uid, owner_uid: uid}));
+          const fixed = arr.map((a:any)=>({...a, ownerId: uid, owner_uid: uid, owner_uid: uid}));
           localStorage.setItem(k, JSON.stringify(fixed));
           total+=arr.length;
         }
@@ -45,3 +45,4 @@ export function ClaimPanel({ userUID }: { userUID: string }) {
     </div>
   );
 }
+

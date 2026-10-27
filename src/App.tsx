@@ -277,7 +277,10 @@ function AppStoreContent() {
   }), [baseApps, userUID]);
 
   const filteredApps = useMemo(() => {
-    const seen = new Set<string>();
+    // CRITICAL: My Uploads ignores search + category
+    if (view === 'my') {
+      return myApps;
+    }
     let list = view === 'my' ? [...myApps] : view==='featured' ? baseApps.filter((a:any)=>a.is_featured||a.isUserUploaded) : [...baseApps];
     if (storeCategory!=='All') list = list.filter((a:any)=> (a.category||a.category_raw||'').toLowerCase().includes(storeCategory.toLowerCase()) || a.category===storeCategory);
     if (view !== 'my' && debouncedSearch.trim().length >= 2 && supabaseResults.length > 0) {
@@ -415,6 +418,7 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
 
 
 

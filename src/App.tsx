@@ -90,6 +90,43 @@ function AppStoreContent() {
   });
 
   const [isSupabaseSyncing, setIsSupabaseSyncing] = useState(false);
+  // MIGRATE_OWNER_IDS - Fix My Uploads showing 0
+  useEffect(()=>{
+    try {
+      const currentUID = localStorage.getItem('prism_user_uid');
+      if (!currentUID) return;
+      let migrated = 0;
+      // 1. Migrate prism_user_uploaded_apps
+      const raw1 = localStorage.getItem('prism_user_uploaded_apps');
+      if (raw1) {
+        const arr = JSON.parse(raw1);
+        const fixed = arr.map((a:any)=>{
+          if (!a.ownerId || a.ownerId.startsWith('PRISM-UID-OLD') || a.ownerId !== currentUID) {
+            migrated++; return { ...a, ownerId: currentUID, owner_uid: currentUID };
+          }
+          return a;
+        });
+        if (migrated>0) localStorage.setItem('prism_user_uploaded_apps', JSON.stringify(fixed));
+      }
+      // 2. Migrate prism_apps_registry legacy
+      const raw2 = localStorage.getItem('prism_apps_registry');
+      if (raw2) {
+        const arr = JSON.parse(raw2);
+        const fixed = arr.map((a:any)=>{
+          if (a.isUserUploaded && (!a.ownerId || a.ownerId !== currentUID)) {
+            migrated++; return { ...a, ownerId: currentUID, owner_uid: currentUID };
+          }
+          return a;
+        });
+        if (migrated>0) localStorage.setItem('prism_apps_registry', JSON.stringify(fixed));
+      }
+      if (migrated>0) {
+        console.log('Migrated ' + migrated + ' apps to UID ' + currentUID);
+        // reload apps state
+        setTimeout(()=>window.location.reload(), 500);
+      }
+    } catch (e) { console.log('Migration failed', e); }
+  }, []);
   useEffect(() => {
     if (!supabase) return;
     const loadPermanentApps = async () => {
@@ -378,3 +415,5 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+

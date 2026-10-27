@@ -83,7 +83,7 @@ function AppStoreContent() {
       setIsSupabaseSyncing(true);
       try {
         // 1. FILTER DELETED
-        const { data } = await supabase.from('marketplace_apps').select('*').neq('status','deleted').order('created_at', { ascending: false });
+        const { data } = await supabase.from('marketplace_apps').select('*').neq('status','deleted').neq('status','deleted').textSearch('search_tsv', searchQuery).order('created_at', { ascending: false });
         if (!data || data.length === 0) return;
         const permanentApps: AppItem[] = data.map((row: any) => ({
           id: row.id, name: row.title, tagline: row.tagline || row.description || 'User published',
@@ -353,3 +353,5 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+

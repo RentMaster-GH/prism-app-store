@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 const cache = new Map<string, { data: any[], ts: number }>();
@@ -38,7 +38,7 @@ export function useSupabaseSearch(query: string, _appsLength: number) {
       try {
         const { data, error } = await supabase
           .from('marketplace_apps')
-          .select('*')
+          .select('*').neq('status','deleted').textSearch('search_tsv', searchQuery)
           .or(`title.ilike.%${query}%,description.ilike.%${query}%,tagline.ilike.%${query}%`)
           .limit(20);
         if (error) throw error;

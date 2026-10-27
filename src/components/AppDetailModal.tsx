@@ -6,6 +6,11 @@ export function AppDetailModal({ app, onClose, isStoreManager, onAppDeleted }: a
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteMode, setDeleteMode] = useState<'owner'|'manager'>('owner')
   const [ownerAuthKeyInput, setOwnerAuthKeyInput] = useState('')
+  // OWNER_ISOLATION
+  const currentUserId = typeof window !== 'undefined' ? localStorage.getItem('prism_user_uid') || '' : '';
+  const isOwner = (app as any).owner_id === currentUserId || (app as any).ownerId === currentUserId;
+  const isManager = currentUserId === 'soulreal200682' || isStoreManager;
+  const canDelete = isOwner || isManager;
   const [deleteReason, setDeleteReason] = useState('Owner Request / Decommissioning Application')
   const [customReason, setCustomReason] = useState('')
   const [authError, setAuthError] = useState<string|null>(null)

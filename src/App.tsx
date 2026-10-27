@@ -1,6 +1,5 @@
-// Full fixed file - paste this
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, Loader2, Edit3, Ban, CheckCircle, Image as ImageIcon } from 'lucide-react';
+import { Search, Loader2, Edit3, Ban, CheckCircle } from 'lucide-react';
 import { APPS_DATA } from './data/appsData';
 import { AppItem, CategoryType, DevicePlatform, InstalledAppState, DeletedAppAuditItem } from './types';
 import { MySubmissionsView } from './components/MySubmissionsView';
@@ -63,20 +62,19 @@ function useDebounce<T>(value: T, delay: number) {
   return debounced;
 }
 
-// FIX 4: unique thumbnail per app
+// FIX 1+4: Real thumbnails with thum.io (mshots blocked on Vercel) + unique fallback
 function getUniqueThumbnail(row: any) {
-  if (row.thumbnail_url) return row.thumbnail_url;
-  if (row.download_url) return row.download_url;
-  if (row.hero_image) return row.hero_image;
-  // FIX 1: Real screenshot for Rent Master https://rentmastergh.com
-  if (row.live_web_url) {
-    // mshots generates live screenshot, no API key needed
-    return `https://s.wordpress.com/mshots/v1/${encodeURIComponent(row.live_web_url)}?w=600&h=400`;
+  if (row.thumbnail_url && row.thumbnail_url.startsWith('http')) return row.thumbnail_url;
+  if (row.download_url && row.download_url.startsWith('http')) return row.download_url;
+  if (row.hero_image && row.hero_image.startsWith('http')) return row.hero_image;
+  // Rent Master + Ivory Labyrinth have live_web_url only -> real screenshot
+  if (row.live_web_url && row.live_web_url.startsWith('http')) {
+    return `https://image.thum.io/get/width/600/crop/400/noanimate/${row.live_web_url}`;
   }
-  if (row.live_app_url) {
-    return `https://s.wordpress.com/mshots/v1/${encodeURIComponent(row.live_app_url)}?w=600&h=400`;
+  if (row.live_app_url && row.live_app_url.startsWith('http')) {
+    return `https://image.thum.io/get/width/600/crop/400/noanimate/${row.live_app_url}`;
   }
-  const seed = (row.uuid || row.id || row.title || 'prism').toString();
+  const seed = (row.uuid || row.id || row.title || row.jamz || 'prism').toString();
   return `https://picsum.photos/seed/${encodeURIComponent(seed)}/600/400`;
 }
 
@@ -114,7 +112,8 @@ function AppStoreContent() {
       try {
         const { data, error } = await supabase.from('apps').select('*').eq('status','approved').order('created_at', { ascending: false }).limit(200);
         console.log('SUPABASE apps fetch approved', { data, error });
-        if (error || !data || data.length === 0) return;
+        if (error) { console.log('Supabase error', error); return; }
+        if (!data || data.length === 0) { console.log('No approved apps yet'); return; }
         const permanentApps: AppItem[] = data.map((row: any) => ({
           id: row.uuid || row.id,
           name: row.title || row.jamz || row.name || 'Untitled',
@@ -147,7 +146,13 @@ function AppStoreContent() {
           jamz_raw: row.jamz,
           raw: row
         } as any));
-        setApps(prev => { const map = new Map<string, AppItem>(); permanentApps.forEach(a => map.set(a.id, a)); prev.forEach(a => { if (!map.has(a.id)) map.set(a.id, a); }); return Array.from(map.values()).filter((a:any)=> (a as any).status !== 'deleted'); });
+        // Merge without losing local official apps if supabase empty
+        setApps(prev => {
+          const map = new Map<string, AppItem>();
+          permanentApps.forEach(a => map.set(a.id, a));
+          prev.forEach(a => { if (!map.has(a.id)) map.set(a.id, a); });
+          return Array.from(map.values()).filter((a:any)=> (a as any).status !== 'deleted');
+        });
       } catch (e) { console.log('Supabase load failed', e); } finally { setIsSupabaseSyncing(false); }
     };
     loadPermanentApps();
@@ -264,8 +269,6 @@ function AppStoreContent() {
     alert('User banned');
   }, [userUID]);
 
-  const CATEGORIES = useMemo(() => ['All', ...Array.from(new Set(APPS_DATA.map(a => a.category)))], []);
-  const STORE_CATS = ['All','Labyrinth','Game','Tool','Utility','Other'];
   const baseApps = useMemo(() => apps.filter((a:any) => (a as any).status !== 'deleted'), [apps]);
   const allApps = useMemo(() => { const map = new Map<string, AppItem>(); baseApps.forEach(a => { if (a?.id && !map.has(a.id)) map.set(a.id, a); }); return Array.from(map.values()); }, [baseApps]);
   const myApps = useMemo(() => baseApps.filter((a:any) => { const owner = (a as any).ownerId || (a as any).owner_uid || (a as any).owner_id; return owner === userUID; }), [baseApps, userUID]);
@@ -280,8 +283,7 @@ function AppStoreContent() {
       if (!app?.id || seen.has(app.id)) return false;
       seen.add(app.id);
       const q = debouncedSearch.toLowerCase().trim();
-      // FIX 1: search title + studio + jamz + name + tagline + developer + category
-      const haystack = `${app.name} ${(app as any).title_raw||''} ${(app as any).jamz_raw||''} ${app.tagline} ${app.developer} ${(app as any).studio||''} ${app.category} ${app.summary}`.toLowerCase();
+      const haystack = `${app.name} ${(app as any).title_raw||''} ${(app as any).jamz_raw||''} ${app.tagline} ${app.developer} ${(app as any).studio||''} ${app.category} ${app.summary} ${(app as any).liveAppUrl||''}`.toLowerCase();
       const matchesSearch = !q || haystack.includes(q);
       const matchesCategory = selectedCategory === 'All' || app.category === selectedCategory;
       const matchesDevice = selectedDevice === 'All' || app.supportedDevices.includes(selectedDevice);
@@ -355,19 +357,14 @@ function AppStoreContent() {
                   return (
                     <div key={app.id} className="relative group">
                       <AppCard index={idx} app={app} installedState={installedMap[app.id]} onOpenDetails={openAppDetails} onQuickInstall={handleInstallApp} onOpenSandbox={a=>openAppDetails(a,'test-drive')} />
-                      {/* FIX 3: Approved badge + FIX 2: Edit only for owner */}
                       <div className="absolute top-2 left-2 flex gap-1.5">
                         {isApproved && <div className="px-2 py-0.5 bg-emerald-400 text-black text-[10px] font-bold rounded-full flex items-center gap-1"><CheckCircle className="w-3 h-3"/> Approved</div>}
                       </div>
-                      {/* FIX 2: My Uploads editable */}
                       {isMine && (
                         <div className="absolute top-2 right-2 flex gap-1">
                           <button onClick={()=>setEditingApp(app)} className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center shadow hover:scale-105 transition" title="Edit (you own this)"><Edit3 className="w-4 h-4"/></button>
                           {isStoreManager && <button onClick={()=>handleBanUser((app as any).ownerId||(app as any).owner_uid)} className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center"><Ban className="w-4 h-4"/></button>}
                         </div>
-                      )}
-                      {!isMine && view==='all' && (
-                        <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur text-[10px] text-white/60 rounded-full">{(app as any).studio || app.developer}</div>
                       )}
                     </div>
                   );
@@ -396,7 +393,7 @@ function AppStoreContent() {
       <CommandPalette apps={allApps} installedMap={installedMap} onOpenDetails={a=>openAppDetails(a)} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onInstall={handleInstallApp} isOpen={commandOpen} onClose={()=>setCommandOpen(false)} />
       <button onClick={()=>setCommandOpen(true)} className="fixed bottom-[88px] right-4 md:hidden z-40 w-12 h-12 bg-white text-slate-900 rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition"><Search className="w-5 h-5" /></button>
       <ReportPortal isOpen={showReportPortal} onClose={()=>setShowReportPortal(false)} appContext={reportAppContext} currentUserId={userUID} />
-      {editingApp && <EditAppModal app={editingApp} isOpen={!!editingApp} onClose={()=>setEditingApp(null)} onSaved={()=>{ window.location.reload(); }} />}
+      {editingApp && <EditAppModal app={editingApp} isOpen={!!editingApp} onClose={()=>setEditingApp(null)} onSaved={()=>{ setEditingApp(null); }} />}
     </div>
   );
 }

@@ -100,7 +100,7 @@ function AppStoreContent() {
         const { data, error } = await supabase.from('apps').select('*').order('created_at', { ascending: false }).limit(200);
         console.log('SUPABASE apps fetch', { data, error });
         if (error || !data || data.length === 0) return;
-        const permanentApps: AppItem[] = data.filter((row: any) => row.owner_uid && row.owner_uid !== 'anonymous' && row.owner_uid !== 'anon').map((row: any) => ({
+        const { data, error } = await supabase.from('apps').select('*').eq('status','approved').order('created_at', { ascending: false }).limit(200);
           id: row.uuid || row.id,
           name: row.title || row.jamz || row.name || 'Untitled',
           tagline: row.tagline || row.description || row.jamz || 'User published',

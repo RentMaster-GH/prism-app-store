@@ -1,13 +1,22 @@
-﻿import React, { useEffect, useState, useMemo } from 'react';
-import { Search } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { AppCard } from './AppCard';
-const MOCK_APPS = [{ id: '1', title: 'Prism Synth', studio: 'Prism Labs', tagline: 'Synth', thumbnail_url: '', live_web_url: 'https://example.com', category: 'Synth', rating: 4.9, package_size: '36.4 MB', monetization: 'Free', installs: 1200, status: 'approved' }];
-export const AllSoftwareView: React.FC<{ onInstall: (app: any) => void; onOpen: (app: any) => void }> = ({ onInstall, onOpen }) => {
-  const [apps, setApps] = useState<any[]>([]);
-  const [query, setQuery] = useState('');
-  useEffect(()=>{(async()=>{const {data}=await supabase.from('apps').select('*').eq('status','approved'); if(data?.length) setApps(data)})()},[]);
-  const filtered = useMemo(()=> apps.filter((a:any)=> a.title.toLowerCase().includes(query.toLowerCase())), [apps, query]);
-  return (<div className="space-y-4"><div className="relative max-w-xl"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search all software..." className="w-full h-11 pl-10 pr-4 rounded-full bg-[#12132a] border border-white/10 text-[13px] text-white outline-none"/></div><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">{filtered.map((app:any)=><AppCard key={app.id} app={app} onInstall={()=>onInstall(app)} onOpen={()=>onOpen(app)} />)}</div></div>);
-};
+﻿import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
 
+export default function AllSoftwareView({ onOpenDetails }: any) {
+  const [apps, setApps] = useState<any[]>([])
+  useEffect(()=>{
+    supabase.from('apps').select('*').eq('status','approved').order('created_at',{ascending:false}).then(({data})=>{ if(data) setApps(data) })
+  },[])
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
+      {apps.map((app:any)=>(
+        <div key={app.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+          <h3 className="text-white font-bold">{app.title}</h3>
+          <p className="text-white/50 text-xs">{app.tagline}</p>
+          <p className="text-white/30 text-xs mt-1">{app.live_web_url}</p>
+          <button onClick={()=>onOpenDetails?.(app)} className="mt-3 bg-white text-black px-3 py-1 rounded-full text-xs">Open</button>
+        </div>
+      ))}
+      {apps.length===0 && <p className="text-white/40">No approved apps - check Supabase RLS</p>}
+    </div>
+  )
+}

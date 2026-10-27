@@ -45,8 +45,8 @@ export const DevSubmitModal = ({ isOpen, onClose, userUID }: { isOpen: boolean; 
         rating: 5.0,
         installs: 0,
         status: 'pending',
-        owner_uid: userUID || localStorage.getItem('prism_user_uid') || 'anon',
-        owner_uid: userUID || 'anonymous'
+        owner_uid: localStorage.getItem('prism_imported_uid') || localStorage.getItem('prism_uid') || userUID || 'anon',
+        owner_uid: localStorage.getItem('prism_imported_uid') || localStorage.getItem('prism_uid') || userUID || 'anon',
       }]);
       if (error) throw error;
       setMsg('Submitted! Pending approval. Check My Apps to edit.');
@@ -88,4 +88,6 @@ export const DevSubmitModal = ({ isOpen, onClose, userUID }: { isOpen: boolean; 
     </div>
   );
 };
+
+
 

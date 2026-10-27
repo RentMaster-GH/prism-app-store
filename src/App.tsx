@@ -3,6 +3,8 @@ import { Search, Star, Download, Play, ArrowRight, Command, Filter, SlidersHoriz
 import { APPS_DATA } from './data/appsData';
 import { AppItem, CategoryType, DevicePlatform, InstalledAppState, DeletedAppAuditItem } from './types';
 import { MySubmissionsView } from './components/MySubmissionsView';
+import { ManagerPendingView } from './components/ManagerPendingView';
+
 import { MyAppsDashboard } from './components/MyAppsDashboard';
 import { TrashModal, addToTrash } from './components/TrashManager';
 import { OfflineIndicator, UpdateNotificationToast } from './components/OfflinePWA';
@@ -27,6 +29,7 @@ import { useSupabaseSearch } from './hooks/useSupabaseSearch';
 import { BecauseYouInstalled } from './components/BecauseYouInstalled';
 import { CommandPalette } from './components/CommandPalette';
 import { DiscoverView } from './components/DiscoverView';
+import AllSoftwareView from './components/AllSoftwareView'
 import { AppsSearchBar } from './components/AppsSearchBar';
 import { supabase } from './lib/supabase';
 import { useInstallAnalytics } from './hooks/useInstallAnalytics';
@@ -84,7 +87,10 @@ function AppStoreContent() {
     const loadPermanentApps = async () => {
       setIsSupabaseSyncing(true);
       try {
-        const { data } = await supabase.from('marketplace_apps').select('*').order('created_at', { ascending: false });
+        const { data: mpData } = await supabase.from('marketplace_apps').select('*').order('created_at', { ascending: false });
+        const { data: appsTableData } = await supabase.from('apps').select('*').eq('status','approved').order('created_at',{ascending:false});
+        const allRows = [...(mpData||[]), ...(appsTableData||[])];
+        const data = allRows;
         if (!data || data.length === 0) return;
         const permanentApps: AppItem[] = data.map((row: any) => ({
           id: row.id, name: row.title, tagline: row.tagline || row.description || 'User published',
@@ -105,7 +111,7 @@ function AppStoreContent() {
     };
     loadPermanentApps();
     try {
-      const channel = supabase.channel('marketplace_apps_realtime').on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_apps' }, () => { loadPermanentApps(); }).subscribe();
+      const channel = supabase.channel('marketplace_apps_realtime').on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_apps' }, () => { loadPermanentApps(); }).on('postgres_changes', { event: '*', schema: 'public', table: 'apps' }, () => { loadPermanentApps(); }).subscribe();
       return () => { try { supabase.removeChannel(channel); } catch {} };
     } catch {}
   }, []);
@@ -244,9 +250,13 @@ function AppStoreContent() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-8 pb-28 md:pb-8">
         <DirectInstallBanner onOpenManualModal={() => setIsInstallModalOpen(true)} />
         {isSupabaseSyncing && <div className="mb-4 px-3 py-2.5 bg-white/[0.04] border border-white/10 rounded-full text-xs text-indigo-200 flex items-center gap-2 w-fit"><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Syncing permanent apps...</span></div>}
+        {isStoreManager && (
+          <div className="space-y-6 p-4 max-w-5xl mx-auto mb-6">
+            <ManagerPendingView managerKey={userUID} />
+          </div>
+        )}
 
-        {currentTab === 'discover' && (
-          <DiscoverView
+        {currentTab === 'discover' && (<DiscoverView
             featuredApp={featuredApp}
             becauseApps={becauseApps}
             filteredApps={filteredApps}
@@ -305,6 +315,7 @@ function AppStoreContent() {
         {currentTab === 'compare' && <AppCompareView apps={apps} initialAppAId={compareAppA} initialAppBId={compareAppB} onOpenDetails={openAppDetails} />}
         {currentTab === 'library' && <LibraryView apps={apps} installedMap={installedMap} onOpenDetails={openAppDetails} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onUninstall={handleUninstallApp} onUpdateApp={handleUpdateApp} onUpdateAll={handleUpdateAll} />}
           {currentTab === 'myapps' && <MySubmissionsView userUID={userUID} />}
+              {isManager && currentTab === 'manager' && <ManagerPendingView />}
       </main>
 
       {selectedApp && <AppDetailModal key={`${selectedApp.id}-${modalInitialTab}`} app={selectedApp} initialTab={modalInitialTab} installedState={installedMap[selectedApp.id]} onClose={() => setSelectedApp(null)} onInstall={handleInstallApp} onUninstall={handleUninstallApp} onStartCompare={handleStartCompare} onAddReview={handleAddReview} onAppDeleted={handleAppDeleted} onOpenOwnerGuide={() => { setSelectedApp(null); setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} allApps={apps} />}
@@ -331,6 +342,18 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

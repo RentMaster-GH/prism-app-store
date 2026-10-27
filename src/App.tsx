@@ -91,16 +91,15 @@ function AppStoreContent() {
   const [isSupabaseSyncing, setIsSupabaseSyncing] = useState(false);
 
   // FIX 1: Query public.apps with owner_uid = PRISM-UID-8015-A3M (your real UID)
-  useEffect(() => {
+    useEffect(() => {
     if (!supabase) return;
     const loadPermanentApps = async () => {
       setIsSupabaseSyncing(true);
       try {
-        // Your table is public.apps, not marketplace_apps
-        const { data, error } = await supabase.from('apps').select('*').order('created_at', { ascending: false }).limit(200);
+        const { data, error } = await supabase.from('apps').select('*').eq('status','approved').order('created_at', { ascending: false }).limit(200);
         console.log('SUPABASE apps fetch', { data, error });
         if (error || !data || data.length === 0) return;
-        const { data, error } = await supabase.from('apps').select('*').eq('status','approved').order('created_at', { ascending: false }).limit(200);
+        const permanentApps: AppItem[] = data.map((row: any) => ({
           id: row.uuid || row.id,
           name: row.title || row.jamz || row.name || 'Untitled',
           tagline: row.tagline || row.description || row.jamz || 'User published',

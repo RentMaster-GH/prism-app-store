@@ -3,7 +3,7 @@ import { Compass, Grid3x3, GitCompare, Library, Download, Settings2, Menu, X, Sh
 import { DevSubmitModal } from './DevSubmitModal';
 
 interface Props {
-  currentTab: 'discover' | 'apps' | 'compare' | 'library';
+  currentTab: 'discover' | 'apps' | 'compare' | 'library' | 'myapps';
   onSelectTab: (tab: any) => void;
   onOpenDevModal: () => void;
   onOpenOwnerGuide: () => void;
@@ -111,3 +111,6 @@ export const TopBar: React.FC<Props> = ({ currentTab, onSelectTab, onOpenDevModa
     </>
   );
 };
+
+
+

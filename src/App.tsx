@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Search, Star, Download, Play, ArrowRight, Command, Filter, SlidersHorizontal, X, Loader2 } from 'lucide-react';
 import { APPS_DATA } from './data/appsData';
 import { AppItem, CategoryType, DevicePlatform, InstalledAppState, DeletedAppAuditItem } from './types';
+import { MySubmissionsView } from './components/MySubmissionsView';
 import { TopBar } from './components/TopBar';
 import { AppCard } from './components/AppCard';
 import { AppDetailModal } from './components/AppDetailModal';
@@ -289,7 +290,7 @@ function AppStoreContent() {
                       <Loader2 className="w-3.5 h-3.5" />Load More ({filteredApps.length - visibleCount} left)
                     </button>
                   ) : (
-                    <span className="text-[11px] text-slate-500">End of results • {filteredApps.length} apps</span>
+                    <span className="text-[11px] text-slate-500">End of results â€¢ {filteredApps.length} apps</span>
                   )}
                 </div>
               </div>
@@ -298,6 +299,7 @@ function AppStoreContent() {
         )}
         {currentTab === 'compare' && <AppCompareView apps={apps} initialAppAId={compareAppA} initialAppBId={compareAppB} onOpenDetails={openAppDetails} />}
         {currentTab === 'library' && <LibraryView apps={apps} installedMap={installedMap} onOpenDetails={openAppDetails} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onUninstall={handleUninstallApp} onUpdateApp={handleUpdateApp} onUpdateAll={handleUpdateAll} />}
+          {currentTab === 'myapps' && <MySubmissionsView userUID={userUID} />}
       </main>
 
       {selectedApp && <AppDetailModal key={`${selectedApp.id}-${modalInitialTab}`} app={selectedApp} initialTab={modalInitialTab} installedState={installedMap[selectedApp.id]} onClose={() => setSelectedApp(null)} onInstall={handleInstallApp} onUninstall={handleUninstallApp} onStartCompare={handleStartCompare} onAddReview={handleAddReview} onAppDeleted={handleAppDeleted} onOpenOwnerGuide={() => { setSelectedApp(null); setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} allApps={apps} />}
@@ -322,3 +324,6 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+
+

@@ -29,7 +29,6 @@ import { useSupabaseSearch } from './hooks/useSupabaseSearch';
 import { BecauseYouInstalled } from './components/BecauseYouInstalled';
 import { CommandPalette } from './components/CommandPalette';
 import { DiscoverView } from './components/DiscoverView';
-import AllSoftwareView from './components/AllSoftwareView'
 import { AppsSearchBar } from './components/AppsSearchBar';
 import { supabase } from './lib/supabase';
 import { useInstallAnalytics } from './hooks/useInstallAnalytics';
@@ -88,9 +87,8 @@ function AppStoreContent() {
       setIsSupabaseSyncing(true);
       try {
         const { data: mpData } = await supabase.from('marketplace_apps').select('*').order('created_at', { ascending: false });
-        const { data: appsTableData } = await supabase.from('apps').select('*').eq('status','approved').order('created_at',{ascending:false});
-        const allRows = [...(mpData||[]), ...(appsTableData||[])];
-        const data = allRows;
+        const { data: appsTableData } = await supabase.from('apps').select('*').eq('status','approved').order('created_at', { ascending: false });
+        const data = [...(mpData||[]), ...(appsTableData||[])];
         if (!data || data.length === 0) return;
         const permanentApps: AppItem[] = data.map((row: any) => ({
           id: row.id, name: row.title, tagline: row.tagline || row.description || 'User published',
@@ -315,7 +313,6 @@ function AppStoreContent() {
         {currentTab === 'compare' && <AppCompareView apps={apps} initialAppAId={compareAppA} initialAppBId={compareAppB} onOpenDetails={openAppDetails} />}
         {currentTab === 'library' && <LibraryView apps={apps} installedMap={installedMap} onOpenDetails={openAppDetails} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onUninstall={handleUninstallApp} onUpdateApp={handleUpdateApp} onUpdateAll={handleUpdateAll} />}
           {currentTab === 'myapps' && <MySubmissionsView userUID={userUID} />}
-              {isManager && currentTab === 'manager' && <ManagerPendingView />}
       </main>
 
       {selectedApp && <AppDetailModal key={`${selectedApp.id}-${modalInitialTab}`} app={selectedApp} initialTab={modalInitialTab} installedState={installedMap[selectedApp.id]} onClose={() => setSelectedApp(null)} onInstall={handleInstallApp} onUninstall={handleUninstallApp} onStartCompare={handleStartCompare} onAddReview={handleAddReview} onAppDeleted={handleAppDeleted} onOpenOwnerGuide={() => { setSelectedApp(null); setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} allApps={apps} />}
@@ -342,10 +339,6 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-
-
-
-
 
 
 

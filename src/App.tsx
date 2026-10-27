@@ -268,12 +268,24 @@ function AppStoreContent() {
   useEffect(() => { setVisibleCount(PAGE_SIZE); }, [debouncedSearch, selectedCategory, selectedDevice, selectedPriceModel, sortBy, currentTab, view, storeCategory]);
 
   const handleInstallApp = useCallback((app: AppItem) => {
-    setInstalledMap(prev => ({ ...prev, [app.id]: { appId: app.id, installedVersion: app.currentVersion, installedAt: 'Just now', storageUsedMB: app.sizeMB, status: 'installing', progress: 15 } as any }));
-    setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], progress: 55 } } : prev), 400);
-    setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], progress: 85 } } : prev), 800);
-    setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], status: 'installed', progress: 100 } } : prev), 1200);
-    if (app.liveAppUrl) setTimeout(() => window.open(app.liveAppUrl, '_blank'), 1400);
-  }, []);
+  // UI install animation
+  setInstalledMap(prev => ({ ...prev, [app.id]: { appId: app.id, installedVersion: app.currentVersion, installedAt: 'Just now', storageUsedMB: app.sizeMB, status: 'installing', progress: 15 } as any }));
+  setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], progress: 55 } } : prev), 400);
+  setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], progress: 85 } } : prev), 800);
+  setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], status: 'installed', progress: 100 } } : prev), 1200);
+
+  // C: Real install count increment (permanent)
+  if (supabase && app.id) {
+    try {
+      const rawCount = (app as any).raw?.install_count || parseInt(((app as any).downloadsCount || '0').toString().replace(/[^0-9]/g,'')) || 0;
+      supabase.from('apps').update({ install_count: rawCount + 1, downloads: rawCount + 1 } as any).eq('uuid', app.id).then(()=>{});
+      // Optimistic local update so UI shows instantly
+      setApps(prev => prev.map(a => a.id === app.id ? { ...a, downloadsCount: String(rawCount + 1), raw: { ...(a as any).raw, install_count: rawCount + 1 } } as any : a));
+    } catch {}
+  }
+
+  if (app.liveAppUrl) setTimeout(() => window.open(app.liveAppUrl, '_blank'), 1400);
+}, []);
   const handleUninstallApp = useCallback((appId: string) => { setInstalledMap(prev => { const c = { ...prev }; delete c[appId]; return c; }); }, []);
   const handleUpdateApp = useCallback((app: AppItem) => {
     if (installedMap[app.id]?.status === 'updating') return;
@@ -307,7 +319,21 @@ function AppStoreContent() {
   const filteredApps = useMemo(() => {
     if (view === 'my') return myApps;
     let list = view === 'featured' ? baseApps.filter((a:any)=> (a as any).is_featured || (a as any).isUserUploaded) : [...allApps];
-    if (storeCategory !== 'All') { list = list.filter((a:any)=> { const cat = (a.category || '').toLowerCase(); return cat === storeCategory.toLowerCase() || cat.includes(storeCategory.toLowerCase()); }); }
+    if (storeCategory !== 'All') {
+  list = list.filter((a:any)=> {
+    const rawCat = (a.category || (a as any).blty || '').toString();
+    const cat = rawCat.toLowerCase();
+    const filter = storeCategory.toLowerCase();
+    const normalize = (s:string) => s.toLowerCase().replace(/[^a-z0-9]/g,'');
+    const catN = normalize(cat);
+    const filterN = normalize(filter);
+    // Fix for Labyrinth / blty / Laby / Labr
+    if (filterN === 'labyrinth' && (catN.includes('laby') || catN.includes('blty') || catN.includes('labr'))) return true;
+    if (filterN === 'all') return true;
+    if (filterN === 'other') return !['game','tool','utility','labyrinth','blty','laby'].some(k=>catN.includes(k));
+    return catN.includes(filterN) || filterN.includes(catN) || cat.includes(filter) || filter.includes(cat);
+  });
+}
     const seen = new Set<string>();
     return list.filter(app => {
       if (!app?.id || seen.has(app.id)) return false;

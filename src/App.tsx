@@ -3,6 +3,9 @@ import { Search, Star, Download, Play, ArrowRight, Command, Filter, SlidersHoriz
 import { APPS_DATA } from './data/appsData';
 import { AppItem, CategoryType, DevicePlatform, InstalledAppState, DeletedAppAuditItem } from './types';
 import { MySubmissionsView } from './components/MySubmissionsView';
+import { MyAppsDashboard } from './components/MyAppsDashboard';
+import { TrashModal, addToTrash } from './components/TrashManager';
+import { OfflineIndicator, UpdateNotificationToast } from './components/OfflinePWA';
 import { TopBar } from './components/TopBar';
 import { AppCard } from './components/AppCard';
 import { AppDetailModal } from './components/AppDetailModal';
@@ -109,6 +112,8 @@ function AppStoreContent() {
 
   const [userUID, setUserUID] = useState<string>(() => { try { const saved = localStorage.getItem('prism_user_uid'); if (saved) return saved; } catch {} const id = `PRISM-UID-${Math.floor(1000 + Math.random() * 9000)}-${Math.random().toString(36).substring(2,6).toUpperCase()}`; try { localStorage.setItem('prism_user_uid', id); } catch {} return id; });
   const [isStoreManager, setIsStoreManager] = useState<boolean>(() => { try { return localStorage.getItem('prism_is_store_manager') === 'true'; } catch {} return false; });
+  const [showMyApps, setShowMyApps] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
   const [isManagerAuthModalOpen, setIsManagerAuthModalOpen] = useState(false);
   const handleUpdateUID = (newUID: string) => { setUserUID(newUID); try { localStorage.setItem('prism_user_uid', newUID); } catch {} };
   const handleSetStoreManager = (status: boolean) => { setIsStoreManager(status); try { localStorage.setItem('prism_is_store_manager', status ? 'true' : 'false'); } catch {} };
@@ -306,6 +311,8 @@ function AppStoreContent() {
       {isDevModalOpen && <DevSubmitModal onClose={() => setIsDevModalOpen(false)} apps={apps} initialTab={devModalInitialTab} onAppPublished={handleAppPublished} onAppDeleted={handleAppDeleted} onRestoreApp={handleRestoreApp} deletedAppsLog={deletedAppsLog} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} onUpdateUID={handleUpdateUID} />}
       <ManagerAuthModal isOpen={isManagerAuthModalOpen} onClose={() => setIsManagerAuthModalOpen(false)} userUID={userUID} onUpdateUID={handleUpdateUID} isStoreManager={isStoreManager} onSetStoreManager={handleSetStoreManager} />
       {isInstallModalOpen && <PWAInstallModal onClose={() => setIsInstallModalOpen(false)} />}
+      <MyAppsDashboard isOpen={showMyApps} onClose={()=>setShowMyApps(false)} apps={apps} userUID={userUID} isManager={isStoreManager} onEdit={(app:any)=>{ setSelectedApp(app); }} onDelete={(app:any)=>{ const d = apps.find((a:any)=>a.id===app.id); if(d) addToTrash(d, 'Deleted', userUID); setApps((prev:any)=>prev.filter((a:any)=>a.id!==app.id)); }} onSelectApp={(app:any)=>setSelectedApp(app)} />
+      <TrashModal isOpen={showTrash} onClose={()=>setShowTrash(false)} onRestore={(app:any)=>{ setApps((prev:any)=>[app, ...prev]); }} />
       <OfflineIndicator /><UpdateNotificationToast />
       <EdgeSyncManagerModal isOpen={isSyncHubOpen} onClose={() => setIsSyncHubOpen(false)} apps={apps} installedApps={installedMap} onForcePurgeCache={handleForcePurgeCache} onRefreshRegistry={()=>{}} />
       <MobileBottomNav currentTab={currentTab} onSelectTab={setCurrentTab} installedCount={Object.keys(installedMap).length} onOpenSyncHub={() => setIsSyncHubOpen(true)} />
@@ -324,6 +331,8 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+
 
 
 

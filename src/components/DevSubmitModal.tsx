@@ -45,6 +45,7 @@ export const DevSubmitModal = ({ isOpen, onClose, userUID }: { isOpen: boolean; 
         rating: 5.0,
         installs: 0,
         status: 'pending',
+        owner_uid: userUID || localStorage.getItem('prism_user_uid') || 'anon',
         owner_uid: userUID || 'anonymous'
       }]);
       if (error) throw error;
@@ -87,3 +88,4 @@ export const DevSubmitModal = ({ isOpen, onClose, userUID }: { isOpen: boolean; 
     </div>
   );
 };
+

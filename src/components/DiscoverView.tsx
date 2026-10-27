@@ -9,7 +9,7 @@ const MOCK_APPS = [
 ];
 
 export const DiscoverView: React.FC<{ onInstall: (app: any) => void; onOpen: (app: any) => void }> = ({ onInstall, onOpen }) => {
-  const [apps, setApps] = useState<any[]>(MOCK_APPS);
+  const [apps, setApps] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -50,3 +50,4 @@ export const DiscoverView: React.FC<{ onInstall: (app: any) => void; onOpen: (ap
     </div>
   );
 };
+

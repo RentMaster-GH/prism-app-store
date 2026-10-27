@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Search, Loader2, Edit3, Ban, BarChart3, Megaphone, Star } from 'lucide-react';
 import { APPS_DATA } from './data/appsData';
 import { AppItem, CategoryType, DevicePlatform, InstalledAppState, DeletedAppAuditItem } from './types';
@@ -28,7 +28,6 @@ import { DiscoverView } from './components/DiscoverView';
 import { AppsSearchBar } from './components/AppsSearchBar';
 import { supabase } from './lib/supabase';
 import { useInstallAnalytics } from './hooks/useInstallAnalytics';
-// NEW v2
 import ReportPortal from './components/ReportPortal';
 import ManagerReports from './components/ManagerReports';
 import { EditAppModal } from './components/EditAppModal';
@@ -90,13 +89,12 @@ function AppStoreContent() {
   });
 
   const [isSupabaseSyncing, setIsSupabaseSyncing] = useState(false);
-  // MIGRATE_owner_uidS - Fix My Uploads showing 0
+
   useEffect(()=>{
     try {
       const currentUID = localStorage.getItem('prism_user_uid');
       if (!currentUID) return;
       let migrated = 0;
-      // 1. Migrate prism_user_uploaded_apps
       const raw1 = localStorage.getItem('prism_user_uploaded_apps');
       if (raw1) {
         const arr = JSON.parse(raw1);
@@ -108,7 +106,6 @@ function AppStoreContent() {
         });
         if (migrated>0) localStorage.setItem('prism_user_uploaded_apps', JSON.stringify(fixed));
       }
-      // 2. Migrate prism_apps_registry legacy
       const raw2 = localStorage.getItem('prism_apps_registry');
       if (raw2) {
         const arr = JSON.parse(raw2);
@@ -120,13 +117,10 @@ function AppStoreContent() {
         });
         if (migrated>0) localStorage.setItem('prism_apps_registry', JSON.stringify(fixed));
       }
-      if (migrated>0) {
-        console.log('Migrated ' + migrated + ' apps to UID ' + currentUID);
-        // reload apps state
-        setTimeout(()=>window.location.reload(), 500);
-      }
+      if (migrated>0) console.log('Migrated ' + migrated + ' apps to UID ' + currentUID);
     } catch (e) { console.log('Migration failed', e); }
   }, []);
+
   useEffect(() => {
     if (!supabase) return;
     const loadPermanentApps = async () => {
@@ -137,7 +131,7 @@ function AppStoreContent() {
         const permanentApps: AppItem[] = data.map((row: any) => ({
           id: row.id, name: row.title, tagline: row.tagline || row.description || 'User published',
           developer: row.developer_name || 'Indie Engineer', developerVerified: true,
-          category: row.category || row.category || 'Labyrinth', price: 0, priceFormatted: row.price_type==='paid'?'Paid':row.price_type==='donate'?'Donate':'Free', priceModel: 'Free' as any, rating: 5.0, reviewCount: 1,
+          category: row.category || 'Labyrinth', price: 0, priceFormatted: row.price_type==='paid'?'Paid':row.price_type==='donate'?'Donate':'Free', priceModel: 'Free' as any, rating: 5.0, reviewCount: 1,
           downloadsCount: String(row.downloads || row.install_count || 1), sizeMB: row.size_mb || 15, currentVersion: row.version || '1.0.0',
           minOS: 'Android 12 / iOS 16 / macOS / Web', supportedDevices: ['Phone', 'Tablet', 'Desktop', 'Vision'] as any,
           heroImage: row.download_url || '', thumbnail: row.download_url || '', accentColor: '#38bdf8',
@@ -158,7 +152,7 @@ function AppStoreContent() {
     } catch {}
   }, []);
 
-    const [userUID] = useState(()=> {
+  const [userUID, setUserUID] = useState(()=> {
     const existing = localStorage.getItem('prism_user_uid');
     if (existing) return existing;
     const backup = localStorage.getItem('prism_user_uid_backup');
@@ -167,11 +161,13 @@ function AppStoreContent() {
     localStorage.setItem('prism_user_uid', newUid);
     localStorage.setItem('prism_user_uid_backup', newUid);
     return newUid;
-  });  const [isStoreManager, setIsStoreManager] = useState<boolean>(() => { try { return localStorage.getItem('prism_is_store_manager') === 'true'; } catch {} return false; });
+  });
+
+  const [isStoreManager, setIsStoreManager] = useState<boolean>(() => { try { return localStorage.getItem('prism_is_store_manager') === 'true'; } catch {} return false; });
   const [showMyApps, setShowMyApps] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
   const [isManagerAuthModalOpen, setIsManagerAuthModalOpen] = useState(false);
-  const handleUpdateUID = (newUID: string) => { setUserUID(newUID); try { localStorage.setItem('prism_user_uid', newUID); } catch {} };
+  const handleUpdateUID = (newUID: string) => { setUserUID(newUID); try { localStorage.setItem('prism_user_uid', newUID); localStorage.setItem('prism_user_uid_backup', newUID); } catch {} };
   const handleSetStoreManager = (status: boolean) => { setIsStoreManager(status); try { localStorage.setItem('prism_is_store_manager', status ? 'true' : 'false'); } catch {} };
 
   const [currentTab, setCurrentTab] = useState<'discover' | 'apps' | 'compare' | 'library' | 'myapps'>(() => { try { const saved = localStorage.getItem('prism_current_tab'); if (saved && ['discover','apps','compare','library','myapps'].includes(saved)) return saved as any; } catch {} return 'discover'; });
@@ -186,7 +182,6 @@ function AppStoreContent() {
   const [isSyncHubOpen, setIsSyncHubOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
 
-  // v2 states
   const [showReportPortal, setShowReportPortal] = useState(false);
   const [reportAppContext, setReportAppContext] = useState<any>(null);
   const [managerTab, setManagerTab] = useState<'all'|'deleted'|'reports'|'analytics'|'announcements'>('all');
@@ -276,43 +271,62 @@ function AppStoreContent() {
 
   const CATEGORIES = useMemo(() => ['All', ...Array.from(new Set(APPS_DATA.map(a => a.category)))], []);
   const STORE_CATS = ['All','Labyrinth','Game','Tool','Utility','Other'];
-  const activeFilterCount = useMemo(() => [selectedCategory !== 'All', selectedDevice !== 'All', selectedPriceModel !== 'All', sortBy !== 'rating', storeCategory!=='All', view!=='all'].filter(Boolean).length, [selectedCategory, selectedDevice, selectedPriceModel, sortBy, storeCategory, view]);
 
   const baseApps = useMemo(() => apps.filter((a:any) => (a as any).status !== 'deleted'), [apps]);
+  
+  // FIX: allApps = baseApps (already includes supabase). This gives 11 + 3 = 14
+  const allApps = useMemo(() => {
+    const map = new Map<string, AppItem>();
+    baseApps.forEach(a => { if (a?.id && !map.has(a.id)) map.set(a.id, a); });
+    return Array.from(map.values());
+  }, [baseApps]);
+
   const myApps = useMemo(() => baseApps.filter((a:any) => {
-    const owner = (a as any).ownerId || (a as any).owner_uid || (a as any).owner_uid;
+    const owner = (a as any).ownerId || (a as any).owner_uid;
     return owner === userUID;
   }), [baseApps, userUID]);
 
+  const activeFilterCount = useMemo(() => [selectedCategory !== 'All', selectedDevice !== 'All', selectedPriceModel !== 'All', sortBy !== 'rating', storeCategory!=='All', view!=='all'].filter(Boolean).length, [selectedCategory, selectedDevice, selectedPriceModel, sortBy, storeCategory, view]);
+
   const filteredApps = useMemo(() => {
-    // CRITICAL: My Uploads ignores search + category
-    if (view === 'my') {
-      return myApps;
+    if (view === 'my') return myApps;
+
+    let list = view === 'featured' ? baseApps.filter((a:any)=> (a as any).is_featured || (a as any).isUserUploaded) : [...allApps];
+    
+    if (storeCategory !== 'All') {
+      list = list.filter((a:any)=> {
+        const cat = (a.category || (a as any).category_raw || '').toLowerCase();
+        return cat === storeCategory.toLowerCase() || cat.includes(storeCategory.toLowerCase());
+      });
     }
-    let list = view === 'my' ? [...myApps] : view==='featured' ? baseApps.filter((a:any)=>a.is_featured||a.isUserUploaded) : [...baseApps];
-    if (storeCategory!=='All') list = list.filter((a:any)=> (a.category||a.category_raw||'').toLowerCase().includes(storeCategory.toLowerCase()) || a.category===storeCategory);
-    if (view !== 'my' && debouncedSearch.trim().length >= 2 && supabaseResults.length > 0) {
+
+    if (debouncedSearch.trim().length >= 2 && supabaseResults.length > 0) {
       const converted: AppItem[] = supabaseResults.map((row: any) => ({
         id: row.id, name: row.title, tagline: row.tagline || row.description || '', developer: row.developer_name || 'Indie', developerVerified: true, category: row.category || 'Labyrinth', price: 0, priceFormatted: 'Free', priceModel: 'Free' as any, rating: 5.0, reviewCount: 1, downloadsCount: '1', sizeMB: row.size_mb || 15, currentVersion: row.version || '1.0.0', minOS: 'Web', supportedDevices: ['Phone','Tablet','Desktop','Vision'] as any, heroImage: row.download_url || '', thumbnail: row.download_url || '', accentColor: '#38bdf8', summary: row.description || '', features: [], offlineCapable: true, zeroTrackers: true, openSource: false, isUserUploaded: true, ownerId: row.owner_uid, owner_uid: row.owner_uid, uploadedAt: 'Just now', liveAppUrl: row.download_url || row.live_app_url, websiteUrl: row.download_url || row.live_app_url, sourceCodeUrl: row.source_code_url, packageBundleName: row.package_bundle_name, privacyGrade: 'A+', permissions: [], dataCollected: [], versionHistory: [{ version: '1.0.0', releaseDate: 'Today', sizeMB: 15, isLatest: true, highlights: [] } as any], reviews: [], sandboxType: 'terminal' as any, status: row.status
       } as any));
-      const map = new Map<string, AppItem>(); converted.forEach(c => { if((c as any).status !== 'deleted') map.set(c.id, c); }); list.forEach(b => { if (!map.has(b.id)) map.set(b.id, b); }); list = Array.from(map.values());
+      const map = new Map<string, AppItem>();
+      converted.forEach(c => { if((c as any).status !== 'deleted') map.set(c.id, c); });
+      list.forEach(b => { if (!map.has(b.id)) map.set(b.id, b); });
+      list = Array.from(map.values());
     }
+
     const seen = new Set<string>();
-      return list.filter(app => {
-        if (seen.has(app.id)) return false; seen.add(app.id);
-      const q = debouncedSearch.toLowerCase();
-      const matchesSearch = !debouncedSearch || app.name.toLowerCase().includes(q) || app.tagline.toLowerCase().includes(q) || app.developer.toLowerCase().includes(q) || app.category.toLowerCase().includes(q);
+    return list.filter(app => {
+      if (!app?.id || seen.has(app.id)) return false;
+      seen.add(app.id);
+      const q = debouncedSearch.toLowerCase().trim();
+      const matchesSearch = !q || app.name.toLowerCase().includes(q) || app.tagline.toLowerCase().includes(q) || app.developer.toLowerCase().includes(q) || app.category.toLowerCase().includes(q);
       const matchesCategory = selectedCategory === 'All' || app.category === selectedCategory;
       const matchesDevice = selectedDevice === 'All' || app.supportedDevices.includes(selectedDevice);
       const matchesPrice = selectedPriceModel === 'All' || app.priceModel === selectedPriceModel;
       return matchesSearch && matchesCategory && matchesDevice && matchesPrice;
     }).sort((a,b) => { if (sortBy === 'rating') return b.rating - a.rating; if (sortBy === 'size') return a.sizeMB - b.sizeMB; return parseInt((b.downloadsCount||'0').replace(/[^0-9]/g,'')) - parseInt((a.downloadsCount||'0').replace(/[^0-9]/g,'')); });
-  }, [baseApps, myApps, view, debouncedSearch, selectedCategory, selectedDevice, selectedPriceModel, sortBy, supabaseResults, storeCategory]);
+  }, [allApps, baseApps, myApps, view, debouncedSearch, selectedCategory, selectedDevice, selectedPriceModel, sortBy, supabaseResults, storeCategory]);
 
   const paginatedApps = useMemo(() => filteredApps.slice(0, visibleCount), [filteredApps, visibleCount]);
   const hasMore = visibleCount < filteredApps.length;
-  const featuredApp = useMemo(() => baseApps.find(a => a.editorialHighlight) || baseApps[0], [baseApps]);
-  const becauseApps = useMemo(() => baseApps.filter(a => !installedMap[a.id]).slice(0, 8), [baseApps, installedMap]);
+  const featuredApp = useMemo(() => allApps.find(a => (a as any).editorialHighlight) || allApps[0], [allApps]);
+  const becauseApps = useMemo(() => allApps.filter(a => !installedMap[a.id]).slice(0, 8), [allApps, installedMap]);
 
   useEffect(() => {
     const obs = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setVisibleCount(v => v + PAGE_SIZE); }, { rootMargin: '600px' });
@@ -353,9 +367,9 @@ function AppStoreContent() {
         {currentTab === 'apps' && (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2 items-center">
-              <button onClick={()=>setView('all')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='all' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>All Software ({baseApps.length})</button>
-              <button onClick={()=>{setSearch(''); setView('featured')}} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='featured' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}>Featured</button>
-              <button onClick={()=>{setSearch(''); setStoreCategory('All'); setView('my')}} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='my' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>My Uploads ({myApps.length})</button>
+              <button onClick={()=>setView('all')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='all' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>All Software ({allApps.length})</button>
+              <button onClick={()=>setView('featured')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='featured' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}>Featured</button>
+              <button onClick={()=>setView('my')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='my' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>My Uploads ({myApps.length})</button>
               <button onClick={()=>{setReportAppContext(null); setShowReportPortal(true);}} className="px-4 py-2 rounded-full text-xs font-bold bg-amber-100 text-amber-800 hover:bg-amber-200">Report Issue</button>
               {view==='my' && myApps.length===0 && <span className="text-xs text-white/30 ml-2">No uploads yet - UID: {userUID}</span>}
             </div>
@@ -364,13 +378,14 @@ function AppStoreContent() {
             </div>
 
             <AppsSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} selectedDevice={selectedDevice} setSelectedDevice={setSelectedDevice} selectedPriceModel={selectedPriceModel} setSelectedPriceModel={setSelectedPriceModel} sortBy={sortBy} setSortBy={setSortBy} showFilters={showFilters} setShowFilters={setShowFilters} filteredCount={filteredApps.length} categories={CATEGORIES} activeFilterCount={activeFilterCount} onOpenCommand={() => setCommandOpen(true)} />
-            <div className="text-[11px] text-white/30">Debounced search (300ms) • Pagination 50 • Highlight: {debouncedSearch||'none'}</div>
+            <div className="text-[11px] text-white/30">Debounced search (300ms) • Pagination {PAGE_SIZE} • Highlight: {debouncedSearch||'none'} • UID: {userUID}</div>
             {filteredApps.length === 0 ? (
               <div className="py-20 text-center">
                 <div className="w-12 h-12 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center mx-auto mb-3"><Search className="w-5 h-5 text-slate-500" /></div>
                 <p className="text-sm font-medium">{view==='my' ? 'You have no uploads' : 'No apps found'}</p>
                 <p className="text-xs text-slate-500 mt-1">{view==='my' ? `Publish with UID ${userUID}` : 'Try different search or clear filters'}</p>
-                {view==='my' && <button onClick={()=>{ setDevModalInitialTab('publish'); setIsDevModalOpen(true); }} className="mt-4 h-10 px-5 bg-white text-black rounded-full text-xs font-bold">Publish App</button>}
+                <button onClick={()=>{ setSearchQuery(''); setStoreCategory('All'); setSelectedCategory('All'); setSelectedDevice('All'); setSelectedPriceModel('All'); }} className="mt-4 h-10 px-5 bg-white/10 border border-white/10 text-white rounded-full text-xs font-bold">Clear Filters</button>
+                {view==='my' && <button onClick={()=>{ setDevModalInitialTab('publish'); setIsDevModalOpen(true); }} className="mt-4 ml-2 h-10 px-5 bg-white text-black rounded-full text-xs font-bold">Publish App</button>}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -384,32 +399,31 @@ function AppStoreContent() {
                       </div>
                     )}
                     {(app as any).is_featured && <div className="absolute top-2 left-2 px-2 py-0.5 bg-amber-400 text-black text-[10px] font-bold rounded-full flex items-center gap-1"><Star className="w-3 h-3"/> Featured</div>}
-                    {(app as any).version_raw && <div className="absolute bottom-2 right-2 text-[10px] bg-black/60 text-white px-2 py-0.5 rounded-full">v{(app as any).version_raw} • {(app as any).changelog_raw?.slice(0,20)}</div>}
                   </div>
                 ))}
                 <div ref={loadMoreRef} className="col-span-full py-8 flex justify-center">
-                  {hasMore ? (<button onClick={()=>setVisibleCount(v=>v+PAGE_SIZE)} className="h-10 px-5 bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 rounded-full text-xs font-medium transition flex items-center gap-2"><Loader2 className="w-3.5 h-3.5" />Load More ({filteredApps.length - visibleCount} left)</button>) : (<span className="text-[11px] text-slate-500">End of results - {filteredApps.length} apps - pagination + virtualized</span>)}
+                  {hasMore ? (<button onClick={()=>setVisibleCount(v=>v+PAGE_SIZE)} className="h-10 px-5 bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 rounded-full text-xs font-medium transition flex items-center gap-2"><Loader2 className="w-3.5 h-3.5" />Load More ({filteredApps.length - visibleCount} left)</button>) : (<span className="text-[11px] text-slate-500">End of results - {filteredApps.length} apps</span>)}
                 </div>
               </div>
             )}
           </div>
         )}
-        {currentTab === 'compare' && <AppCompareView apps={baseApps} initialAppAId={compareAppA} initialAppBId={compareAppB} onOpenDetails={openAppDetails} />}
-        {currentTab === 'library' && <LibraryView apps={baseApps} installedMap={installedMap} onOpenDetails={openAppDetails} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onUninstall={handleUninstallApp} onUpdateApp={handleUpdateApp} onUpdateAll={handleUpdateAll} />}
+        {currentTab === 'compare' && <AppCompareView apps={allApps} initialAppAId={compareAppA} initialAppBId={compareAppB} onOpenDetails={openAppDetails} />}
+        {currentTab === 'library' && <LibraryView apps={allApps} installedMap={installedMap} onOpenDetails={openAppDetails} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onUninstall={handleUninstallApp} onUpdateApp={handleUpdateApp} onUpdateAll={handleUpdateAll} />}
         {currentTab === 'myapps' && <MySubmissionsView userUID={userUID} />}
       </main>
 
-      {selectedApp && <AppDetailModal key={`${selectedApp.id}-${modalInitialTab}`} app={selectedApp} initialTab={modalInitialTab} installedState={installedMap[selectedApp.id]} onClose={() => setSelectedApp(null)} onInstall={handleInstallApp} onUninstall={handleUninstallApp} onStartCompare={handleStartCompare} onAddReview={handleAddReview} onAppDeleted={handleAppDeleted} onOpenOwnerGuide={() => { setSelectedApp(null); setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} allApps={baseApps} />}
-      {isDevModalOpen && <DevSubmitModal onClose={() => setIsDevModalOpen(false)} apps={baseApps} initialTab={devModalInitialTab} onAppPublished={handleAppPublished} onAppDeleted={handleAppDeleted} onRestoreApp={handleRestoreApp} deletedAppsLog={deletedAppsLog} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} onUpdateUID={handleUpdateUID} />}
+      {selectedApp && <AppDetailModal key={`${selectedApp.id}-${modalInitialTab}`} app={selectedApp} initialTab={modalInitialTab} installedState={installedMap[selectedApp.id]} onClose={() => setSelectedApp(null)} onInstall={handleInstallApp} onUninstall={handleUninstallApp} onStartCompare={handleStartCompare} onAddReview={handleAddReview} onAppDeleted={handleAppDeleted} onOpenOwnerGuide={() => { setSelectedApp(null); setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} allApps={allApps} />}
+      {isDevModalOpen && <DevSubmitModal onClose={() => setIsDevModalOpen(false)} apps={allApps} initialTab={devModalInitialTab} onAppPublished={handleAppPublished} onAppDeleted={handleAppDeleted} onRestoreApp={handleRestoreApp} deletedAppsLog={deletedAppsLog} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} onUpdateUID={handleUpdateUID} />}
       <ManagerAuthModal isOpen={isManagerAuthModalOpen} onClose={() => setIsManagerAuthModalOpen(false)} userUID={userUID} onUpdateUID={handleUpdateUID} isStoreManager={isStoreManager} onSetStoreManager={handleSetStoreManager} />
       {isInstallModalOpen && <PWAInstallModal onClose={() => setIsInstallModalOpen(false)} />}
-      <MyAppsDashboard isOpen={showMyApps} onClose={()=>setShowMyApps(false)} apps={baseApps} userUID={userUID} isManager={isStoreManager} onEdit={(app:any)=>setEditingApp(app)} onDelete={(app:any)=>{ const d = baseApps.find((a:any)=>a.id===app.id); if(d) addToTrash(d, 'Deleted', userUID); setApps((prev:any)=>prev.filter((a:any)=>a.id!==app.id)); }} onSelectApp={(app:any)=>setSelectedApp(app)} />
+      <MyAppsDashboard isOpen={showMyApps} onClose={()=>setShowMyApps(false)} apps={allApps} userUID={userUID} isManager={isStoreManager} onEdit={(app:any)=>setEditingApp(app)} onDelete={(app:any)=>{ const d = allApps.find((a:any)=>a.id===app.id); if(d) addToTrash(d, 'Deleted', userUID); setApps((prev:any)=>prev.filter((a:any)=>a.id!==app.id)); }} onSelectApp={(app:any)=>setSelectedApp(app)} />
       <TrashModal isOpen={showTrash} onClose={()=>setShowTrash(false)} onRestore={(app:any)=>{ setApps((prev:any)=>[app, ...prev]); }} />
       <OfflineIndicator /><UpdateNotificationToast />
       <PWAUpdatePrompt />
-      <EdgeSyncManagerModal isOpen={isSyncHubOpen} onClose={() => setIsSyncHubOpen(false)} apps={baseApps} installedApps={installedMap} onForcePurgeCache={handleForcePurgeCache} onRefreshRegistry={()=>{}} />
+      <EdgeSyncManagerModal isOpen={isSyncHubOpen} onClose={() => setIsSyncHubOpen(false)} apps={allApps} installedApps={installedMap} onForcePurgeCache={handleForcePurgeCache} onRefreshRegistry={()=>{}} />
       <MobileBottomNav currentTab={currentTab} onSelectTab={setCurrentTab} installedCount={Object.keys(installedMap).length} onOpenSyncHub={() => setIsSyncHubOpen(true)} />
-      <CommandPalette apps={baseApps} installedMap={installedMap} onOpenDetails={a=>openAppDetails(a)} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onInstall={handleInstallApp} isOpen={commandOpen} onClose={()=>setCommandOpen(false)} />
+      <CommandPalette apps={allApps} installedMap={installedMap} onOpenDetails={a=>openAppDetails(a)} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onInstall={handleInstallApp} isOpen={commandOpen} onClose={()=>setCommandOpen(false)} />
       <button onClick={()=>setCommandOpen(true)} className="fixed bottom-[88px] right-4 md:hidden z-40 w-12 h-12 bg-white text-slate-900 rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition"><Search className="w-5 h-5" /></button>
       
       <ReportPortal isOpen={showReportPortal} onClose={()=>setShowReportPortal(false)} appContext={reportAppContext} currentUserId={userUID} />
@@ -427,18 +441,3 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

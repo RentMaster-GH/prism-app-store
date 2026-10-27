@@ -274,15 +274,16 @@ function AppStoreContent() {
   setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], progress: 85 } } : prev), 800);
   setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], status: 'installed', progress: 100 } } : prev), 1200);
 
-  // C: Real install count increment (permanent)
-  if (supabase && app.id) {
-    try {
-      const rawCount = (app as any).raw?.install_count || parseInt(((app as any).downloadsCount || '0').toString().replace(/[^0-9]/g,'')) || 0;
-      supabase.from('apps').update({ install_count: rawCount + 1, downloads: rawCount + 1 } as any).eq('uuid', app.id).then(()=>{});
-      // Optimistic local update so UI shows instantly
-      setApps(prev => prev.map(a => a.id === app.id ? { ...a, downloadsCount: String(rawCount + 1), raw: { ...(a as any).raw, install_count: rawCount + 1 } } as any : a));
-    } catch {}
-  }
+  // C: Secure increment via RPC - works for ALL apps, can't be abused to delete
+if (supabase && app.id) {
+  try {
+    const rawCount = (app as any).raw?.install_count || parseInt(((app as any).downloadsCount || '0').toString().replace(/[^0-9]/g,'')) || 0;
+    // Use RPC so anon can't overwrite your app data
+    (supabase as any).rpc('increment_install', { target_uuid: app.id }).then(()=>{});
+    // Optimistic UI
+    setApps(prev => prev.map(a => a.id === app.id ? { ...a, downloadsCount: String(rawCount + 1), raw: { ...(a as any).raw, install_count: rawCount + 1 } } as any : a));
+  } catch {}
+}
 
   if (app.liveAppUrl) setTimeout(() => window.open(app.liveAppUrl, '_blank'), 1400);
 }, []);

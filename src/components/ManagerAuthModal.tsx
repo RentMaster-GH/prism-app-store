@@ -63,11 +63,11 @@ export const ManagerAuthModal: React.FC<Props> = ({ isOpen, open, onClose, onAut
             <div>
               <label className="text-[11px] text-slate-300">Store Developer / Manager Passkey:</label>
               <div className="mt-1 flex gap-2">
-                <input type="password" value={passkey} onChange={e=>{setPasskey(e.target.value); setError('');}} placeholder="Enter soulreal200682" className="flex-1 h-10 px-3 rounded-lg bg-[#0a0b18] border border-white/10 text-white text-[13px] outline-none focus:border-amber-500" onKeyDown={e=>{if(e.key==='Enter') doAuth()}} />
+                <input type="password" value={passkey} onChange={e=>{setPasskey(e.target.value); setError('');}} placeholder="••••••••••••" className="flex-1 h-10 px-3 rounded-lg bg-[#0a0b18] border border-white/10 text-white text-[13px] outline-none focus:border-amber-500" onKeyDown={e=>{if(e.key==='Enter') doAuth()}} />
                 <button onClick={doAuth} disabled={loading} className="h-10 px-4 rounded-full bg-amber-500 text-black font-bold text-[11px] hover:bg-amber-400">{loading?'...':'Authenticate'}</button>
               </div>
               {error && <p className="text-[11px] text-rose-400 mt-2">{error}</p>}
-              <div className="mt-2 flex gap-2"><span className="text-[10px] text-slate-500">Key: soulreal200682</span><button onClick={quickUnlock} className="text-[10px] text-amber-400 underline">Quick Unlock Store Manager Mode</button></div>
+              <div className="mt-2 flex gap-2"><span className="text-[10px] text-slate-500"></span><button onClick={quickUnlock} className="text-[10px] text-amber-400 underline">Quick Unlock Store Manager Mode</button></div>
             </div>
             <div className="text-[10px] text-slate-500">UID: <span className="font-mono text-violet-300">{userUID}</span></div>
           </div>
@@ -83,3 +83,4 @@ export const ManagerAuthModal: React.FC<Props> = ({ isOpen, open, onClose, onAut
 
 export default ManagerAuthModal;
 export const OwnerGuidePortal = ManagerAuthModal;
+

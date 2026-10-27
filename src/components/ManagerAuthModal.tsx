@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { 
   X, ShieldCheck, Key, UserCheck, Copy, Check, 
   Lock, Unlock, AlertTriangle, Sparkles, RefreshCw, LogOut, ArrowRight
@@ -83,7 +83,7 @@ export const ManagerAuthModal: React.FC<ManagerAuthModalProps> = ({
         onClose();
       }, 1500);
     } else {
-      setManagerError('Invalid Store Manager Key. Enter the authorized passkey or use the demo quick-access button.');
+      setManagerError('Invalid key. Expected env key is: ' + EXPECTED.slice(0,2) + '***' + ' (check Vercel env) - Demo key: soulreal200682. Enter the authorized passkey or use the demo quick-access button.');
     }
   };
 
@@ -345,3 +345,4 @@ export const ManagerAuthModal: React.FC<ManagerAuthModalProps> = ({
     </div>
   );
 };
+

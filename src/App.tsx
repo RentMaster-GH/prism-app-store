@@ -354,8 +354,8 @@ function AppStoreContent() {
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2 items-center">
               <button onClick={()=>setView('all')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='all' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>All Software ({baseApps.length})</button>
-              <button onClick={()=>{setDebouncedSearch(''); setSearch(''); setView('featured')}} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='featured' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}>Featured</button>
-              <button onClick={()=>{setDebouncedSearch(''); setSearch(''); setStoreCategory('All'); setView('my')}} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='my' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>My Uploads ({myApps.length})</button>
+              <button onClick={()=>{setSearch(''); setView('featured')}} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='featured' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}>Featured</button>
+              <button onClick={()=>{setSearch(''); setStoreCategory('All'); setView('my')}} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='my' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>My Uploads ({myApps.length})</button>
               <button onClick={()=>{setReportAppContext(null); setShowReportPortal(true);}} className="px-4 py-2 rounded-full text-xs font-bold bg-amber-100 text-amber-800 hover:bg-amber-200">Report Issue</button>
               {view==='my' && myApps.length===0 && <span className="text-xs text-white/30 ml-2">No uploads yet - UID: {userUID}</span>}
             </div>
@@ -427,6 +427,8 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+
 
 
 

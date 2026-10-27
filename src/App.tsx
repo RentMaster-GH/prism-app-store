@@ -1,5 +1,4 @@
 ﻿import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { ClaimPanel } from './components/ClaimPanel';
 import { Search, Loader2, Edit3, Ban, BarChart3, Megaphone, Star } from 'lucide-react';
 import { APPS_DATA } from './data/appsData';
 import { AppItem, CategoryType, DevicePlatform, InstalledAppState, DeletedAppAuditItem } from './types';
@@ -416,6 +415,7 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
 
 
 

@@ -295,4 +295,3 @@ export const AppDetailModal: React.FC<AppDetailModalProps> = ({
 
 
 
-

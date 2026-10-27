@@ -38,16 +38,46 @@ import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
 const PAGE_SIZE = 24;
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: any }> {
-  state = { error: null as any };
+  state = { error: null as any, preservedUID: '' };
   static getDerivedStateFromError(e: any) { return { error: e }; }
+  componentDidCatch() {
+    try {
+      const uid = localStorage.getItem('prism_user_uid') || '';
+      this.setState({ preservedUID: uid });
+    } catch {}
+  }
+  handleSafeReload = () => {
+    try {
+      // Preserve critical sessions across crash
+      const keepUID = localStorage.getItem('prism_user_uid');
+      const keepBackup = localStorage.getItem('prism_user_uid_backup');
+      const keepInstalled = localStorage.getItem('prism_installed_map');
+      const keepUploaded = localStorage.getItem('prism_user_uploaded_apps');
+      const keepRegistry = localStorage.getItem('prism_apps_registry');
+      const keepManager = localStorage.getItem('prism_is_store_manager');
+
+      // Only clear cache, not identity
+      localStorage.clear();
+
+      if (keepUID) localStorage.setItem('prism_user_uid', keepUID);
+      if (keepBackup) localStorage.setItem('prism_user_uid_backup', keepBackup);
+      if (keepInstalled) localStorage.setItem('prism_installed_map', keepInstalled);
+      if (keepUploaded) localStorage.setItem('prism_user_uploaded_apps', keepUploaded);
+      if (keepRegistry) localStorage.setItem('prism_apps_registry', keepRegistry);
+      if (keepManager) localStorage.setItem('prism_is_store_manager', keepManager);
+    } catch {}
+    location.reload();
+  };
   render() {
     if (this.state.error) {
       return (
         <div className="min-h-screen bg-[#05060f] text-white p-6 flex items-center justify-center">
           <div className="max-w-lg w-full">
-            <h1 className="text-red-400 font-bold mb-3">Prism crashed</h1>
+            <h1 className="text-red-400 font-bold mb-3">Prism crashed — but your UID is safe</h1>
+            <p className="text-[12px] text-white/50 mb-3">UID {this.state.preservedUID || localStorage.getItem('prism_user_uid')} is preserved. My Uploads & Library will remain after reload.</p>
             <pre className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 overflow-auto text-xs whitespace-pre-wrap">{String(this.state.error?.message)}</pre>
-            <button onClick={() => { try { localStorage.clear(); } catch {} location.reload(); }} className="mt-4 w-full h-11 bg-white text-black rounded-full font-bold text-sm">Clear cache & Reload</button>
+            <button onClick={this.handleSafeReload} className="mt-4 w-full h-11 bg-white text-black rounded-full font-bold text-sm">Preserve Session & Reload</button>
+            <p className="text-[10px] text-white/20 text-center mt-2">We no longer call localStorage.clear() without backup.</p>
           </div>
         </div>
       );

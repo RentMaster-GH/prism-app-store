@@ -385,14 +385,29 @@ function AppStoreContent() {
     <div className="min-h-screen bg-[#05060f] text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 antialiased">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(60%_60%_at_50%_-20%,rgba(99,102,241,0.15),transparent),radial-gradient(40%_40%_at_100%_0%,rgba(168,85,247,0.12),transparent)] pointer-events-none" />
       <AnnouncementBanner />
-      <TopBar currentTab={currentTab} onSelectTab={setCurrentTab} onOpenDevModal={() => { setDevModalInitialTab('publish'); setIsDevModalOpen(true); }} onOpenOwnerGuide={() => { setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} onOpenInstallModal={() => setIsInstallModalOpen(true)} onDirectInstall={handleDirectInstall} onOpenSyncHub={() => setIsSyncHubOpen(true)} isStandalone={isStandalone} installedCount={Object.keys(installedMap).length} userUID={userUID} isStoreManager={isStoreManager} onOpenManagerAuth={() => setIsManagerAuthModalOpen(true)} />
+      <TopBar 
+        currentTab={currentTab} 
+        onSelectTab={setCurrentTab} 
+        onOpenDevModal={() => { setDevModalInitialTab('publish'); setIsDevModalOpen(true); }} 
+        onOpenOwnerGuide={() => { setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} 
+        onOpenInstallModal={() => setIsInstallModalOpen(true)} 
+        onDirectInstall={handleDirectInstall} 
+        onOpenSyncHub={() => setIsSyncHubOpen(true)} 
+        isStandalone={isStandalone} 
+        installedCount={Object.keys(installedMap).length} 
+        userUID={userUID} 
+        isStoreManager={isStoreManager} 
+        onOpenManagerAuth={() => setIsManagerAuthModalOpen(true)} 
+      />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-8 pb-28 md:pb-8">
         <DirectInstallBanner onOpenManualModal={() => setIsInstallModalOpen(true)} />
         {isSupabaseSyncing && <div className="mb-4 px-3 py-2.5 bg-white/[0.04] border border-white/10 rounded-full text-xs text-indigo-200 flex items-center gap-2 w-fit"><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Syncing permanent apps...</span></div>}
-        {isStoreManager && (
+        
+        {/* SECURITY: Manager Console HIDDEN from public. Only renders if isStoreManager === true (secret auth). No UID example leak. */}
+        {isStoreManager ? (
           <div className="space-y-4 p-4 bg-white/[0.03] border border-white/10 rounded-2xl mb-6">
             <div className="flex flex-wrap gap-2 items-center justify-between">
-              <h2 className="font-bold text-sm">Manager Console (Owner Only) - UID {userUID}</h2>
+              <h2 className="font-bold text-sm">Manager Console (Owner Only)</h2>
               <div className="flex gap-2">
                 <button onClick={()=>setManagerTab('all')} className={`px-3 py-1 rounded-full text-xs ${managerTab==='all'?'bg-white text-black':'bg-white/10'}`}>All</button>
                 <button onClick={()=>setManagerTab('deleted')} className={`px-3 py-1 rounded-full text-xs ${managerTab==='deleted'?'bg-white text-black':'bg-white/10'}`}>Deleted</button>
@@ -406,7 +421,7 @@ function AppStoreContent() {
             {managerTab==='announcements' && <AnnouncementManager isManager={isStoreManager} />}
             {managerTab==='all' && <ManagerPendingView managerKey={userUID} />}
           </div>
-        )}
+        ) : null}
 
         {currentTab === 'discover' && (<DiscoverView featuredApp={featuredApp} becauseApps={becauseApps} filteredApps={filteredApps} installedMap={installedMap} onOpenDetails={openAppDetails} onQuickInstall={handleInstallApp} onOpenSandbox={(a)=>openAppDetails(a,'test-drive')} onOpenManualModal={() => setIsInstallModalOpen(true)} />)}
 
@@ -416,7 +431,8 @@ function AppStoreContent() {
               <button onClick={()=>setView('all')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='all' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>All Software ({allApps.length})</button>
               <button onClick={()=>setView('featured')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='featured' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}>Featured</button>
               <button onClick={()=>setView('my')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='my' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>My Uploads ({myApps.length})</button>
-              <span className="text-[10px] text-white/30 ml-2">UID: {userUID}</span>
+              {/* UID hidden from public - only manager sees own UID inside console */}
+              {isStoreManager && <span className="text-[10px] text-white/30 ml-2">UID: {userUID}</span>}
             </div>
             <div className="flex gap-2 flex-wrap">
               {['All','Labyrinth','Game','Tool','Utility','Other'].map(c=><button key={c} onClick={()=>setStoreCategory(c)} className={`px-3 py-1.5 rounded-full text-xs border ${storeCategory===c?'bg-white text-black border-white':'bg-white/5 border-white/10 text-white/60'}`}>{c}</button>)}

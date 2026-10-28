@@ -230,7 +230,6 @@ function AppStoreContent() {
   }, []);
 
   const handleForcePurgeCache = async () => {
-    // FIX: Never clear UID on purge - only caches
     if (typeof window !== 'undefined' && 'caches' in window) { 
       try { 
         const names = await caches.keys(); 
@@ -269,7 +268,6 @@ function AppStoreContent() {
   useEffect(() => { try { localStorage.setItem('prism_installed_map', JSON.stringify(installedMap)); } catch {} }, [installedMap]);
   useEffect(() => { setVisibleCount(PAGE_SIZE); }, [debouncedSearch, selectedCategory, selectedDevice, selectedPriceModel, sortBy, currentTab, view, storeCategory]);
 
-  // FIX C: Secure install count for ALL apps via RPC
   const handleInstallApp = useCallback((app: AppItem) => {
     setInstalledMap(prev => ({ ...prev, [app.id]: { appId: app.id, installedVersion: app.currentVersion, installedAt: 'Just now', storageUsedMB: app.sizeMB, status: 'installing', progress: 15 } as any }));
     setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], progress: 55 } } : prev), 400);
@@ -279,7 +277,6 @@ function AppStoreContent() {
     if (supabase && app.id) {
       try {
         const rawCount = (app as any).raw?.install_count ?? parseInt(String((app as any).downloadsCount || '0').replace(/\D/g,'')) ?? 0;
-        // Secure RPC - increments for Rent Master, Credible artisans, Ivory Labyrinth, ALL apps
         (supabase as any).rpc('increment_install', { target_uuid: app.id }).then((res:any)=>{ if(res.error) console.log('rpc error', res.error); });
         setApps(prev => prev.map(a => a.id === app.id ? { ...a, downloadsCount: String(rawCount + 1), raw: { ...(a as any).raw, install_count: rawCount + 1 } } as any : a));
       } catch {}
@@ -317,54 +314,61 @@ function AppStoreContent() {
   const myApps = useMemo(() => baseApps.filter((a:any) => { const owner = (a as any).ownerId || (a as any).owner_uid || (a as any).owner_id; return owner === userUID; }), [baseApps, userUID]);
   const activeFilterCount = useMemo(() => [selectedCategory !== 'All', selectedDevice !== 'All', selectedPriceModel !== 'All', sortBy !== 'rating', storeCategory!=='All', view!=='all'].filter(Boolean).length, [selectedCategory, selectedDevice, selectedPriceModel, sortBy, storeCategory, view]);
 
-  // FIX A+B: Crash-proof filtering - handles undefined category, blty, labyrinth
   const filteredApps = useMemo(() => {
-    if (view === 'my') return myApps;
-    let list = view === 'featured' ? baseApps.filter((a:any)=> (a as any).is_featured || (a as any).isUserUploaded) : [...allApps];
-    
-    const normalize = (s:any) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g,'').trim();
+    try {
+      if (view === 'my') return myApps || [];
+      let list = view === 'featured' ? (baseApps || []).filter((a:any)=> (a as any)?.is_featured || (a as any)?.isUserUploaded) : [...(allApps || [])];
+      
+      const normalize = (s:any) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g,'').trim();
 
-    if (storeCategory !== 'All') {
-      const filterN = normalize(storeCategory);
-      const filterRaw = String(storeCategory || '').toLowerCase();
-      list = list.filter((a:any)=> {
-        if (!a) return false;
-        const rawCat = a?.category ?? (a as any)?.blty ?? (a as any)?.storeCategory ?? '';
-        const catN = normalize(rawCat);
-        const catRaw = String(rawCat || '').toLowerCase();
-        
-        if (!catRaw && filterN === 'all') return true;
-        if (filterN === 'labyrinth') {
-          return catN.includes('laby') || catN.includes('blty') || catN.includes('labr') || catRaw.includes('labyrinth') || catRaw.includes('horror');
-        }
-        if (filterN === 'all') return true;
-        if (filterN === 'other') {
-          return !['game','tool','utility','labyrinth','blty','laby','horror'].some(k=> catN.includes(k) || catRaw.includes(k));
-        }
-        return catN.includes(filterN) || filterN.includes(catN) || catRaw.includes(filterRaw);
-      });
-    }
-
-    const seen = new Set<string>();
-    return list.filter(app => {
-      if (!app?.id || seen.has(app.id)) return false;
-      seen.add(app.id);
-      const q = String(debouncedSearch || '').toLowerCase().trim();
-      if (!q) {
-        // No search - just other filters
-      } else {
-        const haystack = `${String(app.name||'')} ${String((app as any).title_raw||'')} ${String((app as any).jamz_raw||'')} ${String(app.tagline||'')} ${String(app.developer||'')} ${String((app as any).studio||'')} ${String(app.category||'')} ${String(app.summary||'')} ${String((app as any).liveAppUrl||'')} ${String((app as any).websiteUrl||'')}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
+      if (storeCategory && storeCategory !== 'All') {
+        const filterN = normalize(storeCategory);
+        const filterRaw = String(storeCategory || '').toLowerCase();
+        list = (list || []).filter((a:any)=> {
+          if (!a) return false;
+          const rawCat = a?.category ?? (a as any)?.blty ?? (a as any)?.storeCategory ?? '';
+          const catN = normalize(rawCat);
+          const catRaw = String(rawCat || '').toLowerCase();
+          if (filterN === 'labyrinth') {
+            return catN.includes('laby') || catN.includes('blty') || catN.includes('labr') || catRaw.includes('labyrinth') || catRaw.includes('horror');
+          }
+          if (filterN === 'all') return true;
+          if (filterN === 'other') {
+            return !['game','tool','utility','labyrinth','blty','laby','horror'].some(k=> catN.includes(k) || catRaw.includes(k));
+          }
+          return catN.includes(filterN) || catRaw.includes(filterRaw);
+        });
       }
-      const matchesCategory = selectedCategory === 'All' || String(app.category||'').includes(selectedCategory) || selectedCategory.includes(String(app.category||''));
-      const matchesDevice = selectedDevice === 'All' || (app.supportedDevices||[]).includes(selectedDevice);
-      const matchesPrice = selectedPriceModel === 'All' || app.priceModel === selectedPriceModel;
-      return matchesCategory && matchesDevice && matchesPrice;
-    }).sort((a,b) => { 
-      if (sortBy === 'rating') return (b.rating||0) - (a.rating||0); 
-      if (sortBy === 'size') return (a.sizeMB||0) - (b.sizeMB||0); 
-      return parseInt(String(b.downloadsCount||'0').replace(/\D/g,'')) - parseInt(String(a.downloadsCount||'0').replace(/\D/g,'')); 
-    });
+
+      const seen = new Set<string>();
+      const q = String(debouncedSearch || '').toLowerCase().trim();
+
+      return (list || []).filter(app => {
+        if (!app?.id || seen.has(app.id)) return false;
+        seen.add(app.id);
+
+        if (q) {
+          const haystack = `${String(app.name||'')} ${String((app as any).title_raw||'')} ${String((app as any).jamz_raw||'')} ${String(app.tagline||'')} ${String(app.developer||'')} ${String((app as any).studio||'')} ${String(app.category||'')} ${String(app.summary||'')} ${String((app as any).liveAppUrl||'')} ${String((app as any).websiteUrl||'')}`.toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
+
+        const matchesCategory = selectedCategory === 'All' || String(app.category||'').toLowerCase().includes(String(selectedCategory||'').toLowerCase());
+        const devices = Array.isArray(app.supportedDevices) ? app.supportedDevices : [];
+        const matchesDevice = selectedDevice === 'All' || devices.length === 0 || devices.includes(selectedDevice as any);
+        const matchesPrice = selectedPriceModel === 'All' || app.priceModel === selectedPriceModel || !app.priceModel;
+
+        return matchesCategory && matchesDevice && matchesPrice;
+      }).sort((a,b) => { 
+        try {
+          if (sortBy === 'rating') return (b.rating||0) - (a.rating||0); 
+          if (sortBy === 'size') return (a.sizeMB||0) - (b.sizeMB||0); 
+          return parseInt(String(b.downloadsCount||'0').replace(/\D/g,'')) - parseInt(String(a.downloadsCount||'0').replace(/\D/g,'')); 
+        } catch { return 0; }
+      });
+    } catch (e) {
+      console.error('filteredApps crash prevented', e);
+      return allApps || [];
+    }
   }, [allApps, baseApps, myApps, view, debouncedSearch, selectedCategory, selectedDevice, selectedPriceModel, sortBy, storeCategory]);
 
   const paginatedApps = useMemo(() => filteredApps.slice(0, visibleCount), [filteredApps, visibleCount]);

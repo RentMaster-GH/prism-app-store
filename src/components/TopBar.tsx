@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Code2, Download, Box, Shield, Eye, EyeOff } from 'lucide-react';
+import { Shield, Eye, EyeOff } from 'lucide-react';
 
 interface Props {
   currentTab: string;
@@ -18,13 +18,11 @@ interface Props {
 
 function maskUID(uid: string) {
   if (!uid) return '••••';
-  // PRISM-UID-8015-A3M -> PRISM-••••-A3M
-  const parts = uid.split('-');
-  if (parts.length >= 4) return `${parts[0]}-${parts[1]}-••••-${parts[3]}`;
-  return uid.slice(0, 8) + '••••';
+  const p = uid.split('-');
+  return p.length >= 4 ? `${p[0]}-••••-${p[3]}` : uid.slice(0, 8) + '••••';
 }
 
-export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onOpenInstallModal, onDirectInstall, userUID, isStoreManager, onOpenManagerAuth }: Props) {
+export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onDirectInstall, userUID, isStoreManager, onOpenManagerAuth }: Props) {
   const [showFull, setShowFull] = useState(false);
 
   return (
@@ -39,23 +37,14 @@ export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onOpenInstallM
             <button onClick={()=>onSelectTab('library')} className={`px-3 py-1.5 rounded-full text-xs ${currentTab==='library'?'bg-white text-black':'text-white/60'}`}>Library</button>
           </nav>
         </div>
-
         <div className="flex items-center gap-2">
-          {/* SECURE: Public NEVER sees PRISM-UID-8015. Only Guest/Sign In */}
           {!isStoreManager ? (
-            <button
-              onClick={onOpenManagerAuth}
-              className="h-8 px-3 rounded-full bg-white/[0.06] border border-white/10 text-[11px] text-white/60 hover:bg-white/10 flex items-center gap-1.5"
-            >
+            <button onClick={onOpenManagerAuth} className="h-8 px-3 rounded-full bg-white/[0.06] border border-white/10 text-[11px] text-white/60 hover:bg-white/10 flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5"/> Manager Sign In
             </button>
           ) : (
             <div className="flex items-center gap-1">
-              <button
-                onClick={onOpenManagerAuth}
-                className="h-8 px-3 rounded-full bg-white text-black text-[11px] font-bold flex items-center gap-1.5"
-                title="Owner only - masked"
-              >
+              <button onClick={onOpenManagerAuth} className="h-8 px-3 rounded-full bg-white text-black text-[11px] font-bold flex items-center gap-1.5">
                 {showFull ? userUID : maskUID(userUID)} • Manager
               </button>
               <button onClick={()=>setShowFull(v=>!v)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
@@ -63,7 +52,6 @@ export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onOpenInstallM
               </button>
             </div>
           )}
-
           <button onClick={onOpenDevModal} className="h-8 px-4 rounded-full bg-indigo-600 text-white text-xs font-bold hidden sm:flex">Dev Submit</button>
           <button onClick={onDirectInstall} className="h-8 px-4 rounded-full bg-white text-black text-xs font-bold">Install</button>
         </div>

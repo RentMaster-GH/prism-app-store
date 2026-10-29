@@ -47,7 +47,6 @@ export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onDirectInstal
       const existing = localStorage.getItem('prism_portal_slug');
       if (existing) {
         onSelectTab('myapps');
-        // navigate to your portal tab
         window.location.hash = `#/p/${existing}`;
         setCreating(false);
         return;
@@ -62,7 +61,6 @@ export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onDirectInstal
           passkey_hash: hash
         });
         if (error) {
-          // if duplicate owner_uid, fetch existing
           const { data } = await supabase.from('owner_portals').select('slug').eq('owner_uid', userUID).single();
           if (data?.slug) {
             localStorage.setItem('prism_portal_slug', data.slug);
@@ -96,6 +94,7 @@ export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onDirectInstal
               <button onClick={()=>onSelectTab('discover')} className={`px-3 h-7 rounded-full text-xs inline-flex items-center justify-center leading-none ${currentTab==='discover'?'bg-white text-black':'text-white/60'}`}>Discover</button>
               <button onClick={()=>onSelectTab('apps')} className={`px-3 h-7 rounded-full text-xs inline-flex items-center justify-center leading-none ${currentTab==='apps'?'bg-white text-black':'text-white/60'}`}>All Software</button>
               <button onClick={()=>onSelectTab('library')} className={`px-3 h-7 rounded-full text-xs inline-flex items-center justify-center leading-none ${currentTab==='library'?'bg-white text-black':'text-white/60'}`}>Library</button>
+              <button onClick={()=>onSelectTab('feedback')} className={`px-3 h-7 rounded-full text-xs inline-flex items-center justify-center leading-none ${currentTab==='feedback'?'bg-white text-black':'text-white/60'}`}>Feedback</button>
               {portalSlug && (
                 <button onClick={()=>onSelectTab('myapps')} className={`px-3 h-7 rounded-full text-xs inline-flex items-center justify-center leading-none gap-1 ${currentTab==='myapps'?'bg-indigo-600 text-white':'text-white/60 border border-white/10'}`}>
                   <Key className="w-3 h-3"/> My Portal
@@ -105,7 +104,6 @@ export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onDirectInstal
           </div>
 
           <div className="flex items-center gap-2">
-            {/* NEW: Owner Portal Button for Public */}
             <button
               type="button"
               onClick={handleCreatePortal}
@@ -148,7 +146,6 @@ export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onDirectInstal
         </div>
       </header>
 
-      {/* One-time Passkey Modal */}
       {showKeyModal && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#0f1020] border border-white/10 rounded-2xl max-w-md w-full p-5 space-y-4">

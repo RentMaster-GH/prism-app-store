@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Eye, EyeOff, Key, Copy, Check } from 'lucide-react';
+import { Shield, Eye, EyeOff, Key, Copy, Check, Menu, X, MessageSquare, Library, Compass, AppWindow } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface Props {
@@ -18,14 +18,11 @@ function maskUID(uid: string) {
   const p = uid.split('-');
   return p.length >= 4 ? `${p[0]}-••••-${p[3]}` : uid.slice(0, 8) + '••••';
 }
-
 function generateOwnerPasskey() {
-  const raw = 'PRISM-' + crypto.randomUUID().replace(/-/g,'').slice(0,16).toUpperCase() 
-            + '-' + Math.random().toString(36).slice(2,8).toUpperCase();
+  const raw = 'PRISM-' + crypto.randomUUID().replace(/-/g,'').slice(0,16).toUpperCase() + '-' + Math.random().toString(36).slice(2,8).toUpperCase();
   const slug = 'p-' + Math.random().toString(36).slice(2,9).toLowerCase();
   return { raw, slug };
 }
-
 async function hashPasskey(raw: string) {
   const enc = new TextEncoder().encode(raw);
   const buf = await crypto.subtle.digest('SHA-256', enc);
@@ -38,34 +35,30 @@ export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onDirectInstal
   const [showKeyModal, setShowKeyModal] = useState<{slug:string, key:string} | null>(null);
   const [copied, setCopied] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleCreatePortal = async () => {
-    if (!userUID) return;
-    if (creating) return;
+    if (!userUID || creating) return;
     setCreating(true);
     try {
       const existing = localStorage.getItem('prism_portal_slug');
       if (existing) {
-        onSelectTab('myapps');
         window.location.hash = `#/p/${existing}`;
-        setCreating(false);
+        onSelectTab('portal');
+        setMobileOpen(false);
         return;
       }
       const { raw, slug } = generateOwnerPasskey();
       const hash = await hashPasskey(raw);
-      
       if (supabase) {
-        const { error } = await supabase.from('owner_portals').insert({
-          owner_uid: userUID,
-          slug,
-          passkey_hash: hash
-        });
+        const { error } = await supabase.from('owner_portals').insert({ owner_uid: userUID, slug, passkey_hash: hash });
         if (error) {
           const { data } = await supabase.from('owner_portals').select('slug').eq('owner_uid', userUID).single();
           if (data?.slug) {
             localStorage.setItem('prism_portal_slug', data.slug);
             setPortalSlug(data.slug);
-            onSelectTab('myapps');
+            window.location.hash = `#/p/${data.slug}`;
+            onSelectTab('portal');
             setCreating(false);
             return;
           }
@@ -76,105 +69,74 @@ export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onDirectInstal
       localStorage.setItem('prism_portal_key', raw);
       setPortalSlug(slug);
       setShowKeyModal({ slug, key: raw });
-    } catch (e:any) {
-      alert('Failed: ' + (e.message || String(e)));
-    } finally {
-      setCreating(false);
-    }
+      setMobileOpen(false);
+    } catch (e:any) { alert('Failed: ' + (e.message || String(e))); }
+    finally { setCreating(false); }
   };
 
   return (
     <>
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#05060f]/80 border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center font-black text-black leading-none">P</div>
-            <span className="font-bold text-sm">Prism Store</span>
-            <nav className="hidden md:flex gap-1 ml-4">
-              <button onClick={()=>onSelectTab('discover')} className={`px-3 h-7 rounded-full text-xs inline-flex items-center justify-center leading-none ${currentTab==='discover'?'bg-white text-black':'text-white/60'}`}>Discover</button>
-              <button onClick={()=>onSelectTab('apps')} className={`px-3 h-7 rounded-full text-xs inline-flex items-center justify-center leading-none ${currentTab==='apps'?'bg-white text-black':'text-white/60'}`}>All Software</button>
-              <button onClick={()=>onSelectTab('library')} className={`px-3 h-7 rounded-full text-xs inline-flex items-center justify-center leading-none ${currentTab==='library'?'bg-white text-black':'text-white/60'}`}>Library</button>
-              <button onClick={()=>onSelectTab('feedback')} className={`px-3 h-7 rounded-full text-xs inline-flex items-center justify-center leading-none ${currentTab==='feedback'?'bg-white text-black':'text-white/60'}`}>Feedback</button>
-              {portalSlug && (
-                <button onClick={()=>onSelectTab('myapps')} className={`px-3 h-7 rounded-full text-xs inline-flex items-center justify-center leading-none gap-1 ${currentTab==='myapps'?'bg-indigo-600 text-white':'text-white/60 border border-white/10'}`}>
-                  <Key className="w-3 h-3"/> My Portal
-                </button>
-              )}
+      <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#05060f]/90 border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <button onClick={()=>setMobileOpen(v=>!v)} className="md:hidden w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+              {mobileOpen ? <X className="w-5 h-5"/> : <Menu className="w-5 h-5"/>}
+            </button>
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center font-black text-black leading-none shrink-0">P</div>
+            <span className="font-bold text-sm hidden sm:block">Prism Store</span>
+            
+            {/* Desktop Nav - scrollable if overflow */}
+            <nav className="hidden md:flex gap-1 ml-2 overflow-x-auto scrollbar-hide">
+              <button onClick={()=>onSelectTab('discover')} className={`px-3 h-8 rounded-full text-xs whitespace-nowrap ${currentTab==='discover'?'bg-white text-black':'text-white/60 hover:bg-white/10'}`}>Discover</button>
+              <button onClick={()=>onSelectTab('apps')} className={`px-3 h-8 rounded-full text-xs whitespace-nowrap ${currentTab==='apps'?'bg-white text-black':'text-white/60 hover:bg-white/10'}`}>All Software</button>
+              <button onClick={()=>onSelectTab('library')} className={`px-3 h-8 rounded-full text-xs whitespace-nowrap ${currentTab==='library'?'bg-white text-black':'text-white/60 hover:bg-white/10'}`}>Library</button>
+              <button onClick={()=>onSelectTab('feedback')} className={`px-3 h-8 rounded-full text-xs whitespace-nowrap ${currentTab==='feedback'?'bg-white text-black':'text-white/60 hover:bg-white/10'}`}>Feedback</button>
+              {portalSlug && <button onClick={()=>onSelectTab('myapps')} className={`px-3 h-8 rounded-full text-xs whitespace-nowrap gap-1 flex items-center ${currentTab==='myapps'?'bg-indigo-600 text-white':'text-white/60 border border-white/10'}`}><Key className="w-3 h-3"/> My Apps</button>}
             </nav>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCreatePortal}
-              disabled={creating}
-              className={`h-8 px-3 rounded-full text-[11px] font-bold inline-flex items-center justify-center gap-1.5 leading-none border transition
-                ${portalSlug ? 'bg-white/[0.06] border-white/10 text-white/80' : 'bg-white text-black border-white hover:bg-white/90'}`}
-            >
-              <Key className="w-3.5 h-3.5"/>
-              {creating ? 'Creating...' : portalSlug ? `My Portal: ${portalSlug}` : 'Create Owner Portal'}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button onClick={handleCreatePortal} disabled={creating} className={`h-9 px-3 sm:px-3 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 border ${portalSlug ? 'bg-white/[0.06] border-white/10 text-white/80' : 'bg-white text-black border-white'}`}>
+              <Key className="w-3.5 h-3.5"/>{creating ? '...' : portalSlug ? portalSlug : 'Portal'}
             </button>
-
-            {!isStoreManager ? (
-              <button type="button" onClick={onOpenManagerAuth} className="h-8 px-3 rounded-full bg-white/[0.06] border border-white/10 text-[11px] text-white/60 inline-flex items-center justify-center gap-1.5 leading-none">
-                <Shield className="w-3.5 h-3.5"/> Manager
-              </button>
-            ) : (
-              <div className="flex items-center gap-1">
-                <button type="button" onClick={onOpenManagerAuth} className="h-8 px-3 rounded-full bg-white text-black text-[11px] font-bold inline-flex items-center justify-center leading-none">
-                  {showFull ? userUID : maskUID(userUID)} • Manager
-                </button>
-                <button type="button" onClick={()=>setShowFull(v=>!v)} className="w-8 h-8 rounded-full bg-white/10 inline-flex items-center justify-center">
-                  {showFull ? <EyeOff className="w-3.5 h-3.5"/> : <Eye className="w-3.5 h-3.5"/>}
-                </button>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={onOpenDevModal}
-              className="h-8 min-w-[92px] px-5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold inline-flex items-center justify-center leading-none text-center"
-              style={{ lineHeight: '1', paddingTop: '0px', paddingBottom: '1px' }}
-            >
-              Dev Submit
+            <button onClick={onOpenManagerAuth} className="h-9 w-9 sm:w-auto sm:px-3 rounded-full bg-white/[0.06] border border-white/10 text-white/70 flex items-center justify-center gap-1.5">
+              <Shield className="w-4 h-4"/><span className="hidden sm:block text-[11px]">{isStoreManager ? (showFull ? userUID.slice(0,12) : maskUID(userUID)) : 'Manager'}</span>
             </button>
-
-            <button type="button" onClick={onDirectInstall} className="h-8 px-4 rounded-full bg-white text-black text-xs font-bold inline-flex items-center justify-center leading-none">
-              Install
-            </button>
+            {isStoreManager && <button onClick={()=>setShowFull(v=>!v)} className="hidden sm:flex w-9 h-9 rounded-full bg-white/10 items-center justify-center">{showFull ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}</button>}
+            <button onClick={onOpenDevModal} className="h-9 px-3 sm:px-4 rounded-full bg-indigo-600 text-white text-xs font-bold">Dev</button>
+            <button onClick={onDirectInstall} className="h-9 px-3 sm:px-4 rounded-full bg-white text-black text-xs font-bold hidden sm:flex">Install</button>
           </div>
         </div>
+
+        {/* Mobile Drawer */}
+        {mobileOpen && (
+          <div className="md:hidden border-t border-white/10 bg-[#080a14]/95 backdrop-blur-xl">
+            <div className="p-3 grid grid-cols-2 gap-2">
+              <button onClick={()=>{onSelectTab('discover'); setMobileOpen(false)}} className={`h-12 rounded-xl text-sm font-medium flex items-center gap-2 px-4 ${currentTab==='discover'?'bg-white text-black':'bg-white/[0.06] text-white/70'}`}><Compass className="w-4 h-4"/> Discover</button>
+              <button onClick={()=>{onSelectTab('apps'); setMobileOpen(false)}} className={`h-12 rounded-xl text-sm font-medium flex items-center gap-2 px-4 ${currentTab==='apps'?'bg-white text-black':'bg-white/[0.06] text-white/70'}`}><AppWindow className="w-4 h-4"/> All Apps</button>
+              <button onClick={()=>{onSelectTab('library'); setMobileOpen(false)}} className={`h-12 rounded-xl text-sm font-medium flex items-center gap-2 px-4 ${currentTab==='library'?'bg-white text-black':'bg-white/[0.06] text-white/70'}`}><Library className="w-4 h-4"/> Library</button>
+              <button onClick={()=>{onSelectTab('feedback'); setMobileOpen(false)}} className={`h-12 rounded-xl text-sm font-medium flex items-center gap-2 px-4 ${currentTab==='feedback'?'bg-white text-black':'bg-white/[0.06] text-white/70'}`}><MessageSquare className="w-4 h-4"/> Feedback</button>
+              <button onClick={()=>{onSelectTab('myapps'); setMobileOpen(false)}} className={`h-12 col-span-2 rounded-xl text-sm font-medium flex items-center gap-2 px-4 ${currentTab==='myapps'?'bg-indigo-600 text-white':'bg-white/[0.06] text-white/70'}`}><Key className="w-4 h-4"/> My Portal {portalSlug && `(${portalSlug})`}</button>
+            </div>
+          </div>
+        )}
       </header>
 
       {showKeyModal && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0f1020] border border-white/10 rounded-2xl max-w-md w-full p-5 space-y-4">
-            <h3 className="font-bold text-white">Your Private Owner Portal Created!</h3>
-            <p className="text-xs text-white/60">This key is shown ONCE. Save it — you need it to open your portal on any device.</p>
+          <div className="bg-[#0f1020] border border-white/10 rounded-2xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-auto">
+            <h3 className="font-bold text-white">Your Private Portal Created!</h3>
+            <p className="text-xs text-white/60">Shown ONCE. Save it.</p>
             <div className="bg-white/[0.05] border border-white/10 rounded-xl p-3 space-y-2">
-              <div className="text-[10px] text-white/40 uppercase">Portal URL</div>
-              <div className="text-xs font-mono text-indigo-300">/p/{showKeyModal.slug}</div>
-              <div className="text-[10px] text-white/40 uppercase mt-3">Passkey</div>
+              <div className="text-[10px] text-white/40">PORTAL URL</div>
+              <div className="text-xs font-mono text-indigo-300 break-all">#/p/{showKeyModal.slug}</div>
+              <div className="text-[10px] text-white/40 mt-2">PASSKEY</div>
               <div className="flex items-center gap-2">
-                <div className="text-sm font-mono font-bold text-white break-all">{showKeyModal.key}</div>
-                <button
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(showKeyModal.key);
-                    setCopied(true);
-                    setTimeout(()=>setCopied(false), 1500);
-                  }}
-                  className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center shrink-0"
-                >
-                  {copied ? <Check className="w-4 h-4"/> : <Copy className="w-4 h-4"/>}
-                </button>
+                <div className="text-sm font-mono font-bold text-white break-all flex-1">{showKeyModal.key}</div>
+                <button onClick={async () => { await navigator.clipboard.writeText(showKeyModal.key); setCopied(true); setTimeout(()=>setCopied(false),1500); }} className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center shrink-0">{copied ? <Check className="w-4 h-4"/> : <Copy className="w-4 h-4"/>}</button>
               </div>
             </div>
-            <button
-              onClick={() => { setShowKeyModal(null); onSelectTab('myapps'); }}
-              className="w-full h-10 bg-white text-black rounded-full font-bold text-sm"
-            >
-              I Saved My Key — Open My Portal
-            </button>
+            <button onClick={() => { setShowKeyModal(null); window.location.hash=`#/p/${showKeyModal.slug}`; onSelectTab('portal'); }} className="w-full h-11 bg-white text-black rounded-full font-bold text-sm">I Saved It — Open Portal</button>
           </div>
         </div>
       )}

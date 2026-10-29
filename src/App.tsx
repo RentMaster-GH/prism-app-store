@@ -34,6 +34,7 @@ import { EditAppModal } from './components/EditAppModal';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import { AnnouncementBanner, AnnouncementManager } from './components/AnnouncementBanner';
 import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
+import { OwnerPortalView } from './components/OwnerPortalView';
 
 const PAGE_SIZE = 24;
 
@@ -206,7 +207,22 @@ function AppStoreContent() {
   const handleUpdateUID = (newUID: string) => { setUserUID(newUID); try { localStorage.setItem('prism_user_uid', newUID); localStorage.setItem('prism_user_uid_backup', newUID); } catch {} };
   const handleSetStoreManager = (status: boolean) => { setIsStoreManager(status); try { localStorage.setItem('prism_is_store_manager', status ? 'true' : 'false'); } catch {} };
 
-  const [currentTab, setCurrentTab] = useState<'discover' | 'apps' | 'compare' | 'library' | 'myapps'>(() => { try { const saved = localStorage.getItem('prism_current_tab'); if (saved && ['discover','apps','compare','library','myapps'].includes(saved)) return saved as any; } catch {} return 'discover'; });
+  const [currentTab, setCurrentTab] = useState<'discover' | 'apps' | 'compare' | 'library' | 'myapps' | 'portal'>(() => {
+    try {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/p/')) return 'portal' as any;
+      const saved = localStorage.getItem('prism_current_tab');
+      if (saved && ['discover','apps','compare','library','myapps','portal'].includes(saved)) return saved as any;
+    } catch {}
+    return 'discover';
+  });
+  const [portalSlug, setPortalSlug] = useState<string>(() => {
+    try {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/p/')) return hash.replace('#/p/','').trim();
+      return localStorage.getItem('prism_portal_slug') || '';
+    } catch { return ''; }
+  });
   const [view, setView] = useState<'all' | 'my' | 'featured'>('all');
   const [storeCategory, setStoreCategory] = useState<string>('All');
   const [selectedApp, setSelectedApp] = useState<AppItem | null>(null);
@@ -228,6 +244,44 @@ function AppStoreContent() {
     window.addEventListener('open-report-portal' as any, onOpenReport);
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('open-report-portal' as any, onOpenReport); };
   }, []);
+
+  // C. Hash listener for /p/:slug owner portals
+  useEffect(() => {
+    const parseHash = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/p/')) {
+        const slug = hash.replace('#/p/','').trim();
+        if (slug) {
+          setPortalSlug(slug);
+          setCurrentTab('portal' as any);
+          try { localStorage.setItem('prism_current_tab', 'portal'); } catch {}
+        }
+      }
+    };
+    parseHash();
+    window.addEventListener('hashchange', parseHash);
+    return () => window.removeEventListener('hashchange', parseHash);
+  }, []);
+
+  // E. Unified tab navigation with portal support
+  const handleSelectTab = useCallback((t:any) => {
+    if (t === 'portal') {
+      const slug = localStorage.getItem('prism_portal_slug') || portalSlug;
+      if (slug) {
+        setPortalSlug(slug);
+        window.location.hash = `#/p/${slug}`;
+        setCurrentTab('portal' as any);
+      } else {
+        // no portal yet - stay on myapps and prompt creation
+        setCurrentTab('myapps' as any);
+      }
+    } else {
+      if (window.location.hash.startsWith('#/p/')) {
+        window.location.hash = '';
+      }
+      setCurrentTab(t);
+    }
+  }, [portalSlug]);
 
   const handleForcePurgeCache = async () => {
     if (typeof window !== 'undefined' && 'caches' in window) { 
@@ -387,7 +441,7 @@ function AppStoreContent() {
       <AnnouncementBanner />
       <TopBar 
         currentTab={currentTab} 
-        onSelectTab={setCurrentTab} 
+        onSelectTab={handleSelectTab}
         onOpenDevModal={() => { setDevModalInitialTab('publish'); setIsDevModalOpen(true); }} 
         onOpenOwnerGuide={() => { setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} 
         onOpenInstallModal={() => setIsInstallModalOpen(true)} 
@@ -403,7 +457,6 @@ function AppStoreContent() {
         <DirectInstallBanner onOpenManualModal={() => setIsInstallModalOpen(true)} />
         {isSupabaseSyncing && <div className="mb-4 px-3 py-2.5 bg-white/[0.04] border border-white/10 rounded-full text-xs text-indigo-200 flex items-center gap-2 w-fit"><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Syncing permanent apps...</span></div>}
         
-        {/* SECURITY: Manager Console HIDDEN from public. Only renders if isStoreManager === true (secret auth). No UID example leak. */}
         {isStoreManager ? (
           <div className="space-y-4 p-4 bg-white/[0.03] border border-white/10 rounded-2xl mb-6">
             <div className="flex flex-wrap gap-2 items-center justify-between">
@@ -431,7 +484,6 @@ function AppStoreContent() {
               <button onClick={()=>setView('all')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='all' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>All Software ({allApps.length})</button>
               <button onClick={()=>setView('featured')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='featured' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}>Featured</button>
               <button onClick={()=>setView('my')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view==='my' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>My Uploads ({myApps.length})</button>
-              {/* UID hidden from public - only manager sees own UID inside console */}
               {isStoreManager && <span className="text-[10px] text-white/30 ml-2">UID: {userUID}</span>}
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -474,6 +526,19 @@ function AppStoreContent() {
         {currentTab === 'compare' && <AppCompareView apps={allApps} initialAppAId={compareAppA} initialAppBId={compareAppB} onOpenDetails={openAppDetails} />}
         {currentTab === 'library' && <LibraryView apps={allApps} installedMap={installedMap} onOpenDetails={openAppDetails} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onUninstall={handleUninstallApp} onUpdateApp={handleUpdateApp} onUpdateAll={handleUpdateAll} />}
         {currentTab === 'myapps' && <MySubmissionsView userUID={userUID} />}
+        {currentTab === 'portal' && portalSlug && (
+          <OwnerPortalView
+            slug={portalSlug}
+            allApps={allApps}
+            installedMap={installedMap}
+            currentUserUID={userUID}
+            onOpenDetails={openAppDetails}
+            onQuickInstall={handleInstallApp}
+            onEdit={(app)=>setEditingApp(app)}
+            onDelete={(id)=>handleAppDeleted(id, 'Owner portal delete', userUID)}
+            onBack={() => { window.location.hash = ''; setCurrentTab('discover'); }}
+          />
+        )}
       </main>
       {selectedApp && <AppDetailModal key={`${selectedApp.id}-${modalInitialTab}`} app={selectedApp} initialTab={modalInitialTab} installedState={installedMap[selectedApp.id]} onClose={() => setSelectedApp(null)} onInstall={handleInstallApp} onUninstall={handleUninstallApp} onStartCompare={handleStartCompare} onAddReview={handleAddReview} onAppDeleted={handleAppDeleted} onOpenOwnerGuide={() => { setSelectedApp(null); setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} allApps={allApps} />}
       {isDevModalOpen && <DevSubmitModal onClose={() => setIsDevModalOpen(false)} apps={allApps} initialTab={devModalInitialTab} onAppPublished={handleAppPublished} onAppDeleted={handleAppDeleted} onRestoreApp={handleRestoreApp} deletedAppsLog={deletedAppsLog} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} onUpdateUID={handleUpdateUID} />}
@@ -484,7 +549,7 @@ function AppStoreContent() {
       <OfflineIndicator /><UpdateNotificationToast />
       <PWAUpdatePrompt />
       <EdgeSyncManagerModal isOpen={isSyncHubOpen} onClose={() => setIsSyncHubOpen(false)} apps={allApps} installedApps={installedMap} onForcePurgeCache={handleForcePurgeCache} onRefreshRegistry={()=>{}} />
-      <MobileBottomNav currentTab={currentTab} onSelectTab={setCurrentTab} installedCount={Object.keys(installedMap).length} onOpenSyncHub={() => setIsSyncHubOpen(true)} />
+      <MobileBottomNav currentTab={currentTab} onSelectTab={handleSelectTab} installedCount={Object.keys(installedMap).length} onOpenSyncHub={() => setIsSyncHubOpen(true)} />
       <CommandPalette apps={allApps} installedMap={installedMap} onOpenDetails={a=>openAppDetails(a)} onOpenSandbox={a=>openAppDetails(a,'test-drive')} onInstall={handleInstallApp} isOpen={commandOpen} onClose={()=>setCommandOpen(false)} />
       <button onClick={()=>setCommandOpen(true)} className="fixed bottom-[88px] right-4 md:hidden z-40 w-12 h-12 bg-white text-slate-900 rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition"><Search className="w-5 h-5" /></button>
       <ReportPortal isOpen={showReportPortal} onClose={()=>setShowReportPortal(false)} appContext={reportAppContext} currentUserId={userUID} />

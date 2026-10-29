@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Prism Store',
@@ -13,27 +14,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* KILL old Vite PWA service worker for all users */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                  for (let registration of registrations) {
-                    registration.unregister();
-                  }
-                });
-                if (window.caches) {
-                  caches.keys().then(function(names) {
-                    for (let name of names) caches.delete(name);
-                  });
-                }
-              }
-            `,
+            __html: `if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(reg=>reg.unregister()));caches.keys().then(n=>n.forEach(c=>caches.delete(c)));}`,
           }}
         />
       </head>
-      <body style={{ margin: 0, background: '#0a0a0f' }}>{children}</body>
+      <body>{children}</body>
     </html>
   )
 }

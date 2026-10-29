@@ -35,6 +35,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import { AnnouncementBanner, AnnouncementManager } from './components/AnnouncementBanner';
 import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
 import { OwnerPortalView } from './components/OwnerPortalView';
+import { FeedbackPortal, ManagerFeedbackView } from './components/FeedbackPortal';
 
 const PAGE_SIZE = 24;
 
@@ -207,12 +208,13 @@ function AppStoreContent() {
   const handleUpdateUID = (newUID: string) => { setUserUID(newUID); try { localStorage.setItem('prism_user_uid', newUID); localStorage.setItem('prism_user_uid_backup', newUID); } catch {} };
   const handleSetStoreManager = (status: boolean) => { setIsStoreManager(status); try { localStorage.setItem('prism_is_store_manager', status ? 'true' : 'false'); } catch {} };
 
-  const [currentTab, setCurrentTab] = useState<'discover' | 'apps' | 'compare' | 'library' | 'myapps' | 'portal'>(() => {
+  const [currentTab, setCurrentTab] = useState<'discover' | 'apps' | 'compare' | 'library' | 'myapps' | 'portal' | 'feedback'>(() => {
     try {
       const hash = window.location.hash;
       if (hash.startsWith('#/p/')) return 'portal' as any;
+      if (hash === '#/feedback') return 'feedback' as any;
       const saved = localStorage.getItem('prism_current_tab');
-      if (saved && ['discover','apps','compare','library','myapps','portal'].includes(saved)) return saved as any;
+      if (saved && ['discover','apps','compare','library','myapps','portal','feedback'].includes(saved)) return saved as any;
     } catch {}
     return 'discover';
   });
@@ -234,7 +236,7 @@ function AppStoreContent() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [showReportPortal, setShowReportPortal] = useState(false);
   const [reportAppContext, setReportAppContext] = useState<any>(null);
-  const [managerTab, setManagerTab] = useState<'all'|'deleted'|'reports'|'analytics'|'announcements'>('all');
+  const [managerTab, setManagerTab] = useState<'all'|'deleted'|'reports'|'analytics'|'announcements'|'feedback'>('all');
   const [editingApp, setEditingApp] = useState<AppItem|null>(null);
 
   useEffect(() => {
@@ -245,7 +247,6 @@ function AppStoreContent() {
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('open-report-portal' as any, onOpenReport); };
   }, []);
 
-  // C. Hash listener for /p/:slug owner portals
   useEffect(() => {
     const parseHash = () => {
       const hash = window.location.hash;
@@ -256,6 +257,8 @@ function AppStoreContent() {
           setCurrentTab('portal' as any);
           try { localStorage.setItem('prism_current_tab', 'portal'); } catch {}
         }
+      } else if (hash === '#/feedback') {
+        setCurrentTab('feedback' as any);
       }
     };
     parseHash();
@@ -263,7 +266,6 @@ function AppStoreContent() {
     return () => window.removeEventListener('hashchange', parseHash);
   }, []);
 
-  // E. Unified tab navigation with portal support
   const handleSelectTab = useCallback((t:any) => {
     if (t === 'portal') {
       const slug = localStorage.getItem('prism_portal_slug') || portalSlug;
@@ -272,11 +274,13 @@ function AppStoreContent() {
         window.location.hash = `#/p/${slug}`;
         setCurrentTab('portal' as any);
       } else {
-        // no portal yet - stay on myapps and prompt creation
         setCurrentTab('myapps' as any);
       }
+    } else if (t === 'feedback') {
+      window.location.hash = '#/feedback';
+      setCurrentTab('feedback' as any);
     } else {
-      if (window.location.hash.startsWith('#/p/')) {
+      if (window.location.hash.startsWith('#/p/') || window.location.hash === '#/feedback') {
         window.location.hash = '';
       }
       setCurrentTab(t);
@@ -372,9 +376,7 @@ function AppStoreContent() {
     try {
       if (view === 'my') return myApps || [];
       let list = view === 'featured' ? (baseApps || []).filter((a:any)=> (a as any)?.is_featured || (a as any)?.isUserUploaded) : [...(allApps || [])];
-      
       const normalize = (s:any) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g,'').trim();
-
       if (storeCategory && storeCategory !== 'All') {
         const filterN = normalize(storeCategory);
         const filterRaw = String(storeCategory || '').toLowerCase();
@@ -393,24 +395,19 @@ function AppStoreContent() {
           return catN.includes(filterN) || catRaw.includes(filterRaw);
         });
       }
-
       const seen = new Set<string>();
       const q = String(debouncedSearch || '').toLowerCase().trim();
-
       return (list || []).filter(app => {
         if (!app?.id || seen.has(app.id)) return false;
         seen.add(app.id);
-
         if (q) {
           const haystack = `${String(app.name||'')} ${String((app as any).title_raw||'')} ${String((app as any).jamz_raw||'')} ${String(app.tagline||'')} ${String(app.developer||'')} ${String((app as any).studio||'')} ${String(app.category||'')} ${String(app.summary||'')} ${String((app as any).liveAppUrl||'')} ${String((app as any).websiteUrl||'')}`.toLowerCase();
           if (!haystack.includes(q)) return false;
         }
-
         const matchesCategory = selectedCategory === 'All' || String(app.category||'').toLowerCase().includes(String(selectedCategory||'').toLowerCase());
         const devices = Array.isArray(app.supportedDevices) ? app.supportedDevices : [];
         const matchesDevice = selectedDevice === 'All' || devices.length === 0 || devices.includes(selectedDevice as any);
         const matchesPrice = selectedPriceModel === 'All' || app.priceModel === selectedPriceModel || !app.priceModel;
-
         return matchesCategory && matchesDevice && matchesPrice;
       }).sort((a,b) => { 
         try {
@@ -461,17 +458,19 @@ function AppStoreContent() {
           <div className="space-y-4 p-4 bg-white/[0.03] border border-white/10 rounded-2xl mb-6">
             <div className="flex flex-wrap gap-2 items-center justify-between">
               <h2 className="font-bold text-sm">Manager Console (Owner Only)</h2>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button onClick={()=>setManagerTab('all')} className={`px-3 py-1 rounded-full text-xs ${managerTab==='all'?'bg-white text-black':'bg-white/10'}`}>All</button>
                 <button onClick={()=>setManagerTab('deleted')} className={`px-3 py-1 rounded-full text-xs ${managerTab==='deleted'?'bg-white text-black':'bg-white/10'}`}>Deleted</button>
                 <button onClick={()=>setManagerTab('reports')} className={`px-3 py-1 rounded-full text-xs ${managerTab==='reports'?'bg-amber-200 text-amber-900':'bg-white/10'}`}>Reports</button>
                 <button onClick={()=>setManagerTab('analytics')} className={`px-3 py-1 rounded-full text-xs ${managerTab==='analytics'?'bg-white text-black':'bg-white/10'}`}>Analytics</button>
                 <button onClick={()=>setManagerTab('announcements')} className={`px-3 py-1 rounded-full text-xs ${managerTab==='announcements'?'bg-white text-black':'bg-white/10'}`}>Announce</button>
+                <button onClick={()=>setManagerTab('feedback')} className={`px-3 py-1 rounded-full text-xs ${managerTab==='feedback'?'bg-white text-black':'bg-white/10'}`}>Feedback</button>
               </div>
             </div>
             {managerTab==='reports' && <ManagerReports isManager={isStoreManager} />}
             {managerTab==='analytics' && <AnalyticsDashboard isManager={isStoreManager} />}
             {managerTab==='announcements' && <AnnouncementManager isManager={isStoreManager} />}
+            {managerTab==='feedback' && <ManagerFeedbackView />}
             {managerTab==='all' && <ManagerPendingView managerKey={userUID} />}
           </div>
         ) : null}
@@ -538,6 +537,9 @@ function AppStoreContent() {
             onDelete={(id)=>handleAppDeleted(id, 'Owner portal delete', userUID)}
             onBack={() => { window.location.hash = ''; setCurrentTab('discover'); }}
           />
+        )}
+        {currentTab === 'feedback' && (
+          <FeedbackPortal userUID={userUID} onBack={()=>handleSelectTab('discover')} />
         )}
       </main>
       {selectedApp && <AppDetailModal key={`${selectedApp.id}-${modalInitialTab}`} app={selectedApp} initialTab={modalInitialTab} installedState={installedMap[selectedApp.id]} onClose={() => setSelectedApp(null)} onInstall={handleInstallApp} onUninstall={handleUninstallApp} onStartCompare={handleStartCompare} onAddReview={handleAddReview} onAppDeleted={handleAppDeleted} onOpenOwnerGuide={() => { setSelectedApp(null); setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} allApps={allApps} />}

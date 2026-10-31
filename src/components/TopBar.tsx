@@ -11,6 +11,10 @@ interface Props {
   userUID: string;
   isStoreManager: boolean;
   onOpenManagerAuth: () => void;
+  onOpenOwnerGuide?: () => void;
+  onOpenSyncHub?: () => void;
+  isStandalone?: boolean;
+  installedCount?: number;
 }
 
 function maskUID(uid: string) {
@@ -85,30 +89,34 @@ export function TopBar({ currentTab, onSelectTab, onOpenDevModal, onDirectInstal
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center font-black text-black leading-none shrink-0">P</div>
             <span className="font-bold text-sm hidden sm:block">Prism Store</span>
             
-            {/* Desktop Nav - scrollable if overflow */}
             <nav className="hidden md:flex gap-1 ml-2 overflow-x-auto scrollbar-hide">
               <button onClick={()=>onSelectTab('discover')} className={`px-3 h-8 rounded-full text-xs whitespace-nowrap ${currentTab==='discover'?'bg-white text-black':'text-white/60 hover:bg-white/10'}`}>Discover</button>
               <button onClick={()=>onSelectTab('apps')} className={`px-3 h-8 rounded-full text-xs whitespace-nowrap ${currentTab==='apps'?'bg-white text-black':'text-white/60 hover:bg-white/10'}`}>All Software</button>
               <button onClick={()=>onSelectTab('library')} className={`px-3 h-8 rounded-full text-xs whitespace-nowrap ${currentTab==='library'?'bg-white text-black':'text-white/60 hover:bg-white/10'}`}>Library</button>
-              <button onClick={()=>onSelectTab('feedback')} className={`px-3 h-8 rounded-full text-xs whitespace-nowrap ${currentTab==='feedback'?'bg-white text-black':'text-white/60 hover:bg-white/10'}`}>Feedback</button>
-              {portalSlug && <button onClick={()=>onSelectTab('myapps')} className={`px-3 h-8 rounded-full text-xs whitespace-nowrap gap-1 flex items-center ${currentTab==='myapps'?'bg-indigo-600 text-white':'text-white/60 border border-white/10'}`}><Key className="w-3 h-3"/> My Apps</button>}
             </nav>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <button onClick={handleCreatePortal} disabled={creating} className={`h-9 px-3 sm:px-3 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 border ${portalSlug ? 'bg-white/[0.06] border-white/10 text-white/80' : 'bg-white text-black border-white'}`}>
-              <Key className="w-3.5 h-3.5"/>{creating ? '...' : portalSlug ? portalSlug : 'Portal'}
+            {/* ADDED NEXT TO DEV SUBMIT */}
+            <button onClick={()=>onSelectTab('feedback')} className={`h-9 px-3 rounded-full text-[11px] font-bold border ${currentTab==='feedback'?'bg-white text-black border-white':'bg-white/[0.06] border-white/10 text-white/70 hover:bg-white/10'}`}>Feedback</button>
+            
+            <button onClick={()=>onSelectTab('myapps')} className={`h-9 px-3 rounded-full text-[11px] font-bold border flex items-center gap-1 ${currentTab==='myapps'?'bg-indigo-600 text-white border-indigo-600':'bg-white/[0.06] border-white/10 text-white/70'}`}>
+              <Key className="w-3 h-3"/> My Apps
             </button>
+
+            <button onClick={handleCreatePortal} disabled={creating} className={`h-9 px-3 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 border ${portalSlug ? 'bg-white/[0.06] border-white/10 text-white/80' : 'bg-white text-black border-white'}`}>
+              <Key className="w-3.5 h-3.5"/>{creating ? '...' : portalSlug ? portalSlug : 'Create Portal'}
+            </button>
+
             <button onClick={onOpenManagerAuth} className="h-9 w-9 sm:w-auto sm:px-3 rounded-full bg-white/[0.06] border border-white/10 text-white/70 flex items-center justify-center gap-1.5">
               <Shield className="w-4 h-4"/><span className="hidden sm:block text-[11px]">{isStoreManager ? (showFull ? userUID.slice(0,12) : maskUID(userUID)) : 'Manager'}</span>
             </button>
             {isStoreManager && <button onClick={()=>setShowFull(v=>!v)} className="hidden sm:flex w-9 h-9 rounded-full bg-white/10 items-center justify-center">{showFull ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}</button>}
             <button onClick={onOpenDevModal} className="h-9 px-3 sm:px-4 rounded-full bg-indigo-600 text-white text-xs font-bold">Dev</button>
-            <button onClick={onDirectInstall} className="h-9 px-3 sm:px-4 rounded-full bg-white text-black text-xs font-bold hidden sm:flex">Install</button>
+            <button onClick={onDirectInstall} className="h-9 px-4 rounded-full bg-white text-black text-xs font-bold hidden sm:flex items-center justify-center text-center leading-none">Install</button>
           </div>
         </div>
 
-        {/* Mobile Drawer */}
         {mobileOpen && (
           <div className="md:hidden border-t border-white/10 bg-[#080a14]/95 backdrop-blur-xl">
             <div className="p-3 grid grid-cols-2 gap-2">

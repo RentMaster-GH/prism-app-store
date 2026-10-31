@@ -9,7 +9,7 @@ export const DirectInstallBanner = ({ onDirectInstall, onDismiss }: any) => (
       </div>
     </div>
     <div className="flex items-center gap-2 shrink-0">
-      <button onClick={onDirectInstall} className="h-7 px-3 rounded-full bg-white text-black text-[11px] font-bold hover:bg-slate-100 transition">Direct Install Now</button>
+      <button onClick={onDirectInstall} className="h-7 px-3 rounded-full bg-white text-black text-[11px] font-bold hover:bg-slate-100 transition inline-flex items-center justify-center text-center leading-none">Direct Install Now</button>
       <button onClick={onDismiss} className="w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.1] flex items-center justify-center text-slate-400"><X className="w-3.5 h-3.5"/></button>
     </div>
   </div>

@@ -10,13 +10,18 @@
     text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
     overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+    touch-action: pan-y;
   }
   body {
     @apply bg-[#05060f] text-slate-100 antialiased;
     overflow-x: hidden;
-    overscroll-behavior-y: none;
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
   }
-  /* Prevent iOS zoom - keep 16px on mobile */
   input, select, textarea {
     font-size: 16px;
   }
@@ -28,13 +33,11 @@
 }
 
 @layer utilities {
-  .scrollbar-none,
-  .scrollbar-hide {
+  .scrollbar-none {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  .scrollbar-none::-webkit-scrollbar,
-  .scrollbar-hide::-webkit-scrollbar {
+  .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
   .gpu {
@@ -55,17 +58,4 @@
   transform: translateZ(0);
   will-change: transform;
   isolation: isolate;
-}
-
-/* Mobile UX - only mobile, non-destructive */
-@media (max-width: 768px) {
-  /* Better tap targets only for main content, not header */
-  main button,
-  main a {
-    min-height: 44px;
-  }
-  /* Prevent grid from feeling too tight without using !important */
-  main .grid {
-    gap: 0.875rem;
-  }
 }

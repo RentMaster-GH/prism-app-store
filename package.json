@@ -25,9 +25,5 @@
                             "tailwindcss":  "^4.3.3",
                             "vite":  "^5.0.8",
                             "vite-plugin-pwa":  "^2.0.0"
-                        },
-    "overrides":  {
-                      "@rollup/rollup-win32-x64-msvc":  "npm:@rollup/wasm-node@4.67.3",
-                      "@rollup/rollup-linux-x64-gnu":  "npm:@rollup/wasm-node@4.67.3"
-                  }
+                        }
 }

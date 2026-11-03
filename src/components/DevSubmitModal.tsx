@@ -11,7 +11,7 @@ export function DevSubmitModal({ onClose, apps, initialTab='publish', onAppPubli
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-    const handlePublish = async () => {
+        const handlePublish = async () => {
     if(!title || !url) return alert('Enter title and URL');
     
     // --- LIMIT LOGIC: Manager unlimited, others max 3 ---
@@ -22,7 +22,7 @@ export function DevSubmitModal({ onClose, apps, initialTab='publish', onAppPubli
     }
     if (supabase && !isStoreManager) {
       try {
-        const { count } = await supabase.from('apps').select('*', { count: 'exact', head: true }).eq('owner_id', userUID);
+        const { count } = await supabase.from('apps').select('*', { count: 'exact', head: true }).eq('owner_uid', userUID); // FIXED: owner_uid not owner_id
         if ((count || 0) >= MAX_APPS) return alert(`Limit reached: ${MAX_APPS} apps max`);
       } catch {}
     }
@@ -30,12 +30,13 @@ export function DevSubmitModal({ onClose, apps, initialTab='publish', onAppPubli
     setLoading(true);
     try{
       const payload = {
-  title,
-  live_web_url: url,
-  download_url: url,
-  owner_uid: userUID,
-  status: 'pending',
-};
+        title,
+        studio: "SwipeDebt Studio",
+        live_web_url: url,
+        download_url: url,
+        owner_uid: userUID,
+        status: 'pending',
+      };
       if(supabase){
         const { error } = await supabase.from('apps').insert(payload as any);
         if(error) {
@@ -44,17 +45,17 @@ export function DevSubmitModal({ onClose, apps, initialTab='publish', onAppPubli
         }
       }
       const local = JSON.parse(localStorage.getItem('prism_user_uploaded_apps')||'[]');
-      local.unshift({ id: payload.title_id, name: title, liveAppUrl: url, ownerId: userUID, category: 'Other', tagline: url });
+      local.unshift({ id: `app-${Date.now()}`, name: title, liveAppUrl: url, ownerId: userUID, category: 'Other', tagline: url });
       localStorage.setItem('prism_user_uploaded_apps', JSON.stringify(local));
       setSuccess(true);
-      setTimeout(()=>{ onAppPublished?.({ id: payload.title_id, name: title }); onClose(); }, 1000);
+      setTimeout(()=>{ onAppPublished?.({ id: `app-${Date.now()}`, name: title }); onClose(); }, 1000);
     }catch(e:any){ 
       console.log('Publish error:', e.message);
       alert(`Publish failed: ${e.message} - saved locally`); 
       onClose(); 
     }
     finally{ setLoading(false); }
-  };
+  };;
 
   return (
     <div className="fixed inset-0 z-[90] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">

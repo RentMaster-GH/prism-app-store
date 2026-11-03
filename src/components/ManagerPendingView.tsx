@@ -1,14 +1,12 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Check, X, Star, Loader2, ExternalLink } from 'lucide-react';
+import { Check, X, ExternalLink } from 'lucide-react';
 
 function getOpenUrl(app: any): string {
   const candidates = [
     app.live_web_url,
-    app.live_app_url,
     app.download_url,
     app.websiteUrl,
-    app.hero_image,
     app.thumbnail_url,
   ];
   for (const u of candidates) {
@@ -36,85 +34,65 @@ export function ManagerPendingView({ managerKey }: { managerKey: string }) {
 
   useEffect(() => { load(); }, []);
 
-  const updateStatus = async (uuid: string, status: string) => {
+  const updateStatus = async (app: any, status: string) => {
     if (!supabase) return;
     try {
-      await supabase.from('apps').update({ status, updated_at: new Date().toISOString() }).eq('uuid', uuid);
-    } catch {}
-    load();
-  };
-
-  const toggleFeatured = async (uuid: string, current: boolean) => {
-    if (!supabase) return;
-    try {
-      await supabase.from('apps').update({ is_featured: !current } as any).eq('uuid', uuid);
-    } catch {}
-    load();
-  };
-
-  const handleOpen = (app: any) => {
-    const url = getOpenUrl(app);
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      // Fallback: still show feedback instead of disabled grey
-      alert(`No live URL for ${app.title || app.jamz || 'this app'}. Ask owner to add live_web_url.`);
+      // Try id first, then uuid, then owner_uid+title as fallback
+      let res;
+      if (app.id) res = await supabase.from('apps').update({ status }).eq('id', app.id);
+      else if (app.uuid) res = await supabase.from('apps').update({ status }).eq('uuid', app.uuid);
+      else res = await supabase.from('apps').update({ status }).eq('owner_uid', app.owner_uid).eq('title', app.title);
+      
+      if (res.error) throw res.error;
+      alert(`${app.title} -> ${status}`);
+    } catch (e:any) {
+      alert(`Update failed: ${e.message}`);
     }
+    load();
   };
 
-  if (loading) return <div className="flex gap-2 text-xs text-white/50"><Loader2 className="w-4 h-4 animate-spin"/> Loading apps...</div>;
+  const deleteApp = async (app: any) => {
+    if (!confirm(`Delete ${app.title}?`)) return;
+    try {
+      let res;
+      if (app.id) res = await supabase.from('apps').delete().eq('id', app.id);
+      else if (app.uuid) res = await supabase.from('apps').delete().eq('uuid', app.uuid);
+      else res = await supabase.from('apps').delete().eq('owner_uid', app.owner_uid).eq('title', app.title);
+      if (res.error) throw res.error;
+    } catch (e:any) { alert(e.message); }
+    load();
+  };
+
+  if (loading) return <div className="p-8 text-center text-white/50 text-xs">Loading apps...</div>;
 
   return (
-    <div className="space-y-3">
-      <div className="text-xs text-white/50">{apps.length} total • {apps.filter(a=>a.status==='approved').length} approved • {apps.filter(a=>a.status==='pending').length} pending</div>
-      <div className="grid gap-2 max-h-[500px] overflow-auto pr-2">
-        {apps.map(app => {
-          const openUrl = getOpenUrl(app);
-          const hasUrl = !!openUrl;
-          return (
-            <div key={app.uuid} className="flex items-center gap-3 p-3 bg-white/[0.04] border border-white/10 rounded-xl">
-              <img 
-                src={app.thumbnail_url || app.download_url || `https://picsum.photos/seed/${encodeURIComponent(app.uuid)}/100/100`} 
-                className="w-12 h-12 rounded-lg object-cover bg-white/5" 
-                alt=""
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold truncate text-white">{app.title || app.jamz || 'Untitled'}</p>
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${app.status==='approved'?'bg-emerald-400 text-black':app.status==='pending'?'bg-amber-300 text-black':'bg-white/10 text-white/50'}`}>{app.status}</span>
-                  {app.is_featured && <Star className="w-3 h-3 text-amber-400 fill-amber-400" />}
-                </div>
-                <p className="text-[11px] text-white/40 truncate">{app.studio || app.owner_uid} • {openUrl ? new URL(openUrl).hostname : 'no-url'}</p>
-              </div>
-              
-              <div className="flex gap-1.5 items-center shrink-0">
-                {/* FIXED: Open button always active, white, never greyed/disabled */}
-                <button 
-                  onClick={()=>handleOpen(app)} 
-                  title={hasUrl ? openUrl : 'No URL yet'}
-                  className={`h-7 px-3 rounded-full flex items-center justify-center gap-1 text-[11px] font-bold transition active:scale-95 cursor-pointer
-                    ${hasUrl 
-                      ? 'bg-white text-black hover:bg-white/90' 
-                      : 'bg-white text-black hover:bg-white/90 opacity-90' // still white/active even if no url, shows alert
-                    }`}
-                >
-                  <ExternalLink className="w-3 h-3"/> Open
-                </button>
-
-                <button onClick={()=>toggleFeatured(app.uuid, !!app.is_featured)} className={`w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer ${app.is_featured?'bg-amber-400 text-black':'bg-white/10 text-white hover:bg-white/20'}`} title="Feature">
-                  <Star className="w-3.5 h-3.5"/>
-                </button>
-                <button onClick={()=>updateStatus(app.uuid,'approved')} className="w-7 h-7 bg-emerald-400 text-black rounded-full flex items-center justify-center hover:bg-emerald-300 transition cursor-pointer" title="Approve">
-                  <Check className="w-3.5 h-3.5"/>
-                </button>
-                <button onClick={()=>updateStatus(app.uuid,'rejected')} className="w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-400 transition cursor-pointer" title="Reject">
-                  <X className="w-3.5 h-3.5"/>
-                </button>
-              </div>
-            </div>
-          );
-        })}
+    <div className="space-y-3 p-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-sm font-bold">Pending / All Apps ({apps.length})</h3>
+        <button onClick={load} className="h-7 px-3 bg-white/10 rounded-full text-xs">Refresh</button>
       </div>
+
+      {apps.length === 0 && <div className="text-xs text-white/40">No apps found</div>}
+
+      {apps.map((app) => {
+        const openUrl = getOpenUrl(app);
+        return (
+          <div key={app.id || app.uuid || app.title} className="p-3 bg-white/[0.04] border border-white/10 rounded-xl flex gap-3 items-center">
+            <img src={app.thumbnail_url || app.download_url || openUrl} className="w-12 h-12 rounded-lg bg-white/10 object-cover" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold truncate">{app.title}</div>
+              <div className="text-[10px] text-white/40 truncate">{openUrl} • {app.status} • owner: {String(app.owner_uid||'').slice(0,8)}...</div>
+              <div className="text-[10px] mt-1"><span className={`px-2 py-0.5 rounded-full ${app.status==='pending' ? 'bg-amber-500/20 text-amber-300' : app.status==='approved' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10'}`}>{app.status}</span></div>
+            </div>
+            <div className="flex flex-col gap-1">
+              {openUrl && <a href={openUrl} target="_blank" className="h-7 px-3 bg-white/10 rounded-full text-xs flex items-center gap-1"><ExternalLink className="w-3 h-3"/>Preview</a>}
+              <button onClick={()=>updateStatus(app, 'approved')} className="h-7 px-3 bg-emerald-500 text-black rounded-full text-xs font-bold flex items-center gap-1"><Check className="w-3 h-3"/>Approve</button>
+              <button onClick={()=>updateStatus(app, 'rejected')} className="h-7 px-3 bg-white/10 rounded-full text-xs">Reject</button>
+              <button onClick={()=>deleteApp(app)} className="h-6 px-3 bg-red-500/10 text-red-400 rounded-full text-[10px] flex items-center gap-1"><X className="w-3 h-3"/>Delete</button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

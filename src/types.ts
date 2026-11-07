@@ -6,7 +6,8 @@ export type CategoryType =
   | 'Developer Tools'
   | 'Productivity & Notes'
   | 'Sports'
-  | 'Spatial & 3D';
+  | 'Spatial & 3D'
+  | 'Dating & Social';
 
 export type DevicePlatform = 'All' | 'Phone' | 'Tablet' | 'Desktop' | 'Watch' | 'Vision';
 
@@ -87,9 +88,9 @@ export interface AppItem {
   dataCollected: DataCollectedItem[];
   versionHistory: VersionEntry[];
   reviews: ReviewItem[];
-  sandboxType: 'audio-synth' | 'vector-canvas' | 'biomechanics' | 'markdown-editor' | 'terminal' | 'adinkra-vector' | 'sports-tracker';
+  sandboxType: 'audio-synth' | 'vector-canvas' | 'biomechanics' | 'markdown-editor' | 'terminal' | 'adinkra-vector' | 'sports-tracker' | 'external-app';
   isUserUploaded?: boolean;
-  ownerId?: string; // Unique Identifier (UID) of the user who uploaded the app
+  ownerId?: string;
   uploadedAt?: string;
   isFlagged?: boolean;
   flagReason?: string;
@@ -115,4 +116,3 @@ export interface InstalledAppState {
   status: 'installed' | 'installing' | 'updating';
   progress: number;
 }
-

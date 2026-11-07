@@ -3,6 +3,131 @@ import { APP_MEDIA_ASSETS } from '../utils/media';
 
 export const APPS_DATA: AppItem[] = [
   {
+    id: 'intent-dating',
+    name: 'Intent',
+    tagline: 'Date with intention',
+    developer: 'Intent Labs',
+    developerVerified: true,
+    category: 'Dating & Social',
+    price: 0,
+    priceFormatted: 'Free',
+    priceModel: 'Free',
+    rating: 5.0,
+    reviewCount: 12,
+    downloadsCount: '100+',
+    sizeMB: 28.5,
+    currentVersion: '1.0.0',
+    minOS: 'Android 9.0+ / iOS 15+ / Web',
+    supportedDevices: ['Phone', 'Tablet', 'Desktop'],
+    heroImage: APP_MEDIA_ASSETS.orbitHero,
+    thumbnail: APP_MEDIA_ASSETS.orbitHero,
+    accentColor: '#F59E0B',
+    editorialHighlight: {
+      headline: 'Dating with intention, not endless swiping',
+      curatorQuote: 'Intent is built for people who want real connections — verified profiles, intention-first matching, and safe, respectful chats.'
+    },
+    summary: 'Intent is a dating app for people who date with intention. Create a real profile, match with people who share your values and intentions, and chat safely. Verified profiles, smart matching, and controls that keep you in charge of who can see you and message you.',
+    features: [
+      'Intention-first matching — know what they want before you match',
+      'Verified profiles to reduce fakes and catfish',
+      'Smart matching based on values, interests & location',
+      'Safe chat with blocking, reporting & privacy controls',
+      'Profile prompts that actually start conversations'
+    ],
+    offlineCapable: false,
+    zeroTrackers: false,
+    openSource: false,
+    privacyGrade: 'A',
+    liveAppUrl: 'https://intent-app-beta.vercel.app/discovery',
+    websiteUrl: 'https://intent-app-beta.vercel.app/discovery',
+    packageBundleName: 'com.intent.app',
+    permissions: [
+      {
+        id: 'location',
+        name: 'Location',
+        category: 'Data',
+        required: false,
+        reason: 'Used only to show nearby matches and set your search distance. You can hide exact location.',
+        safetyImpact: 'Medium'
+      },
+      {
+        id: 'photos',
+        name: 'Photos & Camera',
+        category: 'Hardware',
+        required: true,
+        reason: 'Required to upload profile photos and verify your profile.',
+        safetyImpact: 'Medium'
+      },
+      {
+        id: 'notifications',
+        name: 'Notifications',
+        category: 'System',
+        required: false,
+        reason: 'Alerts you about new matches and messages.',
+        safetyImpact: 'Low'
+      },
+      {
+        id: 'internet',
+        name: 'Internet Access',
+        category: 'Network',
+        required: true,
+        reason: 'Required for matching, chat and profile sync.',
+        safetyImpact: 'Low'
+      }
+    ],
+    dataCollected: [
+      {
+        category: 'Profile Info',
+        linkedToUser: true,
+        purposes: ['Matching', 'Profile display']
+      },
+      {
+        category: 'Photos',
+        linkedToUser: true,
+        purposes: ['Profile display', 'Verification']
+      },
+      {
+        category: 'Approximate Location',
+        linkedToUser: true,
+        purposes: ['Nearby matching']
+      },
+      {
+        category: 'Messages',
+        linkedToUser: true,
+        purposes: ['Chat functionality', 'Safety & moderation']
+      }
+    ],
+    versionHistory: [
+      {
+        version: '1.0.0',
+        releaseDate: 'November 7, 2026',
+        sizeMB: 28.5,
+        isLatest: true,
+        highlights: [
+          'First release on Prism App Store',
+          'Intention-first matching',
+          'Verified profiles & safe chat',
+          'Profile prompts & interest filters'
+        ]
+      }
+    ],
+    reviews: [
+      {
+        id: 'rev-intent-1',
+        author: 'Ama K.',
+        rating: 5,
+        date: 'November 7, 2026',
+        device: 'Samsung Galaxy A05',
+        title: 'Finally a dating app that feels real',
+        content: 'Love that people state their intentions upfront. No games.',
+        helpfulCount: 8,
+        verifiedPurchase: true
+      }
+    ],
+    sandboxType: 'external-app',
+    isUserUploaded: false
+  },
+  {
     id: 'harmonics-synth-pro',
     name: 'Harmonics Synth Pro',
     tagline: 'Modular polyphonic sound laboratory with zero latency',

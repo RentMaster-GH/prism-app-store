@@ -6,6 +6,55 @@ function maskUID(uid: string) { return uid ? uid.slice(0, 9) + '••••' + 
 
 const CATEGORIES = ['Other', 'Social', 'Dating', 'Finance', 'Productivity', 'Games', 'Tools', 'Education', 'Health', 'Business'];
 
+// --- Upload with real % progress via XHR ---
+// supabase.storage.upload() has no progress callback, so we POST directly to Storage API
+async function uploadWithProgress(
+  bucket: string,
+  filePath: string,
+  file: File,
+  contentType: string | undefined,
+  onProgress: (pct: number, loaded: number, total: number) => void
+) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
+  // Get Supabase URL + anon key from client or env (works with Vite or Next)
+  const client: any = supabase as any;
+  const supabaseUrl =
+    client?.supabaseUrl ||
+    (import.meta as any)?.env?.VITE_SUPABASE_URL ||
+    (import.meta as any)?.env?.NEXT_PUBLIC_SUPABASE_URL ||
+    '';
+  const anonKey =
+    client?.supabaseKey ||
+    (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY ||
+    (import.meta as any)?.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    '';
+
+  if (!supabaseUrl) throw new Error('Supabase URL not found - check lib/supabase.ts');
+
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        onProgress(pct, e.loaded, e.total);
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText || 'Unknown error'}. Did you create the public 'prism-apks' bucket?`));
+    };
+    xhr.onerror = () => reject(new Error('Upload failed: network error. Check your connection and try again.'));
+    xhr.open('POST', `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${bucket}/${filePath}`);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    if (anonKey) xhr.setRequestHeader('apikey', anonKey);
+    xhr.setRequestHeader('x-upsert', 'true');
+    if (contentType) xhr.setRequestHeader('Content-Type', contentType);
+    xhr.send(file);
+  });
+}
+
 export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPublished, userUID, isStoreManager }: any) {
   const [tab, setTab] = useState(initialTab);
   const [appType, setAppType] = useState<'web' | 'android'>('android');
@@ -20,6 +69,9 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
   const [apkFile, setApkFile] = useState<File | null>(null);
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState('');
+  const [uploadPct, setUploadPct] = useState(0);
+  const [uploadLoaded, setUploadLoaded] = useState(0);
+  const [uploadTotal, setUploadTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const apkInputRef = useRef<HTMLInputElement>(null);
@@ -51,37 +103,46 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
 
     setLoading(true);
     setUploadProgress('');
+    setUploadPct(0);
+    setUploadLoaded(0);
+    setUploadTotal(0);
     try {
       let apkUrl = '';
       let iconUrl = '';
 
-      // --- Upload APK ---
+      // --- Upload APK with % ---
       if (appType === 'android' && apkFile && supabase) {
         setUploadProgress('Uploading APK...');
         const filePath = `${packageName.trim()}/v${versionName.trim()}-${Date.now()}.apk`;
-        const { error: uploadError } = await supabase.storage
-          .from('prism-apks')
-          .upload(filePath, apkFile, { contentType: 'application/vnd.android.package-archive', upsert: true });
-        if (uploadError) throw new Error(`APK upload failed: ${uploadError.message}. Did you create the public 'prism-apks' bucket?`);
+        await uploadWithProgress('prism-apks', filePath, apkFile, 'application/vnd.android.package-archive', (pct, loaded, total) => {
+          setUploadPct(pct);
+          setUploadLoaded(loaded);
+          setUploadTotal(total);
+          setUploadProgress(`Uploading APK... ${pct}%`);
+        });
         const { data: urlData } = supabase.storage.from('prism-apks').getPublicUrl(filePath);
         apkUrl = urlData.publicUrl;
       }
 
-      // --- Upload Icon (optional) ---
+      // --- Upload Icon (optional) with % ---
       if (iconFile && supabase) {
         setUploadProgress('Uploading icon...');
+        setUploadPct(0);
         const iconPath = `icons/${Date.now()}-${iconFile.name}`;
-        const { error: iconErr } = await supabase.storage.from('prism-apks').upload(iconPath, iconFile, { upsert: true });
-        if (!iconErr) {
+        try {
+          await uploadWithProgress('prism-apks', iconPath, iconFile, iconFile.type || undefined, (pct) => {
+            setUploadPct(pct);
+            setUploadProgress(`Uploading icon... ${pct}%`);
+          });
           const { data } = supabase.storage.from('prism-apks').getPublicUrl(iconPath);
           iconUrl = data.publicUrl;
-        }
+        } catch { /* icon is optional, don't fail publish */ }
       }
 
+      setUploadProgress('Saving app...');
+      setUploadPct(100);
+
       // --- KEY: Web and APK stay SEPARATE ---
-      // Web-only: live_web_url = web, download_url = web
-      // Android + Web: live_web_url = web, download_url = apk
-      // Android only: live_web_url = '', download_url = apk
       const finalWebUrl = appType === 'web' ? url.trim() : (includeWeb ? url.trim() : '');
       const finalApkUrl = appType === 'android' ? apkUrl : '';
 
@@ -129,6 +190,9 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
     } finally {
       setLoading(false);
       setUploadProgress('');
+      setUploadPct(0);
+      setUploadLoaded(0);
+      setUploadTotal(0);
     }
   };
 
@@ -155,18 +219,11 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
                 <div className="text-[10px] text-white/30 mt-1">Only you see this. Other users have their own different masked ID.</div>
               </div>
 
-              {/* TYPE TOGGLE */}
               <div className="flex gap-2">
-                <button
-                  onClick={() => setAppType('web')}
-                  className={`flex-1 h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border ${appType === 'web' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/70 border-white/10'}`}
-                >
+                <button onClick={() => setAppType('web')} className={`flex-1 h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border ${appType === 'web' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/70 border-white/10'}`}>
                   <Globe className="w-4 h-4" /> Web App Only
                 </button>
-                <button
-                  onClick={() => setAppType('android')}
-                  className={`flex-1 h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border ${appType === 'android' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/70 border-white/10'}`}
-                >
+                <button onClick={() => setAppType('android')} className={`flex-1 h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border ${appType === 'android' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/70 border-white/10'}`}>
                   <Smartphone className="w-4 h-4" /> Android APK
                 </button>
               </div>
@@ -189,18 +246,13 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
                     <input value={versionCode} onChange={e => setVersionCode(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Code 1" className="w-20 h-11 px-3 bg-black/40 border border-white/10 rounded-full text-sm text-center" />
                   </div>
 
-                  {/* APK UPLOAD */}
                   <input ref={apkInputRef} type="file" accept=".apk" className="hidden" onChange={e => setApkFile(e.target.files?.[0] || null)} />
                   <button onClick={() => apkInputRef.current?.click()} className="w-full h-14 border-2 border-dashed border-white/20 rounded-2xl flex items-center justify-center gap-2 text-sm bg-white/[0.03] hover:bg-white/[0.06]">
                     <FileDown className="w-5 h-5 text-emerald-400" />
                     {apkFile ? <span className="font-bold text-emerald-400 truncate max-w-[280px]">{apkFile.name} — {(apkFile.size / 1024 / 1024).toFixed(1)} MB</span> : <span className="text-white/60">Tap to select .apk file (required)</span>}
                   </button>
 
-                  {/* CHECKBOX - ALSO INCLUDE WEB VERSION */}
-                  <button
-                    onClick={() => setIncludeWeb(!includeWeb)}
-                    className={`w-full p-3 rounded-xl border flex items-start gap-2.5 text-left transition ${includeWeb ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-white/[0.03] border-white/10'}`}
-                  >
+                  <button onClick={() => setIncludeWeb(!includeWeb)} className={`w-full p-3 rounded-xl border flex items-start gap-2.5 text-left transition ${includeWeb ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-white/[0.03] border-white/10'}`}>
                     <span className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${includeWeb ? 'bg-emerald-400 border-emerald-400' : 'border-white/30'}`}>
                       {includeWeb && <Check className="w-3.5 h-3.5 text-black" />}
                     </span>
@@ -217,7 +269,6 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
                     <p className="text-[11px] text-white/40 text-center">APK only — users will only see Download APK, no Open button.</p>
                   )}
 
-                  {/* LIVE PREVIEW - what users will see */}
                   <div className="p-3 bg-white/[0.04] rounded-xl border border-white/10">
                     <div className="text-[10px] text-white/40 mb-2">Users will see:</div>
                     <div className="flex gap-2">
@@ -230,13 +281,31 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
                 </>
               )}
 
-              {/* Icon */}
               <input ref={iconInputRef} type="file" accept="image/*" className="hidden" onChange={e => setIconFile(e.target.files?.[0] || null)} />
               <button onClick={() => iconInputRef.current?.click()} className="w-full h-10 border border-white/10 rounded-full text-xs text-white/60 flex items-center justify-center gap-2">
                 <Upload className="w-3 h-3" /> {iconFile ? `Icon: ${iconFile.name}` : 'App Icon (optional, 512x512 PNG)'}
               </button>
 
-              {uploadProgress && <div className="text-center text-xs text-amber-400 font-bold">{uploadProgress}</div>}
+              {/* NEW: Progress bar with % */}
+              {uploadProgress && (
+                <div className="w-full p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                  <div className="flex justify-between text-xs font-bold mb-2">
+                    <span className="text-amber-400">{uploadProgress}</span>
+                    <span className="text-amber-400">{uploadPct}%</span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-2.5 overflow-hidden">
+                    <div className="bg-emerald-400 h-2.5 rounded-full transition-all duration-200" style={{ width: `${uploadPct}%` }} />
+                  </div>
+                  {uploadTotal > 0 && (
+                    <p className="text-[11px] text-white/50 mt-1.5 text-center">
+                      {(uploadLoaded / 1024 / 1024).toFixed(1)} MB / {(uploadTotal / 1024 / 1024).toFixed(1)} MB — keep this tab open
+                    </p>
+                  )}
+                  {uploadPct >= 100 && uploadProgress.includes('Uploading') && (
+                    <p className="text-[11px] text-white/50 mt-1 text-center">Finishing upload...</p>
+                  )}
+                </div>
+              )}
 
               <button onClick={handlePublish} disabled={loading} className="w-full h-11 bg-white text-black rounded-full font-bold text-sm flex items-center justify-center disabled:opacity-50">
                 {loading ? 'Publishing...' : 'Submit for Review'}

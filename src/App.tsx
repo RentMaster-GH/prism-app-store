@@ -163,8 +163,10 @@ function AppStoreContent() {
           offlineCapable: true, zeroTrackers: true, openSource: false, isUserUploaded: true,
           ownerId: row.owner_uid, owner_uid: row.owner_uid, owner_id: row.owner_uid,
           uploadedAt: 'Just now',
-          liveAppUrl: row.live_web_url || row.live_app_url || row.download_url || '',
-          websiteUrl: row.live_web_url || row.download_url || '',
+          liveAppUrl: row.live_web_url || row.live_app_url || '',
+          websiteUrl: row.live_web_url || row.live_app_url || '',
+apkUrl: row.apk_url || (String(row.download_url || '').endsWith('.apk') ? row.download_url : '') || '',
+downloadUrl: row.download_url || '',
           sourceCodeUrl: row.source_code_url, packageBundleName: row.package_bundle_name,
           privacyGrade: 'A+', permissions: [], dataCollected: [],
           versionHistory: [{ version: row.version || '1.0.0', releaseDate: row.updated_at || 'Today', sizeMB: row.size_mb || 15, isLatest: true, highlights: [row.changelog||'Live'] } as any],
@@ -339,7 +341,20 @@ function AppStoreContent() {
         setApps(prev => prev.map(a => a.id === app.id ? { ...a, downloadsCount: String(rawCount + 1), raw: { ...(a as any).raw, install_count: rawCount + 1 } } as any : a));
       } catch {}
     }
-    if (app.liveAppUrl) setTimeout(() => window.open(app.liveAppUrl, '_blank'), 1400);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+const apkUrl = (app as any).apkUrl || '';
+const webUrl = (app as any).liveAppUrl || (app as any).websiteUrl || '';
+
+if (isAndroid && apkUrl) {
+  // Android: download real APK
+  setTimeout(() => { window.location.href = apkUrl; }, 1400);
+} else if (webUrl) {
+  // PC / iPhone / everyone else: open web app instantly, no BlueStacks
+  setTimeout(() => window.open(webUrl, '_blank'), 1400);
+} else if (apkUrl) {
+  // Fallback: app has ONLY an APK, no web version
+  setTimeout(() => { window.location.href = apkUrl; }, 1400);
+}
   }, []);
 
   const handleUninstallApp = useCallback((appId: string) => { setInstalledMap(prev => { const c = { ...prev }; delete c[appId]; return c; }); }, []);

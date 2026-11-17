@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MessageSquare, Lightbulb, Bug, AlertTriangle, Send, Loader2, CheckCircle, Inbox } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { backend } from '../lib/backend';
 
 type FeedbackType = 'suggestion' | 'complaint' | 'bug' | 'feature' | 'other';
 
@@ -15,13 +15,19 @@ export function FeedbackPortal({ userUID, onBack }: { userUID: string, onBack: (
 
   useEffect(() => {
     const loadMine = async () => {
-      if (!supabase || !userUID) {
+      if (!userUID) return;
+      try {
+        const res = await backend.list('public_feedback');
+        const rows = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        const mine = rows
+          .filter((f: any) => f.owner_uid === userUID)
+          .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+          .slice(0, 20);
+        setMyFeedback(mine);
+      } catch {
         const local = JSON.parse(localStorage.getItem('prism_feedback_local') || '[]');
-        setMyFeedback(local.filter((f:any)=>f.owner_uid===userUID).slice(0,20));
-        return;
+        setMyFeedback(local.filter((f: any) => f.owner_uid === userUID).slice(0, 20));
       }
-      const { data } = await supabase.from('public_feedback').select('*').eq('owner_uid', userUID).order('created_at', { ascending: false }).limit(20);
-      if (data) setMyFeedback(data);
     };
     loadMine();
   }, [userUID, sent]);
@@ -30,21 +36,27 @@ export function FeedbackPortal({ userUID, onBack }: { userUID: string, onBack: (
     if (!title.trim() || !message.trim()) { alert('Title and message required'); return; }
     setSending(true);
     try {
-      if (supabase) {
-        const { error } = await supabase.from('public_feedback').insert({
-          owner_uid: userUID, type, title: title.trim(), message: message.trim(), contact: contact.trim() || null, status: 'open'
-        });
-        if (error) throw error;
-      } else {
-        const local = JSON.parse(localStorage.getItem('prism_feedback_local') || '[]');
-        local.unshift({ id: Date.now(), owner_uid: userUID, type, title, message, contact, status: 'open', created_at: new Date().toISOString() });
-        localStorage.setItem('prism_feedback_local', JSON.stringify(local));
-      }
+      const payload = {
+        owner_uid: userUID,
+        type,
+        title: title.trim(),
+        message: message.trim(),
+        contact: contact.trim() || null,
+        status: 'open',
+      };
+      await backend.create('public_feedback', payload);
+      const local = JSON.parse(localStorage.getItem('prism_feedback_local') || '[]');
+      local.unshift({ id: Date.now(), ...payload, created_at: new Date().toISOString() });
+      localStorage.setItem('prism_feedback_local', JSON.stringify(local));
+
       setTitle(''); setMessage(''); setContact('');
       setSent(true);
-      setTimeout(()=>setSent(false), 3000);
-    } catch (e:any) { alert('Failed: ' + e.message); }
-    finally { setSending(false); }
+      setTimeout(() => setSent(false), 3000);
+    } catch (e: any) {
+      alert('Failed: ' + (e.message || e));
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -54,7 +66,6 @@ export function FeedbackPortal({ userUID, onBack }: { userUID: string, onBack: (
         <button onClick={onBack} className="h-10 px-4 bg-white/10 border border-white/10 rounded-full text-xs shrink-0">Back</button>
       </div>
 
-      {/* STACKS 1-col on mobile, 2-col on md */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="p-4 sm:p-5 bg-white/[0.04] border border-white/10 rounded-2xl space-y-4 w-full min-w-0">
           <h3 className="font-bold text-sm">Send Suggestion / Complaint</h3>
@@ -91,7 +102,7 @@ export function FeedbackPortal({ userUID, onBack }: { userUID: string, onBack: (
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${f.type==='bug'?'bg-red-500/20 text-red-300': f.type==='complaint'?'bg-amber-500/20 text-amber-300':'bg-indigo-500/20 text-indigo-300'}`}>{f.type}</span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] shrink-0 ${f.status==='open'?'bg-white/10': f.status==='resolved'?'bg-emerald-500/20 text-emerald-300':'bg-white/10'}`}>{f.status}</span>
-                    <span className="text-[10px] text-white/20 ml-auto">{new Date(f.created_at).toLocaleDateString()}</span>
+                    <span className="text-[10px] text-white/20 ml-auto">{new Date(f.created_at || Date.now()).toLocaleDateString()}</span>
                   </div>
                   <p className="text-xs font-bold mt-2 break-words">{f.title}</p>
                   <p className="text-[11px] text-white/50 mt-1 break-words line-clamp-3">{f.message}</p>
@@ -112,24 +123,26 @@ export function ManagerFeedbackView() {
 
   const load = async () => {
     setLoading(true);
-    if (!supabase) {
+    try {
+      const res = await backend.list('public_feedback');
+      const rows = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      const sorted = [...rows].sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      const filtered = filter === 'all' ? sorted : sorted.filter((f: any) => f.status === filter);
+      setList(filtered.slice(0, 100));
+    } catch {
       const local = JSON.parse(localStorage.getItem('prism_feedback_local') || '[]');
-      setList(filter==='all' ? local : local.filter((f:any)=>f.status===filter));
+      setList(filter === 'all' ? local : local.filter((f: any) => f.status === filter));
+    } finally {
       setLoading(false);
-      return;
     }
-    let q = supabase.from('public_feedback').select('*').order('created_at', { ascending: false }).limit(100);
-    if (filter !== 'all') q = q.eq('status', filter);
-    const { data } = await q;
-    if (data) setList(data);
-    setLoading(false);
   };
 
   useEffect(() => { load(); }, [filter]);
 
-  const updateStatus = async (id:string, status:string) => {
-    if (!supabase) return;
-    await supabase.from('public_feedback').update({ status }).eq('id', id);
+  const updateStatus = async (id: string, status: string) => {
+    try {
+      await backend.update('public_feedback', id, { status });
+    } catch {}
     load();
   };
 

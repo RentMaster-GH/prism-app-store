@@ -1,8 +1,8 @@
-﻿import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { useState, useEffect, useRef } from 'react';
+import { backend } from '../lib/backend';
 
-const cache = new Map<string, { data: any[], ts: number }>();
-const CACHE_TTL = 60_000; // 60s
+const cache = new Map<string, { data: any[]; ts: number }>();
+const CACHE_TTL = 60_000;
 
 export function useSupabaseSearch(query: string, _appsLength: number) {
   const [supabaseResults, setSupabaseResults] = useState<any[]>([]);
@@ -23,7 +23,6 @@ export function useSupabaseSearch(query: string, _appsLength: number) {
         return;
       }
     }
-    if (!supabase) return;
 
     const timer = setTimeout(async () => {
       lastQueryRef.current = trimmed;
@@ -36,21 +35,25 @@ export function useSupabaseSearch(query: string, _appsLength: number) {
       }
       setIsSearching(true);
       try {
-        const { data, error } = await supabase
-          .from('marketplace_apps')
-          .select('*').neq('status','deleted').textSearch('search_tsv', searchQuery)
-          .or(`title.ilike.%${query}%,description.ilike.%${query}%,tagline.ilike.%${query}%`)
-          .limit(20);
-        if (error) throw error;
-        cache.set(trimmed, { data: data || [], ts: Date.now() });
-        setSupabaseResults(data || []);
+        const records = await backend.list<any>('apps');
+        const matches = records
+          .map((r) => ({ id: r.id, uuid: r.id, ...r.data }))
+          .filter((row) => {
+            if (row.status === 'deleted') return false;
+            const hay = `${row.title || ''} ${row.name || ''} ${row.description || ''} ${row.tagline || ''} ${row.studio || ''}`.toLowerCase();
+            return hay.includes(trimmed);
+          })
+          .slice(0, 20);
+
+        cache.set(trimmed, { data: matches, ts: Date.now() });
+        setSupabaseResults(matches);
       } catch (e) {
         console.warn('Search failed', e);
         setSupabaseResults([]);
       } finally {
         setIsSearching(false);
       }
-    }, 200); // 200ms debounce, faster
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [query]);

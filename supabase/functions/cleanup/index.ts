@@ -1,8 +1,23 @@
-﻿import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+import { backend } from '../../../src/lib/backend';
 
-Deno.serve(async () => {
-  const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString()
-  const { data, error } = await supabase.from('marketplace_apps').delete().eq('status','deleted').lt('deleted_at', thirtyDaysAgo).select('id')
-  return new Response(JSON.stringify({ cleaned: data?.length || 0, ids: data?.map((d:any)=>d.id), error, at: new Date().toISOString() }), { headers: { 'Content-Type':'application/json' } })
-})
+export async function runCleanup() {
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const records = await backend.list<any>('apps');
+  const expired = records.filter((r) => {
+    if (r.data?.status !== 'deleted') return false;
+    const deletedTs = r.data?.deleted_at ? new Date(r.data.deleted_at).getTime() : 0;
+    return deletedTs > 0 && deletedTs < thirtyDaysAgo;
+  });
+
+  const removedIds: string[] = [];
+  for (const item of expired) {
+    await backend.remove('apps', item.id);
+    removedIds.push(item.id);
+  }
+
+  return {
+    cleaned: removedIds.length,
+    ids: removedIds,
+    at: new Date().toISOString(),
+  };
+}

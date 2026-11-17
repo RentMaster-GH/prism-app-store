@@ -6,10 +6,10 @@ export interface AuthTokens {
 
 export interface UserProfile {
   id: string;
-  app_id: string;
   email: string;
-  role: string;
-  metadata: Record<string, any>;
+  app_id?: string;
+  role?: string;
+  metadata?: Record<string, any>;
 }
 
 export class CustomBackendClient {
@@ -34,10 +34,12 @@ export class CustomBackendClient {
 
   private saveTokens(accessToken: string, refreshToken?: string) {
     this.accessToken = accessToken;
+    if (refreshToken) {
+      this.refreshToken = refreshToken;
+    }
     if (typeof window !== 'undefined') {
       localStorage.setItem(this.tokenStorageKey, accessToken);
       if (refreshToken) {
-        this.refreshToken = refreshToken;
         localStorage.setItem(this.refreshStorageKey, refreshToken);
       }
     }
@@ -57,21 +59,21 @@ export class CustomBackendClient {
   }
 
   private getDeviceCredentials(): { email: string; password: string } {
-    let uid = 'anon_device';
+    let uid = 'anon-device';
     if (typeof window !== 'undefined') {
       uid =
         localStorage.getItem('prism_user_uid') ||
         localStorage.getItem(`device_uid_${this.appId}`) ||
         '';
       if (!uid) {
-        uid = `PRISM-UID-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+        uid = `PRISM-UID-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
         localStorage.setItem('prism_user_uid', uid);
       }
     }
-    const cleanUid = uid.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const cleanId = uid.toLowerCase().replace(/[^a-z0-9]/g, '');
     return {
-      email: `device_${cleanUid}@${this.appId}.local`,
-      password: `DevicePass_${uid}_Secure2026!`,
+      email: `device_${cleanId}@${this.appId}.local`,
+      password: `DevPass_${cleanId}#2026!`,
     };
   }
 
@@ -87,10 +89,10 @@ export class CustomBackendClient {
       });
 
       if (loginRes.ok) {
-        const data = await loginRes.json();
-        const token = data.accessToken || data.token || data.access_token;
+        const loginData = await loginRes.json();
+        const token = loginData?.accessToken || loginData?.token || loginData?.access_token;
         if (token) {
-          this.saveTokens(token, data.refreshToken || data.refresh_token);
+          this.saveTokens(token, loginData?.refreshToken || loginData?.refresh_token);
           return;
         }
       }
@@ -108,9 +110,9 @@ export class CustomBackendClient {
 
       if (regRes.ok) {
         const regData = await regRes.json();
-        const regToken = regData.accessToken || regData.token || regData.access_token;
+        const regToken = regData?.accessToken || regData?.token || regData?.access_token;
         if (regToken) {
-          this.saveTokens(regToken, regData.refreshToken || regData.refresh_token);
+          this.saveTokens(regToken, regData?.refreshToken || regData?.refresh_token);
           return;
         }
 
@@ -123,17 +125,14 @@ export class CustomBackendClient {
         if (secondLoginRes.ok) {
           const secondData = await secondLoginRes.json();
           const secondToken =
-            secondData.accessToken || secondData.token || secondData.access_token;
+            secondData?.accessToken || secondData?.token || secondData?.access_token;
           if (secondToken) {
-            this.saveTokens(
-              secondToken,
-              secondData.refreshToken || secondData.refresh_token
-            );
+            this.saveTokens(secondToken, secondData?.refreshToken || secondData?.refresh_token);
           }
         }
       }
     } catch {
-      // Ignore network errors here; main request will report properly
+      // Network errors will surface cleanly on the main request
     }
   }
 
@@ -150,9 +149,9 @@ export class CustomBackendClient {
         return false;
       }
       const data = await res.json();
-      const token = data.accessToken || data.token || data.access_token;
-      if (token) {
-        this.saveTokens(token, data.refreshToken || data.refresh_token);
+      const newAccess = data?.accessToken || data?.token || data?.access_token;
+      if (newAccess) {
+        this.saveTokens(newAccess, data?.refreshToken || data?.refresh_token);
         return true;
       }
       return false;
@@ -161,13 +160,9 @@ export class CustomBackendClient {
     }
   }
 
-  private async request<T>(
-    path: string,
-    options: RequestInit = {},
-    requiresAuth = false,
-    retryOn401 = true
-  ): Promise<T> {
-    if (requiresAuth && !this.accessToken) {
+  private async request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
+    const method = (options.method || 'GET').toUpperCase();
+    if (!this.accessToken && method !== 'GET') {
       await this.ensureDeviceSession();
     }
 
@@ -180,101 +175,108 @@ export class CustomBackendClient {
       headers['Authorization'] = `Bearer ${this.accessToken}`;
     }
 
-    const response = await fetch(`${this.baseUrl}${path}`, {
+    const res = await fetch(`${this.baseUrl}${path}`, {
       ...options,
       headers,
     });
 
-    if (response.status === 401 && retryOn401) {
+    if (res.status === 401 && retry) {
       const refreshed = await this.refreshAccessToken();
       if (refreshed) {
-        return this.request<T>(path, options, requiresAuth, false);
+        return this.request<T>(path, options, false);
       }
-      if (requiresAuth) {
-        this.clearTokens();
-        await this.ensureDeviceSession();
-        if (this.accessToken) {
-          return this.request<T>(path, options, requiresAuth, false);
-        }
+      this.clearTokens();
+      await this.ensureDeviceSession();
+      if (this.accessToken) {
+        return this.request<T>(path, options, false);
       }
     }
 
-    const text = await response.text();
-    let data: any = null;
+    const text = await res.text();
+    let data: any = {};
     try {
-      data = text ? JSON.parse(text) : null;
+      data = text ? JSON.parse(text) : {};
     } catch {
       data = { message: text };
     }
 
-    if (!response.ok) {
-      throw new Error(data?.error || data?.message || `HTTP ${response.status}`);
+    if (!res.ok) {
+      throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
     }
 
     return data as T;
   }
 
   async register(email: string, password: string, metadata: Record<string, any> = {}) {
-    const res = await this.request<any>('/auth/register', {
+    const data = await this.request<any>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ appId: this.appId, email, password, metadata }),
     });
-    const token = res?.accessToken || res?.token || res?.access_token;
+    const token = data?.accessToken || data?.token;
     if (token) {
-      this.saveTokens(token, res.refreshToken || res.refresh_token);
+      this.saveTokens(token, data?.refreshToken);
+    } else {
+      await this.login(email, password);
     }
-    return res;
+    return data;
   }
 
   async login(email: string, password: string) {
-    const res = await this.request<any>('/auth/login', {
+    const data = await this.request<any>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ appId: this.appId, email, password }),
     });
-    const token = res?.accessToken || res?.token || res?.access_token;
+    const token = data?.accessToken || data?.token;
     if (token) {
-      this.saveTokens(token, res.refreshToken || res.refresh_token);
+      this.saveTokens(token, data?.refreshToken);
     }
-    return res;
+    return data;
   }
 
   async logout() {
-    try {
-      if (this.refreshToken) {
+    if (this.refreshToken) {
+      try {
         await this.request('/auth/logout', {
           method: 'POST',
           body: JSON.stringify({ refreshToken: this.refreshToken }),
         });
+      } catch {
+        // Ignore logout errors
       }
-    } finally {
-      this.clearTokens();
+    }
+    this.clearTokens();
+  }
+
+  async getMe(): Promise<UserProfile | null> {
+    if (!this.accessToken) return null;
+    try {
+      const res = await this.request<any>('/me', { method: 'GET' });
+      return res?.payload || res?.user || null;
+    } catch {
+      return null;
     }
   }
 
-  async getMe() {
-    return this.request<{ message: string; payload: any }>('/me', { method: 'GET' }, true);
-  }
-
   async list<T = any>(collection: string): Promise<T[]> {
-    const res = await this.request<{ records: T[] } | T[]>(
+    const res = await this.request<any>(
       `/data/${encodeURIComponent(this.appId)}/${encodeURIComponent(collection)}`,
-      { method: 'GET' },
-      false
+      { method: 'GET' }
     );
-    if (Array.isArray(res)) return res;
-    return res?.records || [];
+    if (Array.isArray(res?.records)) {
+      return res.records;
+    }
+    return [];
   }
 
   async create<T = any>(collection: string, payload: Record<string, any>): Promise<T> {
-    const res = await this.request<{ record: T } | T>(
+    const res = await this.request<any>(
       `/data/${encodeURIComponent(this.appId)}/${encodeURIComponent(collection)}`,
       {
         method: 'POST',
         body: JSON.stringify(payload),
-      },
-      true
+      }
     );
-    return (res as any)?.record ?? (res as T);
+    return (res?.record ?? res) as T;
   }
 
   async update<T = any>(
@@ -282,22 +284,22 @@ export class CustomBackendClient {
     id: string,
     payload: Record<string, any>
   ): Promise<T> {
-    const res = await this.request<{ record: T } | T>(
+    const res = await this.request<any>(
       `/data/${encodeURIComponent(this.appId)}/${encodeURIComponent(collection)}/${encodeURIComponent(id)}`,
       {
         method: 'PUT',
         body: JSON.stringify(payload),
-      },
-      true
+      }
     );
-    return (res as any)?.record ?? (res as T);
+    return (res?.record ?? res) as T;
   }
 
   async remove(collection: string, id: string): Promise<void> {
     await this.request(
       `/data/${encodeURIComponent(this.appId)}/${encodeURIComponent(collection)}/${encodeURIComponent(id)}`,
-      { method: 'DELETE' },
-      true
+      {
+        method: 'DELETE',
+      }
     );
   }
 }

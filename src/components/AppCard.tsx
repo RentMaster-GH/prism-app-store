@@ -1,252 +1,192 @@
-import React, { useState, useEffect } from 'react';
-import { ExternalLink, Download, Star, Globe, Smartphone } from 'lucide-react';
-import { AppItem, InstalledAppState } from '../types';
+import React from 'react';
+import { ExternalLink, Info, Pencil, Trash2, Star, Download, ShieldCheck } from 'lucide-react';
+import { getUniqueThumbnail } from '../utils/storeHelpers';
 
-interface Props {
-  index: number;
+export interface AppItem {
+  id: string;
+  title?: string;
+  name?: string;
+  description?: string;
+  category?: string;
+  developer?: string;
+  studio?: string;
+  version?: string;
+  size?: string;
+  live_web_url?: string;
+  liveAppUrl?: string;
+  websiteUrl?: string;
+  apk_url?: string;
+  thumbnail_url?: string;
+  icon_url?: string;
+  hero_image?: string;
+  status?: string;
+  featured?: boolean;
+  owner_uid?: string;
+  rating?: number;
+  review_count?: number;
+  install_count?: number;
+  created_at?: string;
+}
+
+interface AppCardProps {
   app: AppItem;
-  installedState?: InstalledAppState;
-  onOpenDetails: (app: AppItem) => void;
-  onQuickInstall: (app: AppItem) => void;
-  onOpenSandbox: (app: AppItem) => void;
+  currentUid?: string;
+  isManager?: boolean;
+  onOpenApp?: (app: AppItem) => void;
+  onSelectDetails?: (app: AppItem) => void;
+  onEditApp?: (app: AppItem) => void;
+  onDeleteApp?: (app: AppItem) => void;
 }
 
-const PALETTES = [
-  ['#4f46e5', '#7c3aed', '#ec4899'],
-  ['#0284c7', '#2563eb', '#14b8a6'],
-  ['#059669', '#10b981', '#06b6d4'],
-  ['#d97706', '#ea580c', '#dc2626'],
-  ['#9333ea', '#c026d3', '#f43f5e'],
-  ['#0f766e', '#0369a1', '#4338ca'],
-  ['#be185d', '#9d174d', '#6d28d9'],
-  ['#1d4ed8', '#3730a3', '#0e7490'],
-];
+export const AppCard: React.FC<AppCardProps> = ({
+  app,
+  currentUid,
+  isManager = false,
+  onOpenApp,
+  onSelectDetails,
+  onEditApp,
+  onDeleteApp,
+}) => {
+  const displayTitle = app.title || app.name || 'Untitled App';
+  const displayDeveloper = app.studio || app.developer || 'Community Developer';
+  const displayCategory = app.category || 'Other';
+  const isOwner = Boolean(currentUid && app.owner_uid && currentUid === app.owner_uid);
+  const canEdit = isManager || isOwner;
+  const canDelete = isManager || isOwner;
 
-function hashString(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
-function getInitials(name: string): string {
-  const words = (name || 'App').trim().split(/\s+/);
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
-
-export function AppCard({ app, installedState, onOpenDetails, onQuickInstall }: Props) {
-  const customImage =
-    (app as any).thumbnail ||
-    (app as any).thumbnail_url ||
-    (app as any).icon_url ||
-    (app as any).heroImage ||
-    (app as any).raw?.thumbnail_url ||
-    (app as any).raw?.icon_url ||
-    '';
-
-  const [imgFailed, setImgFailed] = useState(false);
-
-  useEffect(() => {
-    setImgFailed(false);
-  }, [customImage]);
-
-  const liveUrl =
-    (app as any).liveAppUrl ||
-    (app as any).websiteUrl ||
-    (app as any).raw?.live_web_url ||
-    (app as any).raw?.live_app_url ||
-    '';
-  const apkUrl =
-    (app as any).apkUrl ||
-    (app as any).raw?.apk_url ||
-    (app as any).downloadUrl ||
-    (app as any).raw?.download_url ||
-    '';
-  const isApproved = (app as any).status === 'approved';
-  const studio = (app as any).studio || app.developer || 'Indie Studio';
-  const category = String(app.category || (app as any).raw?.category || 'App');
-  const hasWeb = !!liveUrl && liveUrl.startsWith('http') && !liveUrl.endsWith('.apk');
-  const hasApk = !!apkUrl && (apkUrl.includes('.apk') || apkUrl.startsWith('data:application'));
-  const isAndroid = /Android/i.test(navigator.userAgent);
-
-  const reviewCount = Number((app as any).reviewCount || (app as any).review_count || 0);
-  const installCount = Number((app as any).installCount || (app as any).install_count || (app as any).downloads || 0);
-  const ratingVal = Number(app.rating || 0) > 0 ? Number(app.rating).toFixed(1) : '5.0';
-
-  const seed = hashString(`${app.id || ''}-${app.name || ''}-${category}`);
-  const palette = PALETTES[seed % PALETTES.length];
-  const angle = 115 + (seed % 50);
-  const initials = getInitials(app.name || 'App');
-  const showCustomImage = Boolean(customImage) && !imgFailed;
-
-  const handleOpenWeb = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onQuickInstall(app);
-    if (hasWeb) window.open(liveUrl, '_blank');
-  };
-
-  const handleInstallApk = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onQuickInstall(app);
-    if (hasApk) {
-      const a = document.createElement('a');
-      a.href = apkUrl;
-      a.download = `${(app.name || 'app').replace(/\s+/g, '-').toLowerCase()}.apk`;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    }
-  };
+  const thumbnail = getUniqueThumbnail(app);
+  const ratingValue = typeof app.rating === 'number' && app.rating > 0 ? app.rating.toFixed(1) : '5.0';
+  const reviewCount = app.review_count || 0;
+  const installCount = app.install_count || 0;
 
   return (
-    <div
-      onClick={() => onOpenDetails(app)}
-      className="group relative overflow-hidden rounded-[24px] bg-[#12131f] border border-white/10 hover:border-white/25 transition-all cursor-pointer flex flex-col"
-    >
+    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-800/90 bg-slate-900/90 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-500/50 hover:shadow-indigo-950/30">
+      {/* Clickable Thumbnail Banner */}
       <div
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpenDetails(app);
+        role="button"
+        tabIndex={0}
+        onClick={() => onSelectDetails?.(app)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectDetails?.(app);
+          }
         }}
-        title={`Open ${app.name} details`}
-        className="relative h-[160px] w-full overflow-hidden bg-[#0a0b14] cursor-pointer"
+        className="relative h-40 w-full cursor-pointer overflow-hidden bg-slate-950"
+        title={`View details for ${displayTitle}`}
       >
-        {showCustomImage ? (
-          <img
-            src={customImage}
-            alt={app.name}
-            loading={app.name.includes('Rent Master') || app.name.includes('Ivory') ? 'eager' : 'lazy'}
-            onError={() => setImgFailed(true)}
-            className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-          />
-        ) : (
-          <div
-            className="w-full h-full relative flex items-center justify-center overflow-hidden group-hover:scale-105 transition duration-500"
-            style={{
-              background: `linear-gradient(${angle}deg, ${palette[0]}, ${palette[1]} 55%, ${palette[2]})`,
-            }}
-          >
-            <div
-              className="absolute -right-8 -top-8 w-36 h-36 rounded-full opacity-25 blur-xl"
-              style={{ backgroundColor: '#ffffff' }}
-            />
-            <div
-              className="absolute -left-6 -bottom-10 w-32 h-32 rounded-full opacity-20"
-              style={{ backgroundColor: '#000000' }}
-            />
-            <div className="relative z-10 flex flex-col items-center gap-1.5">
-              <div className="w-14 h-14 rounded-2xl bg-black/30 backdrop-blur-md border border-white/25 flex items-center justify-center shadow-lg">
-                <span className="text-xl font-black tracking-tight text-white">{initials}</span>
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white/80 px-2.5 py-0.5 rounded-full bg-black/25 backdrop-blur-sm">
-                {category}
-              </span>
-            </div>
-          </div>
-        )}
+        <img
+          src={thumbnail}
+          alt={displayTitle}
+          loading="lazy"
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/30" />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-[#12131f] via-transparent to-transparent pointer-events-none" />
-
-        {isApproved && (
-          <div className="absolute top-3 left-3 px-2.5 py-1 bg-emerald-400 text-black text-[10px] font-bold rounded-full flex items-center gap-1 shadow">
-            <span className="w-1.5 h-1.5 bg-black rounded-full animate-pulse" /> Approved
-          </div>
-        )}
-
-        {hasApk && (
-          <div
-            className="absolute top-3 left-3 px-2.5 py-1 bg-violet-600 text-white text-[10px] font-bold rounded-full flex items-center gap-1 shadow"
-            style={{ marginTop: isApproved ? 28 : 0 }}
-          >
-            <Smartphone className="w-3 h-3" /> Android APK
-          </div>
-        )}
-
-        <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/65 backdrop-blur text-[10px] text-white rounded-full flex items-center gap-1 border border-white/10">
-          <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-          <span className="font-bold">{ratingVal}</span>
-          {reviewCount > 0 && <span className="text-white/60">({reviewCount})</span>}
+        {/* Status Pill */}
+        <div className="absolute left-3 top-3 flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-300 backdrop-blur-md border border-emerald-500/30">
+            <ShieldCheck className="h-3 w-3" />
+            {app.status === 'pending' ? 'Pending' : 'Approved'}
+          </span>
         </div>
+
+        {/* Rating & Installs Pill */}
+        <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-slate-950/75 px-2.5 py-0.5 text-xs font-medium text-amber-300 backdrop-blur-md border border-slate-800">
+          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+          <span>{ratingValue}</span>
+          <span className="text-slate-400">({reviewCount})</span>
+        </div>
+
+        {/* Edit & Delete Floating Controls on Thumbnail Top-Right Hover or Action Bar */}
+        {(canEdit || canDelete) && (
+          <div
+            className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {canEdit && onEditApp && (
+              <button
+                type="button"
+                onClick={() => onEditApp(app)}
+                title={isOwner ? 'Edit (you own this)' : 'Edit app listing'}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700/80 bg-slate-900/90 text-slate-200 shadow-md backdrop-blur-md transition hover:border-indigo-400 hover:bg-indigo-600 hover:text-white"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {canDelete && onDeleteApp && (
+              <button
+                type="button"
+                onClick={() => onDeleteApp(app)}
+                title={isManager ? 'Delete app (Manager)' : 'Delete your app'}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-500/40 bg-rose-950/90 text-rose-300 shadow-md backdrop-blur-md transition hover:border-rose-400 hover:bg-rose-600 hover:text-white"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="p-4 flex flex-col gap-2 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-bold text-[14px] leading-tight text-white line-clamp-1 group-hover:text-indigo-300 transition-colors">
-            {app.name}
-          </h3>
-          <span className="text-[10px] text-white/40 shrink-0">{app.sizeMB}MB</span>
-        </div>
-
-        <p className="text-[12px] text-white/50 line-clamp-2 leading-relaxed">
-          {app.tagline || (app as any).summary || 'No description'}
-        </p>
-
-        <div className="flex items-center justify-between gap-2 mt-1 text-[11px] text-white/40">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Globe className="w-3 h-3 shrink-0" />
-            <span className="truncate">{studio}</span>
-          </div>
-          {installCount > 0 && (
-            <span className="text-[10px] font-mono text-white/50 shrink-0">
-              {installCount.toLocaleString()} {installCount === 1 ? 'install' : 'installs'}
+      {/* Card Body */}
+      <div className="flex flex-1 flex-col justify-between p-4">
+        <div>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="line-clamp-1 text-base font-bold text-white">{displayTitle}</h3>
+            <span className="shrink-0 rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-300">
+              {displayCategory}
             </span>
-          )}
-        </div>
-
-        <div className="flex gap-2 mt-3">
-          {hasWeb && (
-            <button
-              onClick={handleOpenWeb}
-              className="flex-1 h-9 rounded-full text-[12px] font-bold flex items-center justify-center gap-1.5 transition bg-white text-black hover:bg-white/90"
-            >
-              <ExternalLink className="w-3.5 h-3.5" /> Open
-            </button>
-          )}
-          {hasApk && (
-            <button
-              onClick={handleInstallApk}
-              className={`flex-1 h-9 rounded-full text-[12px] font-bold flex items-center justify-center gap-1.5 transition ${
-                hasWeb ? 'bg-violet-600 text-white hover:bg-violet-500' : 'bg-white text-black hover:bg-white/90'
-              }`}
-            >
-              <Download className="w-3.5 h-3.5" /> {isAndroid ? 'Install APK' : 'Get APK'}
-            </button>
-          )}
-          {!hasWeb && !hasApk && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onQuickInstall(app);
-              }}
-              className="flex-1 h-9 rounded-full text-[12px] font-bold flex items-center justify-center gap-1.5 bg-white text-black hover:bg-white/90"
-            >
-              <Download className="w-3.5 h-3.5" /> {installedState ? 'Open' : 'Install'}
-            </button>
-          )}
-        </div>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenDetails(app);
-          }}
-          className="h-8 bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 rounded-full text-[11px] font-medium text-white/70 transition"
-        >
-          Details
-        </button>
-
-        {hasWeb && <div className="text-[10px] text-white/30 text-center mt-1 truncate">{liveUrl}</div>}
-        {hasApk && isAndroid && (
-          <div className="text-[10px] text-violet-300/70 text-center">
-            Tap Install APK → Allow unknown sources → Install
           </div>
-        )}
+
+          <p className="mt-1 line-clamp-2 text-xs text-slate-400">
+            {app.description || 'No description provided.'}
+          </p>
+
+          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+            <span className="truncate">{displayDeveloper}</span>
+            <span className="inline-flex items-center gap-1 text-slate-400">
+              <Download className="h-3 w-3" />
+              {installCount}
+            </span>
+          </div>
+        </div>
+
+        {/* Action Buttons Row */}
+        <div className="mt-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onOpenApp?.(app)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-slate-200"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open
+            </button>
+
+            {canDelete && onDeleteApp && (
+              <button
+                type="button"
+                onClick={() => onDeleteApp(app)}
+                title={isManager ? 'Delete listing (Store Manager)' : 'Remove your listing'}
+                className="flex items-center justify-center rounded-xl border border-rose-500/40 bg-rose-500/10 px-2.5 py-2 text-rose-400 transition hover:bg-rose-600 hover:text-white"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onSelectDetails?.(app)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-slate-700 hover:bg-slate-800/70 hover:text-white"
+          >
+            <Info className="h-3.5 w-3.5" />
+            Details
+          </button>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default AppCard;

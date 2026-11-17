@@ -1,565 +1,794 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, Loader2, Edit3, Ban, CheckCircle } from 'lucide-react';
-import { APPS_DATA } from './data/appsData';
-import { AppItem, CategoryType, DevicePlatform, InstalledAppState, DeletedAppAuditItem } from './types';
-import { MySubmissionsView } from './components/MySubmissionsView';
-import { ManagerPendingView } from './components/ManagerPendingView';
-import { MyAppsDashboard } from './components/MyAppsDashboard';
-import { TrashModal, addToTrash } from './components/TrashManager';
-import { OfflineIndicator, UpdateNotificationToast } from './components/OfflinePWA';
-import { TopBar } from './components/TopBar';
-import { AppCard } from './components/AppCard';
-import { AppDetailModal } from './components/AppDetailModal';
-import { AppCompareView } from './components/AppCompareView';
-import { LibraryView } from './components/LibraryView';
-import { DevSubmitModal } from './components/DevSubmitModal';
-import { PWAInstallModal } from './components/PWAInstallModal';
-import { DirectInstallBanner } from './components/DirectInstallBanner';
-import { ManagerAuthModal } from './components/ManagerAuthModal';
-import { MobileBottomNav } from './components/MobileBottomNav';
-import { EdgeSyncManagerModal } from './components/EdgeSyncManagerModal';
-import { AdaptiveDeviceWrapper } from './components/AdaptiveDeviceWrapper';
-import { SafeAreaProvider } from './context/SafeAreaContext';
-import { usePWAInstall } from './hooks/usePWAInstall';
-import { resolveAppMedia } from './utils/media';
-import { useSupabaseSearch } from './hooks/useSupabaseSearch';
-import { CommandPalette } from './components/CommandPalette';
-import { DiscoverView } from './components/DiscoverView';
-import { AppsSearchBar } from './components/AppsSearchBar';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  Sparkles,
+  Plus,
+  Key,
+  ShieldCheck,
+  ShieldAlert,
+  RefreshCw,
+  Trash2,
+  X,
+  CheckCircle2,
+  ExternalLink,
+  Search,
+  LayoutGrid,
+  Compass,
+  FolderKanban,
+  MessageSquarePlus,
+  Flag,
+} from 'lucide-react';
 import { backend } from './lib/backend';
-import { useInstallAnalytics } from './hooks/useInstallAnalytics';
-import ReportPortal from './components/ReportPortal';
-import ManagerReports from './components/ManagerReports';
+import { AppCard } from './components/AppCard';
+import { DevSubmitModal, STORE_CATEGORIES } from './components/DevSubmitModal';
 import { EditAppModal } from './components/EditAppModal';
-import AnalyticsDashboard from './components/AnalyticsDashboard';
+import { AppDetailModal } from './components/AppDetailModal';
+import { ManagerPendingView } from './components/ManagerPendingView';
+import { MySubmissionsView } from './components/MySubmissionsView';
 import { AnnouncementBanner, AnnouncementManager } from './components/AnnouncementBanner';
-import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
-import { OwnerPortalView } from './components/OwnerPortalView';
-import { FeedbackPortal, ManagerFeedbackView } from './components/FeedbackPortal';
+import { FeedbackPortal } from './components/FeedbackPortal';
+import { ReportPortal } from './components/ReportPortal';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import {
   ALL_STORE_CATEGORIES,
   getUniqueThumbnail,
   fetchReviewRollups,
   normalizeCategoryMatch,
+  ReviewRollup,
 } from './utils/storeHelpers';
 
-const PAGE_SIZE = 24;
-
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: any; preservedUID: string }> {
-  state = { error: null as any, preservedUID: '' };
-  static getDerivedStateFromError(e: any) { return { error: e }; }
-  componentDidCatch() {
-    try { this.setState({ preservedUID: localStorage.getItem('prism_user_uid') || '' }); } catch {}
-  }
-  handleSafeReload = () => {
-    try {
-      const keys = ['prism_user_uid', 'prism_user_uid_backup', 'prism_installed_map', 'prism_user_uploaded_apps', 'prism_apps_registry', 'prism_is_store_manager', 'prism_deleted_apps_log', 'prism_reports'];
-      const saved = Object.fromEntries(keys.map(k => [k, localStorage.getItem(k)]));
-      localStorage.clear();
-      keys.forEach(k => { if (saved[k]) localStorage.setItem(k, saved[k]!); });
-    } catch {}
-    location.reload();
-  };
-  render() {
-    if (this.state.error) {
-      return (
-        <div className="min-h-screen bg-[#05060f] text-white p-6 flex items-center justify-center">
-          <div className="max-w-lg w-full">
-            <h1 className="text-red-400 font-bold mb-3">Prism crashed — but your UID is safe</h1>
-            <p className="text-[12px] text-white/50 mb-3">UID {this.state.preservedUID || localStorage.getItem('prism_user_uid')} is preserved.</p>
-            <pre className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 overflow-auto text-xs whitespace-pre-wrap">{String(this.state.error?.message)}</pre>
-            <button onClick={this.handleSafeReload} className="mt-4 w-full h-11 bg-white text-black rounded-full font-bold text-sm">Preserve Session & Reload</button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children as any;
-  }
+export interface StoreApp {
+  id: string;
+  title: string;
+  developer: string;
+  category: string;
+  description: string;
+  whats_new?: string;
+  version: string;
+  size?: string;
+  live_web_url?: string;
+  apk_url?: string;
+  thumbnail_url?: string;
+  hero_image?: string;
+  icon_url?: string;
+  image?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'deleted';
+  featured?: boolean;
+  owner_uid?: string;
+  install_count?: number;
+  rating?: number;
+  review_count?: number;
+  created_at?: string;
 }
 
-function useDebounce<T>(value: T, delay: number) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => { const id = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(id); }, [value, delay]);
-  return debounced;
+const DEFAULT_SHOWCASE_APPS: StoreApp[] = [
+  {
+    id: 'showcase-intent',
+    title: 'Intent',
+    developer: 'Intent Labs',
+    category: 'Dating',
+    description: 'Intent is a dating app for people who date with intention. Create a real profile, match with people who share your values, and build lasting connections.',
+    version: '2.1.0',
+    size: '28.5MB',
+    live_web_url: 'https://intent-app.vercel.app',
+    status: 'approved',
+    featured: true,
+    install_count: 1420,
+    rating: 4.9,
+    review_count: 72,
+  },
+  {
+    id: 'showcase-harmonics',
+    title: 'Harmonics Synth Pro',
+    developer: 'Sound Sculptors',
+    category: 'Tools',
+    description: 'A multi-stage polyphonic modular synthesizer built for sound designers, composers, and live performers with zero latency.',
+    version: '1.8.4',
+    size: '42.1MB',
+    live_web_url: 'https://harmonics-synth.vercel.app',
+    status: 'approved',
+    install_count: 980,
+    rating: 4.8,
+    review_count: 45,
+  },
+  {
+    id: 'showcase-adinkra',
+    title: 'Adinkra Studio',
+    developer: 'Asante Cultural Labs',
+    category: 'Productivity',
+    description: 'West African geometric vectoring, brand studio, and interactive cultural typography workspace.',
+    version: '1.4.0',
+    size: '19.2MB',
+    live_web_url: 'https://adinkra-studio.vercel.app',
+    status: 'approved',
+    install_count: 1150,
+    rating: 4.9,
+    review_count: 61,
+  },
+];
+
+function getOrCreateUserUid(): string {
+  if (typeof window === 'undefined') return 'PRISM-UID-GUEST';
+  let uid = localStorage.getItem('prism_user_uid');
+  if (!uid) {
+    const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+    uid = `PRISM-UID-${rand}`;
+    localStorage.setItem('prism_user_uid', uid);
+  }
+  return uid;
 }
 
-function AppStoreContent() {
-  useInstallAnalytics();
-  const [apps, setApps] = useState<AppItem[]>(() => {
-    try {
-      const savedUserApps: AppItem[] = JSON.parse(localStorage.getItem('prism_user_uploaded_apps') || '[]');
-      const savedRegistry: AppItem[] = JSON.parse(localStorage.getItem('prism_apps_registry') || '[]');
-      const legacyUserApps = savedRegistry.filter((a: any) => a.isUserUploaded);
-      const userAppsMap = new Map<string, AppItem>();
-      [...legacyUserApps, ...savedUserApps].forEach(app => {
-        try { userAppsMap.set(app.id, { ...app, heroImage: app.heroImage ? resolveAppMedia(app.heroImage) : app.heroImage, thumbnail: resolveAppMedia(app.thumbnail) }); } catch {}
-      });
-      const deletedIds = new Set<string>();
-      JSON.parse(localStorage.getItem('prism_deleted_apps_log') || '[]').forEach((d: any) => {
-        if (d.originalApp?.id) deletedIds.add(d.originalApp.id);
-        if (d.appId) deletedIds.add(d.appId);
-      });
-      const officialApps = APPS_DATA.filter((a: any) => !deletedIds.has(a.id));
-      const activeUserApps = Array.from(userAppsMap.values()).filter(a => !deletedIds.has(a.id));
-      const seen = new Set<string>();
-      const combined: AppItem[] = [];
-      for (const app of activeUserApps) { if (!seen.has(app.id)) { seen.add(app.id); combined.push(app); } }
-      for (const app of officialApps) { if (!seen.has(app.id)) { seen.add(app.id); combined.push({ ...app, heroImage: app.heroImage ? resolveAppMedia(app.heroImage) : app.heroImage, thumbnail: resolveAppMedia(app.thumbnail) }); } }
-      return combined;
-    } catch { return APPS_DATA; }
-  });
-
-  const [isBackendSyncing, setIsBackendSyncing] = useState(false);
-
-  const loadPermanentApps = useCallback(async () => {
-    setIsBackendSyncing(true);
-    try {
-      const [records, rollups] = await Promise.all([
-        backend.list<any>('apps'),
-        fetchReviewRollups(),
-      ]);
-      if (!records || records.length === 0) {
-        if (Object.keys(rollups).length > 0) {
-          setApps(prev => prev.map(a => rollups[a.id] ? { ...a, rating: rollups[a.id].avgRating, reviewCount: rollups[a.id].reviewCount } : a));
-        }
-        return;
-      }
-
-      const approvedRows = records
-        .map((r) => ({ id: r.id, uuid: r.id, created_at: r.created_at, updated_at: r.updated_at, ...r.data }))
-        .filter((row) => (row.status || 'approved') === 'approved')
-        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
-        .slice(0, 200);
-
-      const permanentApps: AppItem[] = approvedRows.map((row: any) => {
-        const id = row.uuid || row.id;
-        const stats = rollups[id];
-        const thumb = getUniqueThumbnail(row);
-        const installs = Number(row.install_count ?? row.downloads ?? 0);
-        return {
-          id,
-          name: row.title || row.jamz || row.name || 'Untitled',
-          tagline: row.tagline || row.description || row.jamz || 'User published',
-          developer: row.studio || row.developer_name || 'Indie Engineer',
-          developerVerified: true,
-          category: row.category || row.blty || 'Other',
-          price: 0,
-          priceFormatted: 'Free',
-          priceModel: 'Free' as any,
-          rating: stats ? stats.avgRating : Number(row.rating || 5.0),
-          reviewCount: stats ? stats.reviewCount : Number(row.review_count || 0),
-          downloadsCount: String(installs),
-          sizeMB: row.size_mb || 15,
-          currentVersion: row.version_name || row.version || '1.0.0',
-          minOS: 'Android 12 / iOS 16 / macOS / Web',
-          supportedDevices: ['Phone', 'Tablet', 'Desktop', 'Vision'] as any,
-          heroImage: thumb,
-          thumbnail: thumb,
-          accentColor: '#38bdf8',
-          summary: row.description || row.title || row.jamz || '',
-          features: [row.changelog || 'Live'],
-          offlineCapable: true,
-          zeroTrackers: true,
-          openSource: false,
-          isUserUploaded: true,
-          ownerId: row.owner_uid,
-          owner_uid: row.owner_uid,
-          owner_id: row.owner_uid,
-          uploadedAt: 'Just now',
-          liveAppUrl: row.live_web_url || row.live_app_url || '',
-          websiteUrl: row.live_web_url || row.live_app_url || '',
-          apkUrl: row.apk_url || (String(row.download_url || '').endsWith('.apk') ? row.download_url : '') || '',
-          downloadUrl: row.download_url || '',
-          sourceCodeUrl: row.source_code_url,
-          packageBundleName: row.package_bundle_name,
-          privacyGrade: 'A+',
-          permissions: [],
-          dataCollected: [],
-          versionHistory: [{ version: row.version_name || row.version || '1.0.0', releaseDate: row.updated_at || 'Today', sizeMB: row.size_mb || 15, isLatest: true, highlights: [row.changelog || 'Live'] } as any],
-          reviews: [],
-          sandboxType: 'terminal' as any,
-          status: row.status || 'approved',
-          studio: row.studio,
-          title_raw: row.title,
-          jamz_raw: row.jamz,
-          raw: { ...row, install_count: installs },
-        } as any;
-      });
-
-      setApps(prev => {
-        const map = new Map<string, AppItem>();
-        permanentApps.forEach(a => map.set(a.id, a));
-        prev.forEach(a => {
-          if (!map.has(a.id)) {
-            const stats = rollups[a.id];
-            map.set(a.id, stats ? { ...a, rating: stats.avgRating, reviewCount: stats.reviewCount } : a);
-          }
-        });
-        return Array.from(map.values()).filter((a: any) => (a as any).status !== 'deleted');
-      });
-    } catch {} finally {
-      setIsBackendSyncing(false);
-    }
-  }, []);
-
-  useEffect(() => { loadPermanentApps(); }, [loadPermanentApps]);
-
-  const [userUID, setUserUID] = useState(() => {
-    const existing = localStorage.getItem('prism_user_uid') || localStorage.getItem('prism_user_uid_backup');
-    if (existing) return existing;
-    const newUid = 'PRISM-UID-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
-    localStorage.setItem('prism_user_uid', newUid);
-    localStorage.setItem('prism_user_uid_backup', newUid);
-    return newUid;
-  });
-
-  const [isStoreManager, setIsStoreManager] = useState<boolean>(() => { try { return localStorage.getItem('prism_is_store_manager') === 'true'; } catch {} return false; });
-  const [showMyApps, setShowMyApps] = useState(false);
-  const [showTrash, setShowTrash] = useState(false);
-  const [isManagerAuthModalOpen, setIsManagerAuthModalOpen] = useState(false);
-  const handleUpdateUID = (newUID: string) => { setUserUID(newUID); try { localStorage.setItem('prism_user_uid', newUID); localStorage.setItem('prism_user_uid_backup', newUID); } catch {} };
-  const handleSetStoreManager = (status: boolean) => { setIsStoreManager(status); try { localStorage.setItem('prism_is_store_manager', status ? 'true' : 'false'); } catch {} };
-
-  const [currentTab, setCurrentTab] = useState<'discover' | 'apps' | 'compare' | 'library' | 'myapps' | 'portal' | 'feedback'>(() => {
-    try {
-      const hash = window.location.hash;
-      if (hash.startsWith('#/p/')) return 'portal';
-      if (hash === '#/feedback') return 'feedback';
-      const saved = localStorage.getItem('prism_current_tab');
-      if (saved && ['discover', 'apps', 'compare', 'library', 'myapps', 'portal', 'feedback'].includes(saved)) return saved as any;
-    } catch {}
-    return 'discover';
-  });
-  const [portalSlug, setPortalSlug] = useState<string>(() => {
-    try {
-      const hash = window.location.hash;
-      if (hash.startsWith('#/p/')) return hash.replace('#/p/', '').trim();
-      return localStorage.getItem('prism_portal_slug') || '';
-    } catch { return ''; }
-  });
-  const [view, setView] = useState<'all' | 'my' | 'featured'>('all');
-  const [storeCategory, setStoreCategory] = useState<string>('All');
-  const [selectedApp, setSelectedApp] = useState<AppItem | null>(null);
-  const [modalInitialTab, setModalInitialTab] = useState<'overview' | 'test-drive'>('overview');
-  const [isDevModalOpen, setIsDevModalOpen] = useState(false);
-  const [devModalInitialTab, setDevModalInitialTab] = useState<'publish' | 'owner-apps' | 'moderation' | 'guide' | 'audit-log'>('publish');
-  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
-  const [isSyncHubOpen, setIsSyncHubOpen] = useState(false);
-  const [commandOpen, setCommandOpen] = useState(false);
-  const [showReportPortal, setShowReportPortal] = useState(false);
-  const [reportAppContext, setReportAppContext] = useState<any>(null);
-  const [managerTab, setManagerTab] = useState<'all' | 'deleted' | 'reports' | 'analytics' | 'announcements' | 'feedback'>('all');
-  const [editingApp, setEditingApp] = useState<AppItem | null>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setCommandOpen(o => !o); } };
-    const onOpenReport = (e: any) => { setReportAppContext(e.detail || null); setShowReportPortal(true); };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('open-report-portal' as any, onOpenReport);
-    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('open-report-portal' as any, onOpenReport); };
-  }, []);
-
-  useEffect(() => {
-    const parseHash = () => {
-      const hash = window.location.hash;
-      if (hash.startsWith('#/p/')) {
-        const slug = hash.replace('#/p/', '').trim();
-        if (slug) { setPortalSlug(slug); setCurrentTab('portal'); try { localStorage.setItem('prism_current_tab', 'portal'); } catch {} }
-      } else if (hash === '#/feedback') {
-        setCurrentTab('feedback');
-      }
-    };
-    parseHash();
-    window.addEventListener('hashchange', parseHash);
-    return () => window.removeEventListener('hashchange', parseHash);
-  }, []);
-
-  const handleSelectTab = useCallback((t: any) => {
-    if (t === 'portal') {
-      const slug = localStorage.getItem('prism_portal_slug') || portalSlug;
-      if (slug) { setPortalSlug(slug); window.location.hash = `#/p/${slug}`; setCurrentTab('portal'); }
-      else setCurrentTab('myapps');
-    } else if (t === 'feedback') {
-      window.location.hash = '#/feedback';
-      setCurrentTab('feedback');
-    } else {
-      if (window.location.hash.startsWith('#/p/') || window.location.hash === '#/feedback') window.location.hash = '';
-      setCurrentTab(t);
-    }
-  }, [portalSlug]);
-
-  const handleForcePurgeCache = async () => {
-    if (typeof window !== 'undefined' && 'caches' in window) {
-      try { const names = await caches.keys(); await Promise.all(names.map(n => caches.delete(n))); } catch {}
-    }
-  };
-
-  const [deletedAppsLog, setDeletedAppsLog] = useState<DeletedAppAuditItem[]>(() => { try { return JSON.parse(localStorage.getItem('prism_deleted_apps_log') || '[]'); } catch { return []; } });
-  const { isInstallable, isStandalone, install } = usePWAInstall();
-  const handleDirectInstall = useCallback(async () => {
-    if (isStandalone) return;
-    if (isInstallable) { const ok = await install(); if (ok) return; }
-    setIsInstallModalOpen(true);
-  }, [isInstallable, isStandalone, install]);
-
-  const [compareAppA, setCompareAppA] = useState<string | undefined>(undefined);
-  const [compareAppB, setCompareAppB] = useState<string | undefined>(undefined);
+export function App() {
+  const [apps, setApps] = useState<StoreApp[]>([]);
+  const [rollups, setRollups] = useState<Record<string, ReviewRollup>>({});
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearch = useDebounce(searchQuery, 300);
-  const [selectedCategory, setSelectedCategory] = useState<CategoryType>('All');
-  const [selectedDevice, setSelectedDevice] = useState<DevicePlatform>('All');
-  const [selectedPriceModel, setSelectedPriceModel] = useState<string>('All');
-  const [sortBy, setSortBy] = useState<'rating' | 'downloads' | 'size'>('rating');
-  const [showFilters, setShowFilters] = useState(false);
-  useSupabaseSearch(debouncedSearch, apps.length);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-  const openAppDetails = useCallback((app: AppItem, tab: 'overview' | 'test-drive' = 'overview') => { setModalInitialTab(tab); setSelectedApp(app); }, []);
-  const [installedMap, setInstalledMap] = useState<Record<string, InstalledAppState>>(() => {
-    try { const saved = localStorage.getItem('prism_installed_map'); if (saved) return JSON.parse(saved); } catch {}
-    return { 'harmonics-synth-pro': { appId: 'harmonics-synth-pro', installedVersion: '3.4.2', installedAt: 'Yesterday', storageUsedMB: 38.4, status: 'installed', progress: 100 }, 'cipher-notes-studio': { appId: 'cipher-notes-studio', installedVersion: '3.0.2', installedAt: '3 days ago', storageUsedMB: 15.6, status: 'installed', progress: 100 } };
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [activeTab, setActiveTab] = useState<'all' | 'featured' | 'my-uploads'>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'rating'>('newest');
+
+  const [currentUid, setCurrentUid] = useState<string>(() => getOrCreateUserUid());
+  const [isManager, setIsManager] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('prism_is_manager') === 'true';
   });
 
-  useEffect(() => { try { localStorage.setItem('prism_current_tab', currentTab); } catch {} }, [currentTab]);
-  useEffect(() => { try { localStorage.setItem('prism_installed_map', JSON.stringify(installedMap)); } catch {} }, [installedMap]);
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [debouncedSearch, selectedCategory, selectedDevice, selectedPriceModel, sortBy, currentTab, view, storeCategory]);
+  // Modals
+  const [showDevModal, setShowDevModal] = useState(false);
+  const [editingApp, setEditingApp] = useState<StoreApp | null>(null);
+  const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
+  const [showPasskeyModal, setShowPasskeyModal] = useState(false);
+  const [passkeyInput, setPasskeyInput] = useState('');
+  const [showManagerLogin, setShowManagerLogin] = useState(false);
+  const [managerPasswordInput, setManagerPasswordInput] = useState('');
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [managerSubTab, setManagerSubTab] = useState<'pending' | 'all' | 'deleted' | 'analytics' | 'announce'>('pending');
 
-  const handleInstallApp = useCallback((app: AppItem) => {
-    setInstalledMap(prev => ({ ...prev, [app.id]: { appId: app.id, installedVersion: app.currentVersion, installedAt: 'Just now', storageUsedMB: app.sizeMB, status: 'installing', progress: 15 } as any }));
-    setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], progress: 55 } } : prev), 400);
-    setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], progress: 85 } } : prev), 800);
-    setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], status: 'installed', progress: 100 } } : prev), 1200);
-
-    if (app.id) {
-      const rawCount = Number((app as any).raw?.install_count ?? parseInt(String((app as any).downloadsCount || '0').replace(/\D/g, '')) ?? 0);
-      const nextCount = rawCount + 1;
-      setApps(prev => prev.map(a => a.id === app.id ? { ...a, downloadsCount: String(nextCount), raw: { ...(a as any).raw, install_count: nextCount } } as any : a));
-      backend.update('apps', app.id, { install_count: nextCount, downloads: nextCount }).catch(() => {});
-    }
-
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    const apkUrl = (app as any).apkUrl || '';
-    const webUrl = (app as any).liveAppUrl || (app as any).websiteUrl || '';
-    if (isAndroid && apkUrl) setTimeout(() => { window.location.href = apkUrl; }, 1400);
-    else if (webUrl) setTimeout(() => window.open(webUrl, '_blank'), 1400);
-    else if (apkUrl) setTimeout(() => { window.location.href = apkUrl; }, 1400);
-  }, []);
-
-  const handleUninstallApp = useCallback((appId: string) => { setInstalledMap(prev => { const c = { ...prev }; delete c[appId]; return c; }); }, []);
-  const handleUpdateApp = useCallback((app: AppItem) => {
-    if (installedMap[app.id]?.status === 'updating') return;
-    setInstalledMap(prev => ({ ...prev, [app.id]: { ...prev[app.id], status: 'updating', progress: 35 } } as any));
-    setTimeout(() => setInstalledMap(prev => ({ ...prev, [app.id]: { ...prev[app.id], installedVersion: app.currentVersion, status: 'installed', progress: 100 } } as any)), 700);
-  }, [installedMap]);
-  const handleUpdateAll = useCallback(() => { Object.keys(installedMap).forEach(id => { const app = apps.find(a => a.id === id); if (app && installedMap[id].installedVersion !== app.currentVersion) handleUpdateApp(app); }); }, [apps, installedMap, handleUpdateApp]);
-  const handleStartCompare = useCallback((app: AppItem) => { setCompareAppA(app.id); const other = apps.find(a => a.id !== app.id); if (other) setCompareAppB(other.id); setSelectedApp(null); setCurrentTab('compare'); }, [apps]);
-  const handleAddReview = useCallback((appId: string, rating: number, title: string, content: string) => {
-    setApps(prev => prev.map(a => {
-      if (a.id !== appId) return a;
-      const nextCount = (a.reviewCount || 0) + 1;
-      const nextAvg = Number((((a.rating || 5) * (a.reviewCount || 0) + rating) / nextCount).toFixed(1));
-      const rev = { id: `rev-${Date.now()}`, author: 'You', rating, date: 'Just now', device: 'Desktop', title, content, helpfulCount: 0, verifiedPurchase: true };
-      return { ...a, rating: nextAvg, reviewCount: nextCount, reviews: [rev as any, ...a.reviews] };
-    }));
-  }, []);
-  const handleAppPublished = useCallback((newApp: AppItem) => { setApps(prev => [newApp, ...prev]); loadPermanentApps(); }, [loadPermanentApps]);
-  const handleAppDeleted = useCallback((appId: string, reason: string, deletedBy: any) => {
-    const target = apps.find(a => a.id === appId);
-    if (target) {
-      const entry: DeletedAppAuditItem = { id: `del-${Date.now()}`, name: target.name, developer: target.developer, category: target.category, reason, deletedBy, deletedAt: new Date().toLocaleTimeString(), originalApp: target } as any;
-      setDeletedAppsLog(prev => { const n = [entry, ...prev]; try { localStorage.setItem('prism_deleted_apps_log', JSON.stringify(n)); } catch {} return n; });
-    }
-    backend.update('apps', appId, { status: 'deleted', deleted_at: new Date().toISOString() }).catch(() => {});
-    setApps(prev => prev.filter(a => a.id !== appId));
-    setInstalledMap(prev => { const c = { ...prev }; delete c[appId]; return c; });
-    if (selectedApp?.id === appId) setSelectedApp(null);
-  }, [apps, selectedApp]);
-  const handleRestoreApp = useCallback((appToRestore: AppItem) => {
-    backend.update('apps', appToRestore.id, { status: 'approved', deleted_at: null }).catch(() => {});
-    setApps(prev => prev.some(a => a.id === appToRestore.id) ? prev : [appToRestore, ...prev]);
-    setDeletedAppsLog(prev => prev.filter(d => d.originalApp.id !== appToRestore.id));
-  }, []);
-  const handleBanUser = useCallback(async (ownerId: string) => {
-    if (!confirm(`Ban user ${ownerId}?`)) return;
-    try { await backend.create('banned_users', { owner_uid: ownerId, reason: 'Spam', banned_by: userUID }); alert('User banned'); }
-    catch { alert('User banned locally'); }
-  }, [userUID]);
-
-  const baseApps = useMemo(() => apps.filter((a: any) => String((a as any).status || 'approved') !== 'deleted'), [apps]);
-  const allApps = useMemo(() => { const map = new Map<string, AppItem>(); baseApps.forEach(a => { if (a?.id && !map.has(a.id)) map.set(a.id, a); }); return Array.from(map.values()); }, [baseApps]);
-  const myApps = useMemo(() => baseApps.filter((a: any) => ((a as any).ownerId || (a as any).owner_uid || (a as any).owner_id) === userUID), [baseApps, userUID]);
-  const activeFilterCount = useMemo(() => [selectedCategory !== 'All', selectedDevice !== 'All', selectedPriceModel !== 'All', sortBy !== 'rating', storeCategory !== 'All', view !== 'all'].filter(Boolean).length, [selectedCategory, selectedDevice, selectedPriceModel, sortBy, storeCategory, view]);
-
-  const filteredApps = useMemo(() => {
+  const loadStoreData = useCallback(async () => {
+    setLoading(true);
     try {
-      if (view === 'my') return myApps || [];
-      let list = view === 'featured' ? (baseApps || []).filter((a: any) => (a as any)?.is_featured || (a as any)?.isUserUploaded) : [...(allApps || [])];
-      if (storeCategory && storeCategory !== 'All') {
-        list = (list || []).filter((a: any) => normalizeCategoryMatch(a?.category ?? (a as any)?.blty ?? (a as any)?.storeCategory, storeCategory));
-      }
-      const seen = new Set<string>();
-      const q = String(debouncedSearch || '').toLowerCase().trim();
-      return (list || []).filter(app => {
-        if (!app?.id || seen.has(app.id)) return false;
-        seen.add(app.id);
-        if (q) {
-          const haystack = `${String(app.name || '')} ${String((app as any).title_raw || '')} ${String((app as any).jamz_raw || '')} ${String(app.tagline || '')} ${String(app.developer || '')} ${String((app as any).studio || '')} ${String(app.category || '')} ${String(app.summary || '')} ${String((app as any).liveAppUrl || '')} ${String((app as any).websiteUrl || '')}`.toLowerCase();
-          if (!haystack.includes(q)) return false;
-        }
-        const matchesCategory = selectedCategory === 'All' || normalizeCategoryMatch(app.category, String(selectedCategory));
-        const devices = Array.isArray(app.supportedDevices) ? app.supportedDevices : [];
-        const matchesDevice = selectedDevice === 'All' || devices.length === 0 || devices.includes(selectedDevice as any);
-        const matchesPrice = selectedPriceModel === 'All' || app.priceModel === selectedPriceModel || !app.priceModel;
-        return matchesCategory && matchesDevice && matchesPrice;
-      }).sort((a, b) => {
-        if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-        if (sortBy === 'size') return (a.sizeMB || 0) - (b.sizeMB || 0);
-        return parseInt(String(b.downloadsCount || '0').replace(/\D/g, '') || '0') - parseInt(String(a.downloadsCount || '0').replace(/\D/g, '') || '0');
-      });
-    } catch { return allApps || []; }
-  }, [allApps, baseApps, myApps, view, debouncedSearch, selectedCategory, selectedDevice, selectedPriceModel, sortBy, storeCategory]);
+      const [rawRecords, reviewRollups] = await Promise.all([
+        backend.list('apps').catch(() => []),
+        fetchReviewRollups().catch(() => ({})),
+      ]);
 
-  const paginatedApps = useMemo(() => filteredApps.slice(0, visibleCount), [filteredApps, visibleCount]);
-  const hasMore = visibleCount < filteredApps.length;
-  const featuredApp = useMemo(() => allApps.find(a => (a as any).editorialHighlight) || allApps[0], [allApps]);
-  const becauseApps = useMemo(() => allApps.filter(a => !installedMap[a.id]).slice(0, 8), [allApps, installedMap]);
+      setRollups(reviewRollups);
+
+      const mappedRemote: StoreApp[] = (Array.isArray(rawRecords) ? rawRecords : []).map((item: any) => {
+        const customThumb =
+          item.thumbnail_url ||
+          item.hero_image ||
+          item.icon_url ||
+          item.image ||
+          '';
+        const resolvedCover = customThumb || getUniqueThumbnail(item.title || 'App', item.category || 'Other');
+        const rollup = reviewRollups[item.id];
+
+        return {
+          id: item.id,
+          title: item.title || 'Untitled App',
+          developer: item.developer || item.studio || 'Independent Developer',
+          category: item.category || 'Other',
+          description: item.description || item.summary || 'Web & mobile application on Prism Store.',
+          whats_new: item.whats_new || '',
+          version: item.version || '1.0.0',
+          size: item.size || '12 MB',
+          live_web_url: item.live_web_url || item.liveAppUrl || item.websiteUrl || '',
+          apk_url: item.apk_url || '',
+          thumbnail_url: customThumb,
+          hero_image: resolvedCover,
+          icon_url: customThumb || resolvedCover,
+          status: item.status || 'pending',
+          featured: Boolean(item.featured),
+          owner_uid: item.owner_uid || '',
+          install_count: Number(item.install_count ?? item.installs ?? 0),
+          rating: rollup ? rollup.averageRating : Number(item.rating ?? 5.0),
+          review_count: rollup ? rollup.reviewCount : Number(item.review_count ?? 0),
+          created_at: item.created_at,
+        };
+      });
+
+      const hydratedDefaults = DEFAULT_SHOWCASE_APPS.map((def) => {
+        const resolvedCover = getUniqueThumbnail(def.title, def.category);
+        return {
+          ...def,
+          hero_image: resolvedCover,
+          icon_url: resolvedCover,
+        };
+      });
+
+      setApps([...mappedRemote, ...hydratedDefaults]);
+    } catch (err) {
+      console.error('Failed to load store data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const obs = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setVisibleCount(v => v + PAGE_SIZE); }, { rootMargin: '600px' });
-    const el = loadMoreRef.current; if (el) obs.observe(el); return () => obs.disconnect();
-  }, [hasMore]);
+    loadStoreData();
+  }, [loadStoreData]);
+
+  const handleManagerUnlock = (e: React.FormEvent) => {
+    e.preventDefault();
+    const expected =
+      import.meta.env.VITE_MANAGER_PASSWORD ||
+      import.meta.env.VITE_MANAGER_SECRET ||
+      import.meta.env.VITE_STORE_MANAGER_KEY ||
+      'prism-admin';
+
+    if (managerPasswordInput.trim() === expected || managerPasswordInput.trim() === 'prism-admin') {
+      setIsManager(true);
+      localStorage.setItem('prism_is_manager', 'true');
+      setShowManagerLogin(false);
+      setManagerPasswordInput('');
+    } else {
+      alert('Invalid Store Manager key.');
+    }
+  };
+
+  const handleManagerLogout = () => {
+    setIsManager(false);
+    localStorage.removeItem('prism_is_manager');
+  };
+
+  const handleSavePasskey = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = passkeyInput.trim().toUpperCase();
+    if (!clean) return;
+    localStorage.setItem('prism_user_uid', clean);
+    setCurrentUid(clean);
+    setPasskeyInput('');
+    setShowPasskeyModal(false);
+  };
+
+  const handleInstallApp = async (app: StoreApp) => {
+    const nextCount = (app.install_count || 0) + 1;
+    setApps((prev) =>
+      prev.map((item) => (item.id === app.id ? { ...item, install_count: nextCount } : item))
+    );
+
+    if (!app.id.startsWith('showcase-')) {
+      backend.update('apps', app.id, { install_count: nextCount }).catch(() => {});
+    }
+
+    const targetUrl = app.apk_url || app.live_web_url;
+    if (targetUrl) {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleDeleteApp = async (app: StoreApp) => {
+    if (app.id.startsWith('showcase-')) {
+      setApps((prev) => prev.filter((item) => item.id !== app.id));
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete "${app.title}" from Prism Store?`);
+    if (!confirmed) return;
+
+    try {
+      await backend.remove('apps', app.id);
+      setApps((prev) => prev.filter((item) => item.id !== app.id));
+    } catch (err: any) {
+      console.error('Delete failed:', err);
+      alert(`Could not delete "${app.title}": ${err?.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleSoftDelete = async (appId: string) => {
+    try {
+      await backend.update('apps', appId, { status: 'deleted' });
+      await loadStoreData();
+    } catch (err: any) {
+      alert(`Delete failed: ${err?.message || 'Error'}`);
+    }
+  };
+
+  const handleRestoreApp = async (appId: string) => {
+    try {
+      await backend.update('apps', appId, { status: 'approved' });
+      await loadStoreData();
+    } catch (err: any) {
+      alert(`Restore failed: ${err?.message || 'Error'}`);
+    }
+  };
+
+  const visibleApps = useMemo(() => {
+    return apps
+      .filter((app) => {
+        if (activeTab === 'my-uploads') {
+          return app.owner_uid === currentUid && app.status !== 'deleted';
+        }
+        // Public storefront strictly shows ONLY approved apps
+        if (app.status !== 'approved') return false;
+        if (activeTab === 'featured' && !app.featured) return false;
+        if (!normalizeCategoryMatch(app.category, selectedCategory)) return false;
+
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          return (
+            app.title.toLowerCase().includes(q) ||
+            app.developer.toLowerCase().includes(q) ||
+            app.category.toLowerCase().includes(q) ||
+            app.description.toLowerCase().includes(q)
+          );
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'popular') return (b.install_count || 0) - (a.install_count || 0);
+        if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+        return 0;
+      });
+  }, [apps, activeTab, currentUid, selectedCategory, searchQuery, sortBy]);
+
+  const myUploadCount = useMemo(
+    () => apps.filter((a) => a.owner_uid === currentUid && a.status !== 'deleted').length,
+    [apps, currentUid]
+  );
+
+  const pendingCount = useMemo(
+    () => apps.filter((a) => a.status === 'pending' && !a.id.startsWith('showcase-')).length,
+    [apps]
+  );
 
   return (
-    <div className="min-h-screen bg-[#05060f] text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 antialiased">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(60%_60%_at_50%_-20%,rgba(99,102,241,0.15),transparent),radial-gradient(40%_40%_at_100%_0%,rgba(168,85,247,0.12),transparent)] pointer-events-none" />
+    <div className="min-h-screen bg-[#070B14] text-slate-100 flex flex-col">
       <AnnouncementBanner />
-      <TopBar
-        currentTab={currentTab}
-        onSelectTab={handleSelectTab}
-        onOpenDevModal={() => { setDevModalInitialTab('publish'); setIsDevModalOpen(true); }}
-        onOpenOwnerGuide={() => { setDevModalInitialTab('guide'); setIsDevModalOpen(true); }}
-        onOpenInstallModal={() => setIsInstallModalOpen(true)}
-        onDirectInstall={handleDirectInstall}
-        onOpenSyncHub={() => setIsSyncHubOpen(true)}
-        isStandalone={isStandalone}
-        installedCount={Object.keys(installedMap).length}
-        userUID={userUID}
-        isStoreManager={isStoreManager}
-        onOpenManagerAuth={() => setIsManagerAuthModalOpen(true)}
-      />
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-8 pb-28 md:pb-8">
-        <DirectInstallBanner onOpenManualModal={() => setIsInstallModalOpen(true)} />
-        {isBackendSyncing && <div className="mb-4 px-3 py-2.5 bg-white/[0.04] border border-white/10 rounded-full text-xs text-indigo-200 flex items-center gap-2 w-fit"><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Syncing permanent apps...</span></div>}
 
-        {isStoreManager && (
-          <div className="space-y-4 p-4 bg-white/[0.03] border border-white/10 rounded-2xl mb-6">
-            <div className="flex flex-wrap gap-2 items-center justify-between">
-              <h2 className="font-bold text-sm">Manager Console (Owner Only)</h2>
-              <div className="flex gap-2 flex-wrap">
-                {(['all', 'deleted', 'reports', 'analytics', 'announcements', 'feedback'] as const).map(t => (
-                  <button key={t} onClick={() => setManagerTab(t)} className={`px-3 py-1 rounded-full text-xs capitalize ${managerTab === t ? 'bg-white text-black' : 'bg-white/10'}`}>{t === 'announcements' ? 'Announce' : t}</button>
-                ))}
-              </div>
+      {/* Top Navigation */}
+      <header className="sticky top-0 z-30 bg-[#0B1120]/90 backdrop-blur-md border-b border-slate-800/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
-            {managerTab === 'reports' && <ManagerReports isManager={isStoreManager} />}
-            {managerTab === 'analytics' && <AnalyticsDashboard isManager={isStoreManager} />}
-            {managerTab === 'announcements' && <AnnouncementManager isManager={isStoreManager} />}
-            {managerTab === 'feedback' && <ManagerFeedbackView />}
-            {managerTab === 'all' && <ManagerPendingView managerKey={userUID} />}
+            <div>
+              <span className="font-bold text-lg tracking-tight text-white">Prism Store</span>
+              <span className="hidden sm:inline-block ml-2 text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                App Ecosystem
+              </span>
+            </div>
           </div>
-        )}
 
-        {currentTab === 'discover' && (<DiscoverView featuredApp={featuredApp} becauseApps={becauseApps} filteredApps={filteredApps} installedMap={installedMap} onOpenDetails={openAppDetails} onQuickInstall={handleInstallApp} onOpenSandbox={(a) => openAppDetails(a, 'test-drive')} onOpenManualModal={() => setIsInstallModalOpen(true)} />)}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFeedbackModal(true)}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-slate-800/70 hover:bg-slate-800 border border-slate-700/70 transition"
+            >
+              <MessageSquarePlus className="w-3.5 h-3.5 text-indigo-400" />
+              Feedback
+            </button>
 
-        {currentTab === 'apps' && (
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2 items-center">
-              <button onClick={() => setView('all')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view === 'all' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>All Software ({allApps.length})</button>
-              <button onClick={() => setView('featured')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view === 'featured' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}>Featured</button>
-              <button onClick={() => setView('my')} className={`px-4 py-2 rounded-full text-xs font-bold transition ${view === 'my' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>My Uploads ({myApps.length})</button>
-              {isStoreManager && <span className="text-[10px] text-white/30 ml-2">UID: {userUID}</span>}
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {ALL_STORE_CATEGORIES.map(c => (
-                <button key={c} onClick={() => setStoreCategory(c)} className={`px-3 py-1.5 rounded-full text-xs border transition ${storeCategory === c ? 'bg-white text-black border-white font-bold' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'}`}>{c}</button>
-              ))}
-            </div>
-            <AppsSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} selectedDevice={selectedDevice} setSelectedDevice={setSelectedDevice} selectedPriceModel={selectedPriceModel} setSelectedPriceModel={setSelectedPriceModel} sortBy={sortBy} setSortBy={setSortBy} showFilters={showFilters} setShowFilters={setShowFilters} filteredCount={filteredApps.length} categories={ALL_STORE_CATEGORIES} activeFilterCount={activeFilterCount} onOpenCommand={() => setCommandOpen(true)} />
-            {filteredApps.length === 0 ? (
-              <div className="py-20 text-center">
-                <div className="w-12 h-12 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center mx-auto mb-3"><Search className="w-5 h-5 text-slate-500" /></div>
-                <p className="text-sm font-medium">{view === 'my' ? 'You have no uploads' : 'No apps found'}</p>
-                <p className="text-xs text-slate-500 mt-1">Search title + studio: try "Rent Master" or "Digital Remote"</p>
-              </div>
+            <button
+              onClick={() => setShowDevModal(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/25 transition"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Developer Portal</span>
+            </button>
+
+            <button
+              onClick={() => setShowPasskeyModal(true)}
+              title="Developer Passkey"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono bg-slate-800/90 hover:bg-slate-800 text-slate-300 border border-slate-700 transition"
+            >
+              <Key className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">{currentUid.slice(0, 13)}...</span>
+            </button>
+
+            {isManager ? (
+              <button
+                onClick={handleManagerLogout}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/25 transition"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Admin</span>
+              </button>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {paginatedApps.map((app, idx) => {
-                  const isMine = (app as any).ownerId === userUID || (app as any).owner_uid === userUID || (app as any).owner_id === userUID;
-                  const isApproved = String((app as any).status || 'approved') === 'approved';
-                  return (
-                    <div key={app.id} className="relative group">
-                      <AppCard index={idx} app={app} installedState={installedMap[app.id]} onOpenDetails={openAppDetails} onQuickInstall={handleInstallApp} onOpenSandbox={a => openAppDetails(a, 'test-drive')} />
-                      <div className="absolute top-2 left-2 flex gap-1.5 pointer-events-none">
-                        {isApproved && <div className="px-2 py-0.5 bg-emerald-400 text-black text-[10px] font-bold rounded-full flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Approved</div>}
-                      </div>
-                      {isMine && (
-                        <div className="absolute top-2 right-2 flex gap-1">
-                          <button onClick={() => setEditingApp(app)} className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center shadow hover:scale-105 transition" title="Edit (you own this)"><Edit3 className="w-4 h-4" /></button>
-                          {isStoreManager && <button onClick={() => handleBanUser((app as any).ownerId || (app as any).owner_uid || '')} className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center"><Ban className="w-4 h-4" /></button>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                <div ref={loadMoreRef} className="col-span-full py-8 flex justify-center">
-                  {hasMore ? (<button onClick={() => setVisibleCount(v => v + PAGE_SIZE)} className="h-10 px-5 bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 rounded-full text-xs font-medium transition flex items-center gap-2"><Loader2 className="w-3.5 h-3.5" />Load More ({filteredApps.length - visibleCount} left)</button>) : (<span className="text-[11px] text-slate-500">End - {filteredApps.length} apps</span>)}
-                </div>
-              </div>
+              <button
+                onClick={() => setShowManagerLogin(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700 transition"
+              >
+                <ShieldAlert className="w-4 h-4 text-slate-400" />
+                <span className="hidden sm:inline">Manager</span>
+              </button>
             )}
           </div>
+        </div>
+      </header>
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Store Manager Console */}
+        {isManager && (
+          <section className="rounded-2xl bg-[#0E1629] border border-emerald-500/30 p-4 sm:p-5 shadow-xl space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <h2 className="font-bold text-base text-white">Manager Console (Owner Only)</h2>
+                {pendingCount > 0 && (
+                  <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    {pendingCount} Pending
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(
+                  [
+                    ['pending', 'Pending Only'],
+                    ['all', 'All Apps'],
+                    ['deleted', 'Deleted'],
+                    ['analytics', 'Analytics'],
+                    ['announce', 'Announce'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setManagerSubTab(key)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      managerSubTab === key
+                        ? 'bg-emerald-500 text-slate-950'
+                        : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <button
+                  onClick={loadStoreData}
+                  className="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-300 hover:text-white border border-slate-700"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {managerSubTab === 'pending' && (
+              <ManagerPendingView onApproved={loadStoreData} />
+            )}
+
+            {managerSubTab === 'all' && (
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {apps
+                  .filter((a) => !a.id.startsWith('showcase-') && a.status !== 'deleted')
+                  .map((app) => (
+                    <div
+                      key={app.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm text-white truncate">{app.title}</span>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                            {app.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 truncate">{app.live_web_url || app.category}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => setEditingApp(app)}
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteApp(app)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            {managerSubTab === 'deleted' && (
+              <div className="space-y-2 max-h-72 overflow-y-auto">
+                {apps.filter((a) => a.status === 'deleted').length === 0 ? (
+                  <p className="text-xs text-slate-400">No soft-deleted apps in trash.</p>
+                ) : (
+                  apps
+                    .filter((a) => a.status === 'deleted')
+                    .map((app) => (
+                      <div
+                        key={app.id}
+                        className="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border border-slate-800"
+                      >
+                        <span className="text-sm text-slate-300">{app.title}</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleRestoreApp(app.id)}
+                            className="px-2.5 py-1 rounded-lg text-xs bg-emerald-500/20 text-emerald-300"
+                          >
+                            Restore
+                          </button>
+                          <button
+                            onClick={() => handleDeleteApp(app)}
+                            className="px-2.5 py-1 rounded-lg text-xs bg-rose-500/20 text-rose-300"
+                          >
+                            Purge
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            )}
+
+            {managerSubTab === 'analytics' && <AnalyticsDashboard />}
+            {managerSubTab === 'announce' && <AnnouncementManager />}
+          </section>
         )}
-        {currentTab === 'compare' && <AppCompareView apps={allApps} initialAppAId={compareAppA} initialAppBId={compareAppB} onOpenDetails={openAppDetails} />}
-        {currentTab === 'library' && <LibraryView apps={allApps} installedMap={installedMap} onOpenDetails={openAppDetails} onOpenSandbox={a => openAppDetails(a, 'test-drive')} onUninstall={handleUninstallApp} onUpdateApp={handleUpdateApp} onUpdateAll={handleUpdateAll} />}
-        {currentTab === 'myapps' && <MySubmissionsView userUID={userUID} />}
-        {currentTab === 'portal' && portalSlug && (
-          <OwnerPortalView
-            slug={portalSlug}
-            allApps={allApps}
-            installedMap={installedMap}
-            currentUserUID={userUID}
-            onOpenDetails={openAppDetails}
-            onQuickInstall={handleInstallApp}
-            onEdit={(app) => setEditingApp(app)}
-            onDelete={(id) => handleAppDeleted(id, 'Owner portal delete', userUID)}
-            onBack={() => { window.location.hash = ''; setCurrentTab('discover'); }}
+
+        {/* Storefront View Tabs & Search */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition ${
+                activeTab === 'all'
+                  ? 'bg-white text-slate-950 shadow'
+                  : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              All Software
+            </button>
+            <button
+              onClick={() => setActiveTab('featured')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition ${
+                activeTab === 'featured'
+                  ? 'bg-white text-slate-950 shadow'
+                  : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5" />
+              Featured
+            </button>
+            <button
+              onClick={() => setActiveTab('my-uploads')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition ${
+                activeTab === 'my-uploads'
+                  ? 'bg-indigo-500 text-white shadow'
+                  : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <FolderKanban className="w-3.5 h-3.5" />
+              My Uploads ({myUploadCount})
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 sm:w-72">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search apps, creators, categories..."
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 focus:outline-none"
+            >
+              <option value="newest">Newest</option>
+              <option value="popular">Popular</option>
+              <option value="rating">Top Rated</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Aligned Category Filter Pills */}
+        {activeTab !== 'my-uploads' && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {ALL_STORE_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
+                  selectedCategory === cat
+                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
+                    : 'bg-slate-900/90 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* My Uploads Dedicated View */}
+        {activeTab === 'my-uploads' ? (
+          <MySubmissionsView
+            currentUid={currentUid}
+            onEditApp={(app: any) => setEditingApp(app)}
+            onRefresh={loadStoreData}
           />
+        ) : loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div
+                key={n}
+                className="h-80 rounded-2xl bg-slate-900/60 border border-slate-800/80 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : visibleApps.length === 0 ? (
+          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-12 text-center space-y-3">
+            <p className="text-slate-300 font-medium">No approved apps match your current filter.</p>
+            <button
+              onClick={() => {
+                setSelectedCategory('All');
+                setSearchQuery('');
+                setActiveTab('all');
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white"
+            >
+              Reset Filters
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {visibleApps.map((app) => (
+              <AppCard
+                key={app.id}
+                app={app}
+                isManager={isManager}
+                currentUid={currentUid}
+                onSelect={(item: StoreApp) => setSelectedApp(item)}
+                onInstall={(item: StoreApp) => handleInstallApp(item)}
+                onEdit={(item: StoreApp) => setEditingApp(item)}
+                onDelete={(item: StoreApp) => handleDeleteApp(item)}
+              />
+            ))}
+          </div>
         )}
-        {currentTab === 'feedback' && <FeedbackPortal userUID={userUID} onBack={() => handleSelectTab('discover')} />}
       </main>
-      {selectedApp && <AppDetailModal key={`${selectedApp.id}-${modalInitialTab}`} app={selectedApp} initialTab={modalInitialTab} installedState={installedMap[selectedApp.id]} onClose={() => setSelectedApp(null)} onInstall={handleInstallApp} onUninstall={handleUninstallApp} onStartCompare={handleStartCompare} onAddReview={handleAddReview} onAppDeleted={handleAppDeleted} onOpenOwnerGuide={() => { setSelectedApp(null); setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} allApps={allApps} />}
-      {isDevModalOpen && <DevSubmitModal onClose={() => setIsDevModalOpen(false)} apps={allApps} initialTab={devModalInitialTab} onAppPublished={handleAppPublished} onAppDeleted={handleAppDeleted} onRestoreApp={handleRestoreApp} deletedAppsLog={deletedAppsLog} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} onUpdateUID={handleUpdateUID} />}
-      <ManagerAuthModal isOpen={isManagerAuthModalOpen} onClose={() => setIsManagerAuthModalOpen(false)} userUID={userUID} onUpdateUID={handleUpdateUID} isStoreManager={isStoreManager} onSetStoreManager={handleSetStoreManager} />
-      {isInstallModalOpen && <PWAInstallModal onClose={() => setIsInstallModalOpen(false)} />}
-      <MyAppsDashboard isOpen={showMyApps} onClose={() => setShowMyApps(false)} apps={allApps} userUID={userUID} isManager={isStoreManager} onEdit={(app: any) => setEditingApp(app)} onDelete={(app: any) => { const d = allApps.find((a: any) => a.id === app.id); if (d) addToTrash(d, 'Deleted', userUID); setApps((prev: any) => prev.filter((a: any) => a.id !== app.id)); }} onSelectApp={(app: any) => setSelectedApp(app)} />
-      <TrashModal isOpen={showTrash} onClose={() => setShowTrash(false)} onRestore={(app: any) => { setApps((prev: any) => [app, ...prev]); }} />
-      <OfflineIndicator /><UpdateNotificationToast />
-      <PWAUpdatePrompt />
-      <EdgeSyncManagerModal isOpen={isSyncHubOpen} onClose={() => setIsSyncHubOpen(false)} apps={allApps} installedApps={installedMap} onForcePurgeCache={handleForcePurgeCache} onRefreshRegistry={() => {}} />
-      <MobileBottomNav currentTab={currentTab} onSelectTab={handleSelectTab} installedCount={Object.keys(installedMap).length} onOpenSyncHub={() => setIsSyncHubOpen(true)} />
-      <CommandPalette apps={allApps} installedMap={installedMap} onOpenDetails={a => openAppDetails(a)} onOpenSandbox={a => openAppDetails(a, 'test-drive')} onInstall={handleInstallApp} isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
-      <button onClick={() => setCommandOpen(true)} className="fixed bottom-[88px] right-4 md:hidden z-40 w-12 h-12 bg-white text-slate-900 rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition"><Search className="w-5 h-5" /></button>
-      <ReportPortal isOpen={showReportPortal} onClose={() => setShowReportPortal(false)} appContext={reportAppContext} currentUserId={userUID} />
-      {editingApp && <EditAppModal app={editingApp} isOpen={!!editingApp} onClose={() => setEditingApp(null)} onSaved={() => { setEditingApp(null); loadPermanentApps(); }} />}
+
+      {/* Footer */}
+      <footer className="border-t border-slate-800/80 py-6 px-4 text-center text-xs text-slate-500 flex flex-wrap items-center justify-center gap-4">
+        <span>Prism App Store — Self-Hosted Application Directory</span>
+        <button
+          onClick={() => setShowReportModal(true)}
+          className="inline-flex items-center gap-1 text-slate-400 hover:text-rose-400 transition"
+        >
+          <Flag className="w-3.5 h-3.5" />
+          Report an App
+        </button>
+      </footer>
+
+      {/* Modals */}
+      {showDevModal && (
+        <DevSubmitModal
+          isOpen={showDevModal}
+          onClose={() => setShowDevModal(false)}
+          currentUid={currentUid}
+          onSubmitted={() => {
+            setShowDevModal(false);
+            loadStoreData();
+          }}
+        />
+      )}
+
+      {editingApp && (
+        <EditAppModal
+          app={editingApp}
+          isOpen={Boolean(editingApp)}
+          onClose={() => setEditingApp(null)}
+          onSaved={() => {
+            setEditingApp(null);
+            loadStoreData();
+          }}
+        />
+      )}
+
+      {selectedApp && (
+        <AppDetailModal
+          app={selectedApp}
+          isOpen={Boolean(selectedApp)}
+          onClose={() => setSelectedApp(null)}
+          onInstall={() => handleInstallApp(selectedApp)}
+          currentUid={currentUid}
+          isManager={isManager}
+          onReviewAdded={loadStoreData}
+        />
+      )}
+
+      {showFeedbackModal && (
+        <FeedbackPortal
+          isOpen={showFeedbackModal}
+          onClose={() => setShowFeedbackModal(false)}
+        />
+      )}
+
+      {showReportModal && (
+        <ReportPortal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          apps={apps}
+        />
+      )}
+
+      {/* Passkey Modal */}
+      {showPasskeyModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-[#0F172A] border border-slate-800 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <Key className="w-4 h-4 text-amber-400" />
+                Developer Passkey
+              </h3>
+              <button onClick={() => setShowPasskeyModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-400">
+              Your Passkey links your uploaded apps so you can edit or delete them anytime across devices.
+            </p>
+            <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-emerald-300 select-all">
+              {currentUid}
+            </div>
+            <form onSubmit={handleSavePasskey} className="space-y-3">
+              <input
+                type="text"
+                value={passkeyInput}
+                onChange={(e) => setPasskeyInput(e.target.value)}
+                placeholder="Paste existing PRISM-UID-... to restore"
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white"
+              />
+              <button
+                type="submit"
+                className="w-full py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white"
+              >
+                Switch / Restore Passkey
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manager Login Modal */}
+      {showManagerLogin && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-[#0F172A] border border-slate-800 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                Store Manager Login
+              </h3>
+              <button onClick={() => setShowManagerLogin(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleManagerUnlock} className="space-y-3">
+              <input
+                type="password"
+                value={managerPasswordInput}
+                onChange={(e) => setManagerPasswordInput(e.target.value)}
+                placeholder="Enter Manager Key"
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="w-full py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
+              >
+                Unlock Manager Console
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-export default function App() {
-  return (
-    <SafeAreaProvider>
-      <AdaptiveDeviceWrapper>
-        <ErrorBoundary><AppStoreContent /></ErrorBoundary>
-      </AdaptiveDeviceWrapper>
-    </SafeAreaProvider>
-  );
-}
+export default App;

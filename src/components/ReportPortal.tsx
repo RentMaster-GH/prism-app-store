@@ -1,133 +1,172 @@
 import React, { useState } from 'react';
-import { X, Flag, Loader2, CheckCircle } from 'lucide-react';
+import { Flag, X, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { backend } from '../lib/backend';
 
-interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-  appContext: any;
-  currentUserId: string;
+export interface ReportPortalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  appId?: string;
+  appTitle?: string;
+  reporterUid?: string;
 }
 
-export default function ReportPortal({ isOpen, onClose, appContext, currentUserId }: Props) {
-  const [reason, setReason] = useState('Spam');
-  const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+export const ReportPortal: React.FC<ReportPortalProps> = ({
+  isOpen = true,
+  onClose,
+  appId,
+  appTitle,
+  reporterUid,
+}) => {
+  const [reason, setReason] = useState('Broken link or non-functional app');
+  const [details, setDetails] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
-  if (!appContext) return null;
 
-  const appName = String(appContext.name || appContext.title || appContext.jamz || 'Untitled');
-  const appId = String(appContext.id || appContext.uuid || '');
-
-  const handleSubmit = async () => {
-    if (!description.trim() && reason === 'Other') {
-      alert('Please describe the issue');
-      return;
-    }
-    setLoading(true);
-    const payload = {
-      app_id: appId,
-      app_name: appName,
-      title: `${reason} - ${appName}`,
-      reason: reason,
-      description: description.trim() || reason,
-      status: 'open',
-      reporter_id: currentUserId,
-      owner_uid: String(appContext.owner_uid || appContext.ownerId || appContext.owner_id || ''),
-      created_at: new Date().toISOString(),
-    };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
 
     try {
+      const uid =
+        reporterUid ||
+        (typeof window !== 'undefined' ? localStorage.getItem('prism_user_uid') : null) ||
+        'anonymous';
+
+      const payload = {
+        app_id: appId || null,
+        app_title: appTitle || 'Storefront Report',
+        reason,
+        details: details.trim(),
+        reporter_uid: uid,
+        status: 'open',
+        created_at: new Date().toISOString(),
+      };
+
       await backend.create('reports', payload);
-    } catch (e) {
-      console.warn('Backend report save failed, keeping local backup:', e);
+
+      try {
+        const existing = JSON.parse(localStorage.getItem('prism_reports_cache') || '[]');
+        localStorage.setItem('prism_reports_cache', JSON.stringify([payload, ...existing]));
+      } catch {
+        // Ignore storage quota errors
+      }
+
+      setSubmitted(true);
+      setDetails('');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to submit report.');
+    } finally {
+      setSubmitting(false);
     }
-
-    try {
-      const local = JSON.parse(localStorage.getItem('prism_reports') || '[]');
-      local.unshift({ ...payload, id: `local-${Date.now()}` });
-      localStorage.setItem('prism_reports', JSON.stringify(local));
-    } catch {}
-
-    setLoading(false);
-    setSuccess(true);
-    setTimeout(() => {
-      setSuccess(false);
-      setDescription('');
-      setReason('Spam');
-      onClose();
-    }, 1200);
   };
 
   return (
-    <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl w-full max-w-md overflow-hidden">
-        <div className="p-5 border-b border-white/10 flex justify-between items-center">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <Flag className="w-4 h-4 text-amber-400" /> Report {appName.slice(0, 24)}
-          </h2>
-          <button onClick={onClose} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition">
-            <X className="w-4 h-4 text-white" />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-4">
-          {!success ? (
-            <>
-              <div>
-                <label className="text-[11px] text-white/50 uppercase font-bold tracking-widest">Reason</label>
-                <select
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  className="mt-2 w-full h-11 px-4 bg-white text-black rounded-full text-sm font-bold outline-none cursor-pointer"
-                >
-                  <option value="Spam">Spam / Fake App</option>
-                  <option value="Inappropriate">Inappropriate Content</option>
-                  <option value="Malware">Malware / Suspicious Link</option>
-                  <option value="Copyright">Copyright Violation</option>
-                  <option value="Broken">Broken / Doesn't Open</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] text-white/50 uppercase font-bold tracking-widest">Details (optional)</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe the issue..."
-                  className="mt-2 w-full h-24 p-3 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-white placeholder:text-white/30 outline-none focus:border-white/20 resize-none"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <button onClick={onClose} className="flex-1 h-11 bg-white/10 text-white rounded-full text-sm font-bold hover:bg-white/15 transition">
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="flex-1 h-11 bg-amber-200 text-amber-950 rounded-full text-sm font-bold flex items-center justify-center gap-2 hover:bg-amber-100 transition disabled:opacity-50 cursor-pointer"
-                >
-                  {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</> : 'Submit Report'}
-                </button>
-              </div>
-
-              <p className="text-[10px] text-white/30 text-center">Private • Only you & store manager can see this</p>
-            </>
-          ) : (
-            <div className="py-10 text-center space-y-3">
-              <div className="w-12 h-12 bg-emerald-400 text-black rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle className="w-6 h-6" />
-              </div>
-              <p className="text-sm font-bold text-white">Report submitted</p>
-              <p className="text-xs text-white/50">Thanks — manager will review {appName}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-100 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/15 text-rose-400">
+              <Flag className="h-5 w-5" />
             </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Report Issue or Abuse</h3>
+              {appTitle && <p className="text-xs text-slate-400">{appTitle}</p>}
+            </div>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
           )}
         </div>
+
+        {submitted ? (
+          <div className="py-6 text-center">
+            <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-emerald-400" />
+            <h4 className="mb-1 text-base font-semibold text-white">Report Received</h4>
+            <p className="mb-5 text-sm text-slate-400">
+              Thank you. The store moderator will review your report shortly.
+            </p>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+              >
+                Done
+              </button>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">
+                Reason
+              </label>
+              <select
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="Broken link or non-functional app">Broken link or non-functional app</option>
+                <option value="Misleading description or metadata">Misleading description or metadata</option>
+                <option value="Malicious or unsafe content">Malicious or unsafe content</option>
+                <option value="Copyright or intellectual property issue">Copyright or intellectual property issue</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">
+                Additional Details (optional)
+              </label>
+              <textarea
+                rows={3}
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+                placeholder="Describe what happened..."
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
+              >
+                {submitting ? 'Submitting...' : 'Submit Report'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
-}
+};
+
+export default ReportPortal;

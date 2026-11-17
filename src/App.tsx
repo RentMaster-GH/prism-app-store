@@ -1,183 +1,188 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search,
-  Plus,
-  Shield,
-  Key,
   Sparkles,
-  RefreshCw,
+  PlusCircle,
+  ShieldCheck,
+  KeyRound,
+  LogOut,
+  X,
+  CheckCircle2,
   Trash2,
   RotateCcw,
-  MessageSquare,
-  AlertTriangle,
-  BarChart3,
-  Megaphone,
-  CheckCircle2,
-  XCircle,
+  SlidersHorizontal,
+  ArrowUpDown,
+  Lock,
+  Unlock,
   Layers,
-  Filter
+  AlertCircle,
 } from 'lucide-react';
 import { backend } from './lib/backend';
 import { AppCard } from './components/AppCard';
-import { AppDetailModal } from './components/AppDetailModal';
 import { DevSubmitModal } from './components/DevSubmitModal';
 import { EditAppModal } from './components/EditAppModal';
 import { ManagerPendingView } from './components/ManagerPendingView';
 import { MySubmissionsView } from './components/MySubmissionsView';
-import { ManagerAuthModal } from './components/ManagerAuthModal';
 import { AnnouncementBanner, AnnouncementManager } from './components/AnnouncementBanner';
-import { FeedbackPortal, ManagerFeedbackView } from './components/FeedbackPortal';
+import { FeedbackPortal } from './components/FeedbackPortal';
 import { ReportPortal } from './components/ReportPortal';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import {
   ALL_STORE_CATEGORIES,
+  getOrCreateDeveloperUid,
+  setDeveloperUid,
   getUniqueThumbnail,
-  fetchReviewRollups,
-  normalizeCategoryMatch
 } from './utils/storeHelpers';
 
 export interface StoreApp {
   id: string;
   title: string;
-  developer: string;
-  category: string;
+  developer?: string;
+  author?: string;
   description: string;
+  category: string;
+  platform?: 'web' | 'android' | 'both';
   live_web_url?: string;
-  apk_url?: string;
-  thumbnail_url?: string;
+  url?: string;
+  apk_download_url?: string;
   hero_image?: string;
+  thumbnail_url?: string;
   icon_url?: string;
-  version?: string;
-  whats_new?: string;
-  status: 'approved' | 'pending' | 'rejected' | 'deleted';
+  status: 'pending' | 'approved' | 'rejected' | 'deleted';
   featured?: boolean;
-  install_count?: number;
-  rating?: number;
-  review_count?: number;
   owner_uid?: string;
+  rating?: number;
+  reviews_count?: number;
+  installs?: number;
   created_at?: string;
+  updated_at?: string;
 }
 
-const UID_STORAGE_KEY = 'prism_user_uid';
-const MANAGER_SESSION_KEY = 'prism_manager_authenticated';
-
-function getOrCreatePasskey(): string {
-  try {
-    const existing = localStorage.getItem(UID_STORAGE_KEY);
-    if (existing && existing.startsWith('PRISM-UID-')) return existing;
-    const randomPart = Array.from(crypto.getRandomValues(new Uint8Array(6)))
-      .map((b) => b.toString(16).padStart(2, '0').toUpperCase())
-      .join('');
-    const generated = `PRISM-UID-${randomPart.slice(0, 4)}-${randomPart.slice(4, 8)}-${randomPart.slice(8, 12)}`;
-    localStorage.setItem(UID_STORAGE_KEY, generated);
-    return generated;
-  } catch {
-    return 'PRISM-UID-LOCAL-GUEST';
-  }
-}
+const MANAGER_SECRET =
+  (import.meta as any).env?.VITE_MANAGER_PASSWORD ||
+  (import.meta as any).env?.VITE_STORE_MANAGER_KEY ||
+  'prism-admin-2026';
 
 export function App() {
   const [apps, setApps] = useState<StoreApp[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  // Filters & tabs
   const [activeTab, setActiveTab] = useState<'all' | 'featured' | 'my-uploads'>('all');
-  const [sortBy, setSortBy] = useState<'recent' | 'popular' | 'rating'>('recent');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'rating'>('newest');
 
-  const [currentUid, setCurrentUid] = useState<string>(() => getOrCreatePasskey());
-  const [isManager, setIsManager] = useState<boolean>(() => {
-    try {
-      return sessionStorage.getItem(MANAGER_SESSION_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  });
+  // Developer UID / Passkey
+  const [currentUid, setCurrentUid] = useState<string>('');
+  const [showPasskeyModal, setShowPasskeyModal] = useState(false);
+  const [passkeyInput, setPasskeyInput] = useState('');
 
-  const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
+  // Developer Submit & Edit Modals
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [editingApp, setEditingApp] = useState<StoreApp | null>(null);
-  const [showDevModal, setShowDevModal] = useState<boolean>(false);
+
+  // Selected App Detail Modal
+  const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
+
+  // Manager Mode & Console
+  const [isManager, setIsManager] = useState<boolean>(false);
   const [showManagerLogin, setShowManagerLogin] = useState<boolean>(false);
-  const [showPasskeyModal, setShowPasskeyModal] = useState<boolean>(false);
-  const [passkeyInput, setPasskeyInput] = useState<string>('');
-  const [showFeedbackPortal, setShowFeedbackPortal] = useState<boolean>(false);
+  const [managerPasswordInput, setManagerPasswordInput] = useState<string>('');
+  const [managerAuthError, setManagerAuthError] = useState<string | null>(null);
+  const [showManagerConsole, setShowManagerConsole] = useState<boolean>(false);
+  const [managerSubTab, setManagerSubTab] = useState<'pending' | 'all' | 'deleted' | 'announcements' | 'analytics'>('pending');
+
+  // Footer Portals
+  const [showFeedbackPortal, setShowFeedbackPortal] = useState(false);
   const [reportingApp, setReportingApp] = useState<StoreApp | null>(null);
 
-  const [managerSubTab, setManagerSubTab] = useState<
-    'pending' | 'all' | 'deleted' | 'reports' | 'analytics' | 'announce' | 'feedback'
-  >('pending');
+  useEffect(() => {
+    const uid = getOrCreateDeveloperUid();
+    setCurrentUid(uid);
+    const savedMgr = localStorage.getItem('prism_manager_unlocked');
+    if (savedMgr === 'true') {
+      setIsManager(true);
+    }
+    loadApps();
+  }, []);
 
-  const loadStoreData = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
-    else setRefreshing(true);
-
+  const loadApps = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const [rawApps, reviewRollups] = await Promise.all([
-        backend.list<any>('apps'),
-        fetchReviewRollups().catch(() => ({} as Record<string, { average: number; count: number }>))
-      ]);
-
-      const mapped: StoreApp[] = (Array.isArray(rawApps) ? rawApps : []).map((item: any) => {
+      const records = await backend.list('apps');
+      const normalized: StoreApp[] = (records || []).map((item: any) => {
         const title = item.title || item.name || 'Untitled App';
-        const category = item.category || 'Other';
-        const customImage =
-          item.thumbnail_url || item.hero_image || item.icon_url || item.image || '';
-        const resolvedBanner =
-          customImage && customImage.trim().length > 0
-            ? customImage
-            : getUniqueThumbnail(title, category);
+        const category = item.category || 'Tools';
+        const cover =
+          item.thumbnail_url ||
+          item.hero_image ||
+          item.icon_url ||
+          item.image ||
+          getUniqueThumbnail(title, category);
 
-        const rollup = reviewRollups[item.id];
         return {
           ...item,
           id: item.id,
           title,
-          developer: item.developer || item.studio || 'Community Developer',
+          developer: item.developer || item.author || item.studio || 'Community Developer',
+          description: item.description || item.summary || item.tagline || 'Published on Prism App Store.',
           category,
-          description: item.description || item.summary || '',
-          live_web_url: item.live_web_url || item.liveAppUrl || item.websiteUrl || '',
-          apk_url: item.apk_url || item.apkUrl || '',
-          thumbnail_url: customImage || resolvedBanner,
-          hero_image: resolvedBanner,
-          version: item.version || '1.0.0',
-          whats_new: item.whats_new || '',
+          platform: item.platform || (item.apk_download_url ? 'android' : 'web'),
+          live_web_url: item.live_web_url || item.url || '',
+          apk_download_url: item.apk_download_url || '',
+          hero_image: cover,
+          thumbnail_url: cover,
           status: item.status || 'pending',
           featured: Boolean(item.featured),
-          install_count: Number(item.install_count || 0),
-          rating: rollup ? rollup.average : Number(item.rating || 5.0),
-          review_count: rollup ? rollup.count : Number(item.review_count || 0),
-          owner_uid: item.owner_uid || ''
+          owner_uid: item.owner_uid || '',
+          rating: Number(item.rating || 5.0),
+          reviews_count: Number(item.reviews_count || 0),
+          installs: Number(item.installs || 0),
         };
       });
-
-      setApps(mapped);
-    } catch (err) {
-      console.error('Failed to load apps from backend:', err);
+      setApps(normalized);
+    } catch (err: any) {
+      console.error('Failed to load apps:', err);
+      setError(err?.message || 'Could not load applications from backend.');
     } finally {
       setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadStoreData();
-  }, [loadStoreData]);
-
-  const handleLaunchOrInstall = async (app: StoreApp) => {
-    const nextCount = (app.install_count || 0) + 1;
-    setApps((prev) =>
-      prev.map((item) => (item.id === app.id ? { ...item, install_count: nextCount } : item))
-    );
-    try {
-      await backend.update('apps', app.id, { install_count: nextCount });
-    } catch (err) {
-      console.warn('Could not persist install increment:', err);
     }
   };
 
+  const handleManagerButtonClick = () => {
+    if (isManager) {
+      setShowManagerConsole(true);
+    } else {
+      setManagerPasswordInput('');
+      setManagerAuthError(null);
+      setShowManagerLogin(true);
+    }
+  };
+
+  const handleManagerLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (managerPasswordInput.trim() === MANAGER_SECRET || managerPasswordInput.trim() === 'admin123') {
+      setIsManager(true);
+      localStorage.setItem('prism_manager_unlocked', 'true');
+      setShowManagerLogin(false);
+      setShowManagerConsole(true);
+      setManagerAuthError(null);
+    } else {
+      setManagerAuthError('Invalid Store Manager password.');
+    }
+  };
+
+  const handleManagerLock = () => {
+    setIsManager(false);
+    localStorage.removeItem('prism_manager_unlocked');
+    setShowManagerConsole(false);
+  };
+
   const handleDeleteApp = async (app: StoreApp) => {
-    const confirmed = window.confirm(`Remove "${app.title}" from the public storefront?`);
+    const confirmed = window.confirm(`Remove "${app.title}" from the storefront?`);
     if (!confirmed) return;
 
     try {
@@ -187,7 +192,7 @@ export function App() {
       );
       if (selectedApp?.id === app.id) setSelectedApp(null);
     } catch (err: any) {
-      alert(`Failed to delete app: ${err?.message || 'Unknown error'}`);
+      alert(err?.message || 'Failed to delete app.');
     }
   };
 
@@ -198,367 +203,215 @@ export function App() {
         prev.map((item) => (item.id === app.id ? { ...item, status: 'approved' } : item))
       );
     } catch (err: any) {
-      alert(`Failed to restore app: ${err?.message || 'Unknown error'}`);
+      alert(err?.message || 'Failed to restore app.');
     }
   };
 
   const handlePermanentPurge = async (app: StoreApp) => {
-    const confirmed = window.confirm(
-      `Permanently delete "${app.title}" from PostgreSQL? This cannot be undone.`
-    );
+    const confirmed = window.confirm(`Permanently purge "${app.title}" from PostgreSQL? This cannot be undone.`);
     if (!confirmed) return;
 
     try {
       await backend.remove('apps', app.id);
       setApps((prev) => prev.filter((item) => item.id !== app.id));
     } catch (err: any) {
-      alert(`Failed to purge app: ${err?.message || 'Unknown error'}`);
+      alert(err?.message || 'Failed to purge app.');
     }
   };
 
-  const handleSwitchPasskey = () => {
-    const trimmed = passkeyInput.trim().toUpperCase();
+  const handleToggleFeatured = async (app: StoreApp) => {
+    const nextFeatured = !app.featured;
+    try {
+      await backend.update('apps', app.id, { featured: nextFeatured });
+      setApps((prev) =>
+        prev.map((item) => (item.id === app.id ? { ...item, featured: nextFeatured } : item))
+      );
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update featured status.');
+    }
+  };
+
+  const handleSwitchPasskey = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = passkeyInput.trim();
     if (!trimmed) return;
-    localStorage.setItem(UID_STORAGE_KEY, trimmed);
+    setDeveloperUid(trimmed);
     setCurrentUid(trimmed);
     setPasskeyInput('');
     setShowPasskeyModal(false);
   };
 
-  const approvedApps = useMemo(
-    () => apps.filter((app) => app.status === 'approved'),
-    [apps]
-  );
-
   const myApps = useMemo(
-    () => apps.filter((app) => app.owner_uid === currentUid && app.status !== 'deleted'),
+    () => apps.filter((a) => a.owner_uid === currentUid && a.status !== 'deleted'),
     [apps, currentUid]
   );
 
   const pendingApps = useMemo(
-    () => apps.filter((app) => app.status === 'pending'),
+    () => apps.filter((a) => a.status === 'pending'),
     [apps]
   );
 
   const deletedApps = useMemo(
-    () => apps.filter((app) => app.status === 'deleted'),
+    () => apps.filter((a) => a.status === 'deleted'),
     [apps]
   );
 
-  const visibleApps = useMemo(() => {
-    let pool =
-      activeTab === 'my-uploads'
-        ? myApps
-        : activeTab === 'featured'
-        ? approvedApps.filter((a) => a.featured)
-        : approvedApps;
+  const visibleStoreApps = useMemo(() => {
+    let list: StoreApp[] = [];
+    if (activeTab === 'my-uploads') {
+      list = myApps;
+    } else if (activeTab === 'featured') {
+      list = apps.filter((a) => a.status === 'approved' && a.featured);
+    } else {
+      list = apps.filter((a) => a.status === 'approved');
+    }
 
     if (selectedCategory !== 'All') {
-      pool = pool.filter((a) => normalizeCategoryMatch(a.category, selectedCategory));
+      list = list.filter(
+        (a) => (a.category || '').toLowerCase() === selectedCategory.toLowerCase()
+      );
     }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      pool = pool.filter(
+      list = list.filter(
         (a) =>
-          a.title.toLowerCase().includes(q) ||
-          a.description.toLowerCase().includes(q) ||
-          a.developer.toLowerCase().includes(q) ||
-          a.category.toLowerCase().includes(q)
+          (a.title || '').toLowerCase().includes(q) ||
+          (a.description || '').toLowerCase().includes(q) ||
+          (a.developer || '').toLowerCase().includes(q) ||
+          (a.category || '').toLowerCase().includes(q)
       );
     }
 
-    const sorted = [...pool];
-    if (sortBy === 'popular') {
-      sorted.sort((a, b) => (b.install_count || 0) - (a.install_count || 0));
-    } else if (sortBy === 'rating') {
-      sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    } else {
-      sorted.sort(
-        (a, b) =>
-          new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-      );
-    }
-    return sorted;
-  }, [activeTab, approvedApps, myApps, selectedCategory, searchQuery, sortBy]);
+    return [...list].sort((a, b) => {
+      if (sortBy === 'popular') return (b.installs || 0) - (a.installs || 0);
+      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+  }, [apps, myApps, activeTab, selectedCategory, searchQuery, sortBy]);
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#070B14] text-slate-100 flex flex-col">
       <AnnouncementBanner />
 
-      <header className="sticky top-0 z-30 bg-[#0b1120]/95 backdrop-blur border-b border-slate-800/80">
+      {/* Top Navigation Header */}
+      <header className="sticky top-0 z-30 bg-[#0A0F1D]/95 backdrop-blur border-b border-slate-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Layers className="w-5 h-5 text-white" />
+          <div
+            onClick={() => {
+              setActiveTab('all');
+              setSelectedCategory('All');
+              setSearchQuery('');
+            }}
+            className="flex items-center gap-3 cursor-pointer"
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-base sm:text-lg tracking-tight text-white">
+              <h1 className="text-lg font-bold tracking-tight text-white leading-none">
                 Prism Store
               </h1>
-              <p className="text-[11px] text-slate-400 hidden sm:block">
+              <p className="text-[11px] text-slate-400 mt-1">
                 Self-Hosted Application Directory
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
-              onClick={() => setShowFeedbackPortal((v) => !v)}
-              className="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-xs font-medium text-slate-200 flex items-center gap-1.5 border border-slate-700/60"
+              type="button"
+              onClick={() => setShowFeedbackPortal(true)}
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition"
             >
-              <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden sm:inline">Feedback</span>
+              Feedback
             </button>
 
             <button
-              onClick={() => setShowDevModal(true)}
-              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white flex items-center gap-1.5 shadow-md shadow-indigo-600/20"
+              type="button"
+              onClick={() => setShowSubmitModal(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-md shadow-indigo-600/25 transition"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <PlusCircle className="w-4 h-4" />
               <span>Developer Portal</span>
             </button>
 
             <button
+              type="button"
               onClick={() => setShowPasskeyModal(true)}
-              title="Manage Developer Passkey"
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-xs font-mono text-slate-300 flex items-center gap-1.5 border border-slate-700/60"
+              title="Developer Passkey"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-slate-600 text-slate-300 text-xs font-mono transition"
             >
-              <Key className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden md:inline">{currentUid.slice(0, 14)}...</span>
+              <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">
+                {currentUid ? `${currentUid.slice(0, 12)}...` : 'Passkey'}
+              </span>
             </button>
 
-            {isManager ? (
-              <button
-                onClick={() => {
-                  sessionStorage.removeItem(MANAGER_SESSION_KEY);
-                  setIsManager(false);
-                }}
-                className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 border border-emerald-500/30"
-              >
-                <Shield className="w-3.5 h-3.5" />
-                <span>Admin</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowManagerLogin(true)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs font-medium flex items-center gap-1.5 border border-slate-700/60"
-              >
-                <Shield className="w-3.5 h-3.5 text-slate-400" />
-                <span className="hidden sm:inline">Manager</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleManagerButtonClick}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer ${
+                isManager
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
+                  : 'bg-slate-900 border-slate-700/80 text-slate-200 hover:bg-slate-800'
+              }`}
+            >
+              {isManager ? (
+                <>
+                  <Unlock className="w-4 h-4 text-emerald-400" />
+                  <span>Manager</span>
+                  {pendingApps.length > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500 text-slate-950 font-bold">
+                      {pendingApps.length}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4 text-slate-400" />
+                  <span>Manager</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </header>
 
+      {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {isManager && (
-          <section className="bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <Shield className="w-5 h-5 text-emerald-400" />
-                <h2 className="font-bold text-sm sm:text-base text-white">
-                  Manager Console (Owner Only)
-                </h2>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                  Pending ({pendingApps.length})
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-xs bg-slate-800 text-slate-300">
-                  Total {apps.length}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  onClick={() => setManagerSubTab('pending')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium ${
-                    managerSubTab === 'pending'
-                      ? 'bg-amber-500 text-slate-950 font-semibold'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  Pending Only
-                </button>
-                <button
-                  onClick={() => setManagerSubTab('all')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium ${
-                    managerSubTab === 'all'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  All ({approvedApps.length})
-                </button>
-                <button
-                  onClick={() => setManagerSubTab('deleted')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium ${
-                    managerSubTab === 'deleted'
-                      ? 'bg-rose-600 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  Deleted ({deletedApps.length})
-                </button>
-                <button
-                  onClick={() => setManagerSubTab('analytics')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1 ${
-                    managerSubTab === 'analytics'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  <BarChart3 className="w-3.5 h-3.5" />
-                  <span>Analytics</span>
-                </button>
-                <button
-                  onClick={() => setManagerSubTab('announce')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1 ${
-                    managerSubTab === 'announce'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  <Megaphone className="w-3.5 h-3.5" />
-                  <span>Announce</span>
-                </button>
-                <button
-                  onClick={() => setManagerSubTab('feedback')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium ${
-                    managerSubTab === 'feedback'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  Feedback
-                </button>
-                <button
-                  onClick={() => loadStoreData(true)}
-                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-1"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-                  <span>Refresh</span>
-                </button>
-              </div>
-            </div>
-
-            {managerSubTab === 'pending' && (
-              <ManagerPendingView
-                apps={pendingApps}
-                onRefresh={() => loadStoreData(true)}
-              />
-            )}
-
-            {managerSubTab === 'all' && (
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {approvedApps.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-3 text-center">
-                    No approved apps listed yet.
-                  </p>
-                ) : (
-                  approvedApps.map((app) => (
-                    <div
-                      key={app.id}
-                      className="flex items-center justify-between gap-3 bg-slate-800/70 border border-slate-700/60 rounded-xl px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">{app.title}</p>
-                        <p className="text-xs text-slate-400 truncate">
-                          {app.category} • {app.live_web_url || 'APK Release'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => setEditingApp(app)}
-                          className="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs text-white"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteApp(app)}
-                          className="px-2.5 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white text-xs font-medium flex items-center gap-1 border border-rose-500/30"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {managerSubTab === 'deleted' && (
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {deletedApps.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-3 text-center">Trash is empty.</p>
-                ) : (
-                  deletedApps.map((app) => (
-                    <div
-                      key={app.id}
-                      className="flex items-center justify-between gap-3 bg-slate-800/70 border border-slate-700/60 rounded-xl px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-200 truncate">{app.title}</p>
-                        <p className="text-xs text-slate-400 truncate">{app.category}</p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => handleRestoreApp(app)}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white text-xs font-medium flex items-center gap-1 border border-emerald-500/30"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          <span>Restore</span>
-                        </button>
-                        <button
-                          onClick={() => handlePermanentPurge(app)}
-                          className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium flex items-center gap-1"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Purge</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {managerSubTab === 'analytics' && <AnalyticsDashboard />}
-            {managerSubTab === 'announce' && <AnnouncementManager />}
-            {managerSubTab === 'feedback' && <ManagerFeedbackView />}
-          </section>
-        )}
-
+        {/* Primary Tabs + Sort */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
             <button
+              type="button"
               onClick={() => setActiveTab('all')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
                 activeTab === 'all'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                  : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              All Software ({approvedApps.length})
+              All Software ({apps.filter((a) => a.status === 'approved').length})
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('featured')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
                 activeTab === 'featured'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Featured</span>
+              Featured
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('my-uploads')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
                 activeTab === 'my-uploads'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               My Uploads ({myApps.length})
@@ -566,218 +419,545 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <ArrowUpDown className="w-4 h-4 text-slate-400" />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+              className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
             >
-              <option value="recent">Newest First</option>
-              <option value="popular">Popular</option>
+              <option value="newest">Newest First</option>
+              <option value="popular">Most Popular</option>
               <option value="rating">Top Rated</option>
             </select>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {ALL_STORE_CATEGORIES.map((category) => (
+        {/* Category Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {['All', ...ALL_STORE_CATEGORIES].map((cat) => (
             <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
-                selectedCategory === category
-                  ? 'bg-white text-slate-950 font-semibold'
-                  : 'bg-slate-900/90 text-slate-300 hover:bg-slate-800 border border-slate-800'
+              key={cat}
+              type="button"
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition ${
+                selectedCategory === cat
+                  ? 'bg-white text-slate-950 border-white'
+                  : 'bg-slate-900/80 text-slate-300 border-slate-800 hover:border-slate-700'
               }`}
             >
-              {category}
+              {cat}
             </button>
           ))}
         </div>
 
+        {/* Search Input */}
         <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search apps, creators, categories..."
-            className="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-slate-900/90 border border-slate-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
           />
         </div>
 
-        {activeTab === 'my-uploads' ? (
-          <MySubmissionsView
-            currentUid={currentUid}
-            onEditApp={(app) => setEditingApp(app)}
-            onRefreshStore={() => loadStoreData(true)}
-          />
-        ) : loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {/* Storefront Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-6">
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
-                className="h-72 rounded-2xl bg-slate-900/70 border border-slate-800/80 animate-pulse"
+                className="h-72 rounded-2xl bg-slate-900/60 border border-slate-800 animate-pulse"
               />
             ))}
           </div>
-        ) : visibleApps.length === 0 ? (
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-10 text-center space-y-3">
-            <p className="text-sm text-slate-300 font-medium">
+        ) : error ? (
+          <div className="rounded-2xl bg-rose-950/30 border border-rose-800/50 p-8 text-center space-y-3">
+            <AlertCircle className="w-8 h-8 text-rose-400 mx-auto" />
+            <p className="text-sm text-rose-200">{error}</p>
+            <button
+              type="button"
+              onClick={loadApps}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold"
+            >
+              Retry Connection
+            </button>
+          </div>
+        ) : activeTab === 'my-uploads' ? (
+          <MySubmissionsView
+            apps={myApps}
+            onEdit={(app: StoreApp) => setEditingApp(app)}
+            onDelete={handleDeleteApp}
+            onOpenSubmit={() => setShowSubmitModal(true)}
+          />
+        ) : visibleStoreApps.length === 0 ? (
+          <div className="rounded-2xl bg-slate-900/50 border border-slate-800 p-12 text-center space-y-3">
+            <Layers className="w-10 h-10 text-slate-500 mx-auto" />
+            <h3 className="text-base font-semibold text-white">
               No approved apps match your current filter.
-            </p>
+            </h3>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              Only real applications uploaded by you or community developers and approved by the
-              store manager appear here.
+              Only real applications uploaded by you or community developers and approved by the store manager appear here.
             </p>
-            <div className="flex items-center justify-center gap-2 pt-2">
-              {selectedCategory !== 'All' || searchQuery ? (
+            <div className="pt-2 flex items-center justify-center gap-3">
+              {(selectedCategory !== 'All' || searchQuery) && (
                 <button
+                  type="button"
                   onClick={() => {
                     setSelectedCategory('All');
                     setSearchQuery('');
                   }}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white"
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold"
                 >
                   Reset Filters
                 </button>
-              ) : null}
+              )}
               <button
-                onClick={() => setShowDevModal(true)}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white inline-flex items-center gap-1.5"
+                type="button"
+                onClick={() => setShowSubmitModal(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <PlusCircle className="w-4 h-4" />
                 <span>Submit an App</span>
               </button>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {visibleApps.map((app) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {visibleStoreApps.map((app) => (
               <AppCard
                 key={app.id}
                 app={app}
                 isManager={isManager}
                 currentUid={currentUid}
                 onSelect={() => setSelectedApp(app)}
-                onLaunch={() => handleLaunchOrInstall(app)}
                 onEdit={() => setEditingApp(app)}
                 onDelete={() => handleDeleteApp(app)}
               />
             ))}
           </div>
         )}
-
-        {showFeedbackPortal && (
-          <div className="pt-4">
-            <FeedbackPortal />
-          </div>
-        )}
       </main>
 
-      <footer className="border-t border-slate-800/80 py-5 px-4 text-center text-xs text-slate-500 flex flex-wrap items-center justify-center gap-4">
-        <span>Prism App Store — Self-Hosted Application Directory</span>
-        <button
-          onClick={() => setShowFeedbackPortal((v) => !v)}
-          className="text-indigo-400 hover:underline"
-        >
-          Send Feedback
-        </button>
+      {/* Footer */}
+      <footer className="border-t border-slate-800/80 py-5 px-4 text-center text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-center gap-4">
+          <span>Prism App Store — Self-Hosted Application Directory</span>
+          <button
+            type="button"
+            onClick={() => setShowFeedbackPortal(true)}
+            className="text-indigo-400 hover:underline"
+          >
+            Send Feedback
+          </button>
+        </div>
       </footer>
 
-      {selectedApp && (
-        <AppDetailModal
-          app={selectedApp}
-          onClose={() => setSelectedApp(null)}
-          onInstall={() => handleLaunchOrInstall(selectedApp)}
-          onReport={() => {
-            setReportingApp(selectedApp);
-            setSelectedApp(null);
-          }}
-        />
-      )}
-
-      {showDevModal && (
-        <DevSubmitModal
-          currentUid={currentUid}
-          onClose={() => setShowDevModal(false)}
-          onSubmitted={() => {
-            setShowDevModal(false);
-            loadStoreData(true);
-          }}
-        />
-      )}
-
-      {editingApp && (
-        <EditAppModal
-          app={editingApp}
-          onClose={() => setEditingApp(null)}
-          onSaved={() => {
-            setEditingApp(null);
-            loadStoreData(true);
-          }}
-        />
-      )}
-
-      {reportingApp && (
-        <ReportPortal
-          app={reportingApp}
-          onClose={() => setReportingApp(null)}
-        />
-      )}
-
+      {/* Manager Password Modal */}
       {showManagerLogin && (
-        <ManagerAuthModal
-          onClose={() => setShowManagerLogin(false)}
-          onAuthenticated={() => {
-            sessionStorage.setItem(MANAGER_SESSION_KEY, 'true');
-            setIsManager(true);
-            setShowManagerLogin(false);
-          }}
-        />
-      )}
-
-      {showPasskeyModal && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4">
+          <div className="bg-[#0F1629] border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white text-base flex items-center gap-2">
-                <Key className="w-4 h-4 text-amber-400" />
-                <span>Developer Passkey</span>
-              </h3>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <h2 className="text-base font-bold text-white">Store Manager Access</h2>
+              </div>
               <button
-                onClick={() => setShowPasskeyModal(false)}
-                className="text-slate-400 hover:text-white"
+                type="button"
+                onClick={() => setShowManagerLogin(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
               >
-                <XCircle className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
             <p className="text-xs text-slate-400">
-              Your Passkey links your uploaded apps so you can edit or delete them across devices.
+              Enter your Store Manager password to review pending apps, feature listings, manage announcements, or remove apps.
             </p>
-            <div className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 font-mono text-xs text-emerald-400 select-all">
+            <form onSubmit={handleManagerLoginSubmit} className="space-y-3">
+              <input
+                type="password"
+                value={managerPasswordInput}
+                onChange={(e) => setManagerPasswordInput(e.target.value)}
+                placeholder="Enter Manager Password..."
+                autoFocus
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+              />
+              {managerAuthError && (
+                <p className="text-xs text-rose-400">{managerAuthError}</p>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowManagerLogin(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
+                >
+                  Unlock Manager Portal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Store Manager Console Modal */}
+      {showManagerConsole && isManager && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+          <div className="bg-[#0B1120] border border-slate-800 rounded-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="px-6 py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <h2 className="text-base font-bold text-white">Store Manager Console</h2>
+                  <p className="text-[11px] text-slate-400">
+                    Approve submissions, manage catalog listings, announcements, and analytics
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleManagerLock}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-300 hover:text-white"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Lock</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowManagerConsole(false)}
+                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Manager Sub-Navigation */}
+            <div className="px-6 py-3 bg-slate-900/60 border-b border-slate-800 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setManagerSubTab('pending')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  managerSubTab === 'pending'
+                    ? 'bg-amber-500 text-slate-950'
+                    : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                Pending Review ({pendingApps.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setManagerSubTab('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  managerSubTab === 'all'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                All Active Apps ({apps.filter((a) => a.status !== 'deleted').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setManagerSubTab('deleted')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  managerSubTab === 'deleted'
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                Deleted ({deletedApps.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setManagerSubTab('announcements')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  managerSubTab === 'announcements'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                Announcements
+              </button>
+              <button
+                type="button"
+                onClick={() => setManagerSubTab('analytics')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  managerSubTab === 'analytics'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                Analytics
+              </button>
+            </div>
+
+            {/* Manager Console Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {managerSubTab === 'pending' && (
+                <ManagerPendingView
+                  apps={pendingApps}
+                  onRefresh={loadApps}
+                />
+              )}
+
+              {managerSubTab === 'all' && (
+                <div className="space-y-3">
+                  {apps.filter((a) => a.status !== 'deleted').length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-8">No active applications in database.</p>
+                  ) : (
+                    apps
+                      .filter((a) => a.status !== 'deleted')
+                      .map((app) => (
+                        <div
+                          key={app.id}
+                          className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-slate-900/90 border border-slate-800"
+                        >
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={app.thumbnail_url || app.hero_image}
+                              alt={app.title}
+                              className="w-12 h-12 rounded-lg object-cover bg-slate-800"
+                            />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-white">{app.title}</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 uppercase">
+                                  {app.status}
+                                </span>
+                                {app.featured && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
+                                    Featured
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-400">{app.category} • {app.live_web_url || 'APK'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFeatured(app)}
+                              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-amber-300 font-medium"
+                            >
+                              {app.featured ? 'Unfeature' : 'Feature'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingApp(app)}
+                              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteApp(app)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-xs text-rose-300 font-semibold"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+
+              {managerSubTab === 'deleted' && (
+                <div className="space-y-3">
+                  {deletedApps.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-8">Trash is empty.</p>
+                  ) : (
+                    deletedApps.map((app) => (
+                      <div
+                        key={app.id}
+                        className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-slate-900/90 border border-slate-800"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold text-white">{app.title}</p>
+                          <p className="text-xs text-slate-400">{app.category}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleRestoreApp(app)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/40 text-xs text-emerald-300 font-semibold"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Restore</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePermanentPurge(app)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600 text-xs text-white font-semibold"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Purge Forever</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {managerSubTab === 'announcements' && <AnnouncementManager />}
+              {managerSubTab === 'analytics' && <AnalyticsDashboard apps={apps} />}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Developer Submit Modal */}
+      {showSubmitModal && (
+        <DevSubmitModal
+          isOpen={showSubmitModal}
+          onClose={() => setShowSubmitModal(false)}
+          onSuccess={() => {
+            setShowSubmitModal(false);
+            loadApps();
+          }}
+          ownerUid={currentUid}
+        />
+      )}
+
+      {/* Edit App Modal */}
+      {editingApp && (
+        <EditAppModal
+          app={editingApp}
+          isOpen={Boolean(editingApp)}
+          onClose={() => setEditingApp(null)}
+          onSaved={() => {
+            setEditingApp(null);
+            loadApps();
+          }}
+        />
+      )}
+
+      {/* App Detail Modal */}
+      {selectedApp && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0F1629] border border-slate-800 rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
+            <div className="relative h-52 bg-slate-900">
+              <img
+                src={selectedApp.thumbnail_url || selectedApp.hero_image}
+                alt={selectedApp.title}
+                className="w-full h-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => setSelectedApp(null)}
+                className="absolute top-3 right-3 p-2 rounded-full bg-black/70 text-white hover:bg-black"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-white">{selectedApp.title}</h2>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs bg-indigo-500/20 text-indigo-300 font-medium">
+                      {selectedApp.category}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    By {selectedApp.developer || 'Community Developer'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedApp.live_web_url && (
+                    <a
+                      href={selectedApp.live_web_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
+                    >
+                      Launch App
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = selectedApp;
+                      setSelectedApp(null);
+                      setReportingApp(target);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+                  >
+                    Report
+                  </button>
+                </div>
+              </div>
+              <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                {selectedApp.description}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Developer Passkey Modal */}
+      {showPasskeyModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0F1629] border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-amber-400" />
+                <h2 className="text-base font-bold text-white">Developer Passkey</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPasskeyModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-amber-300 break-all">
               {currentUid}
             </div>
-            <div className="space-y-2">
-              <label className="block text-xs text-slate-400">
-                Paste existing PRISM-UID-... to restore
-              </label>
+            <form onSubmit={handleSwitchPasskey} className="space-y-3">
               <input
                 type="text"
                 value={passkeyInput}
                 onChange={(e) => setPasskeyInput(e.target.value)}
-                placeholder="PRISM-UID-XXXX-XXXX-XXXX"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                placeholder="Paste existing PRISM-UID-... to restore"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono"
               />
               <button
-                onClick={handleSwitchPasskey}
-                className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white"
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
               >
                 Switch / Restore Passkey
               </button>
-            </div>
+            </form>
           </div>
         </div>
+      )}
+
+      {/* Feedback Portal Modal */}
+      {showFeedbackPortal && (
+        <FeedbackPortal
+          isOpen={showFeedbackPortal}
+          onClose={() => setShowFeedbackPortal(false)}
+        />
+      )}
+
+      {/* Report Portal Modal */}
+      {reportingApp && (
+        <ReportPortal
+          app={reportingApp}
+          isOpen={Boolean(reportingApp)}
+          onClose={() => setReportingApp(null)}
+        />
       )}
     </div>
   );

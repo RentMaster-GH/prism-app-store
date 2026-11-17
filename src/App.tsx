@@ -36,6 +36,12 @@ import { AnnouncementBanner, AnnouncementManager } from './components/Announceme
 import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
 import { OwnerPortalView } from './components/OwnerPortalView';
 import { FeedbackPortal, ManagerFeedbackView } from './components/FeedbackPortal';
+import {
+  ALL_STORE_CATEGORIES,
+  getUniqueThumbnail,
+  fetchReviewRollups,
+  normalizeCategoryMatch,
+} from './utils/storeHelpers';
 
 const PAGE_SIZE = 24;
 
@@ -43,30 +49,14 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
   state = { error: null as any, preservedUID: '' };
   static getDerivedStateFromError(e: any) { return { error: e }; }
   componentDidCatch() {
-    try {
-      const uid = localStorage.getItem('prism_user_uid') || '';
-      this.setState({ preservedUID: uid });
-    } catch {}
+    try { this.setState({ preservedUID: localStorage.getItem('prism_user_uid') || '' }); } catch {}
   }
   handleSafeReload = () => {
     try {
-      const keepUID = localStorage.getItem('prism_user_uid');
-      const keepBackup = localStorage.getItem('prism_user_uid_backup');
-      const keepInstalled = localStorage.getItem('prism_installed_map');
-      const keepUploaded = localStorage.getItem('prism_user_uploaded_apps');
-      const keepRegistry = localStorage.getItem('prism_apps_registry');
-      const keepManager = localStorage.getItem('prism_is_store_manager');
-      const keepDeleted = localStorage.getItem('prism_deleted_apps_log');
-      const keepReports = localStorage.getItem('prism_reports');
+      const keys = ['prism_user_uid', 'prism_user_uid_backup', 'prism_installed_map', 'prism_user_uploaded_apps', 'prism_apps_registry', 'prism_is_store_manager', 'prism_deleted_apps_log', 'prism_reports'];
+      const saved = Object.fromEntries(keys.map(k => [k, localStorage.getItem(k)]));
       localStorage.clear();
-      if (keepUID) localStorage.setItem('prism_user_uid', keepUID);
-      if (keepBackup) localStorage.setItem('prism_user_uid_backup', keepBackup);
-      if (keepInstalled) localStorage.setItem('prism_installed_map', keepInstalled);
-      if (keepUploaded) localStorage.setItem('prism_user_uploaded_apps', keepUploaded);
-      if (keepRegistry) localStorage.setItem('prism_apps_registry', keepRegistry);
-      if (keepManager) localStorage.setItem('prism_is_store_manager', keepManager);
-      if (keepDeleted) localStorage.setItem('prism_deleted_apps_log', keepDeleted);
-      if (keepReports) localStorage.setItem('prism_reports', keepReports);
+      keys.forEach(k => { if (saved[k]) localStorage.setItem(k, saved[k]!); });
     } catch {}
     location.reload();
   };
@@ -76,10 +66,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
         <div className="min-h-screen bg-[#05060f] text-white p-6 flex items-center justify-center">
           <div className="max-w-lg w-full">
             <h1 className="text-red-400 font-bold mb-3">Prism crashed — but your UID is safe</h1>
-            <p className="text-[12px] text-white/50 mb-3">UID {this.state.preservedUID || localStorage.getItem('prism_user_uid')} is preserved. My Uploads & Library will remain after reload.</p>
+            <p className="text-[12px] text-white/50 mb-3">UID {this.state.preservedUID || localStorage.getItem('prism_user_uid')} is preserved.</p>
             <pre className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 overflow-auto text-xs whitespace-pre-wrap">{String(this.state.error?.message)}</pre>
             <button onClick={this.handleSafeReload} className="mt-4 w-full h-11 bg-white text-black rounded-full font-bold text-sm">Preserve Session & Reload</button>
-            <p className="text-[10px] text-white/20 text-center mt-2">We never clear UID without backup.</p>
           </div>
         </div>
       );
@@ -94,39 +83,26 @@ function useDebounce<T>(value: T, delay: number) {
   return debounced;
 }
 
-function getUniqueThumbnail(row: any) {
-  if (row.thumbnail_url && String(row.thumbnail_url).startsWith('http')) return row.thumbnail_url;
-  if (row.download_url && String(row.download_url).startsWith('http')) return row.download_url;
-  if (row.hero_image && String(row.hero_image).startsWith('http')) return row.hero_image;
-  if (row.live_web_url && String(row.live_web_url).startsWith('http')) {
-    return `https://image.thum.io/get/width/600/crop/400/noanimate/${row.live_web_url}`;
-  }
-  if (row.live_app_url && String(row.live_app_url).startsWith('http')) {
-    return `https://image.thum.io/get/width/600/crop/400/noanimate/${row.live_app_url}`;
-  }
-  const seed = String(row.uuid || row.id || row.title || row.jamz || 'prism');
-  return `https://picsum.photos/seed/${encodeURIComponent(seed)}/600/400`;
-}
-
 function AppStoreContent() {
   useInstallAnalytics();
   const [apps, setApps] = useState<AppItem[]>(() => {
     try {
-      const savedUserAppsRaw = localStorage.getItem('prism_user_uploaded_apps');
-      const savedUserApps: AppItem[] = savedUserAppsRaw ? JSON.parse(savedUserAppsRaw) : [];
-      const savedRegistryRaw = localStorage.getItem('prism_apps_registry');
-      const savedRegistry: AppItem[] = savedRegistryRaw ? JSON.parse(savedRegistryRaw) : [];
+      const savedUserApps: AppItem[] = JSON.parse(localStorage.getItem('prism_user_uploaded_apps') || '[]');
+      const savedRegistry: AppItem[] = JSON.parse(localStorage.getItem('prism_apps_registry') || '[]');
       const legacyUserApps = savedRegistry.filter((a: any) => a.isUserUploaded);
       const userAppsMap = new Map<string, AppItem>();
       [...legacyUserApps, ...savedUserApps].forEach(app => {
         try { userAppsMap.set(app.id, { ...app, heroImage: app.heroImage ? resolveAppMedia(app.heroImage) : app.heroImage, thumbnail: resolveAppMedia(app.thumbnail) }); } catch {}
       });
-      const deletedLogRaw = localStorage.getItem('prism_deleted_apps_log');
       const deletedIds = new Set<string>();
-      if (deletedLogRaw) { try { const parsedLog = JSON.parse(deletedLogRaw); parsedLog.forEach((d: any) => { if (d.originalApp?.id) deletedIds.add(d.originalApp.id); if (d.appId) deletedIds.add(d.appId); }); } catch {} }
+      JSON.parse(localStorage.getItem('prism_deleted_apps_log') || '[]').forEach((d: any) => {
+        if (d.originalApp?.id) deletedIds.add(d.originalApp.id);
+        if (d.appId) deletedIds.add(d.appId);
+      });
       const officialApps = APPS_DATA.filter((a: any) => !deletedIds.has(a.id));
       const activeUserApps = Array.from(userAppsMap.values()).filter(a => !deletedIds.has(a.id));
-      const seen = new Set<string>(); const combined: AppItem[] = [];
+      const seen = new Set<string>();
+      const combined: AppItem[] = [];
       for (const app of activeUserApps) { if (!seen.has(app.id)) { seen.add(app.id); combined.push(app); } }
       for (const app of officialApps) { if (!seen.has(app.id)) { seen.add(app.id); combined.push({ ...app, heroImage: app.heroImage ? resolveAppMedia(app.heroImage) : app.heroImage, thumbnail: resolveAppMedia(app.thumbnail) }); } }
       return combined;
@@ -138,8 +114,16 @@ function AppStoreContent() {
   const loadPermanentApps = useCallback(async () => {
     setIsBackendSyncing(true);
     try {
-      const records = await backend.list<any>('apps');
-      if (!records || records.length === 0) return;
+      const [records, rollups] = await Promise.all([
+        backend.list<any>('apps'),
+        fetchReviewRollups(),
+      ]);
+      if (!records || records.length === 0) {
+        if (Object.keys(rollups).length > 0) {
+          setApps(prev => prev.map(a => rollups[a.id] ? { ...a, rating: rollups[a.id].avgRating, reviewCount: rollups[a.id].reviewCount } : a));
+        }
+        return;
+      }
 
       const approvedRows = records
         .map((r) => ({ id: r.id, uuid: r.id, created_at: r.created_at, updated_at: r.updated_at, ...r.data }))
@@ -147,45 +131,70 @@ function AppStoreContent() {
         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
         .slice(0, 200);
 
-      const permanentApps: AppItem[] = approvedRows.map((row: any) => ({
-        id: row.uuid || row.id,
-        name: row.title || row.jamz || row.name || 'Untitled',
-        tagline: row.tagline || row.description || row.jamz || 'User published',
-        developer: row.studio || row.developer_name || 'Indie Engineer',
-        developerVerified: true,
-        category: row.category || row.blty || 'Labyrinth',
-        price: 0, priceFormatted: 'Free', priceModel: 'Free' as any, rating: 5.0, reviewCount: 1,
-        downloadsCount: String(row.downloads || row.install_count || 1),
-        sizeMB: row.size_mb || 15, currentVersion: row.version || '1.0.0',
-        minOS: 'Android 12 / iOS 16 / macOS / Web',
-        supportedDevices: ['Phone', 'Tablet', 'Desktop', 'Vision'] as any,
-        heroImage: getUniqueThumbnail(row),
-        thumbnail: getUniqueThumbnail(row),
-        accentColor: '#38bdf8',
-        summary: row.description || row.title || row.jamz || '',
-        features: [row.changelog || 'Live'],
-        offlineCapable: true, zeroTrackers: true, openSource: false, isUserUploaded: true,
-        ownerId: row.owner_uid, owner_uid: row.owner_uid, owner_id: row.owner_uid,
-        uploadedAt: 'Just now',
-        liveAppUrl: row.live_web_url || row.live_app_url || '',
-        websiteUrl: row.live_web_url || row.live_app_url || '',
-        apkUrl: row.apk_url || (String(row.download_url || '').endsWith('.apk') ? row.download_url : '') || '',
-        downloadUrl: row.download_url || '',
-        sourceCodeUrl: row.source_code_url, packageBundleName: row.package_bundle_name,
-        privacyGrade: 'A+', permissions: [], dataCollected: [],
-        versionHistory: [{ version: row.version || '1.0.0', releaseDate: row.updated_at || 'Today', sizeMB: row.size_mb || 15, isLatest: true, highlights: [row.changelog || 'Live'] } as any],
-        reviews: [], sandboxType: 'terminal' as any,
-        status: row.status || 'approved',
-        studio: row.studio,
-        title_raw: row.title,
-        jamz_raw: row.jamz,
-        raw: row
-      } as any));
+      const permanentApps: AppItem[] = approvedRows.map((row: any) => {
+        const id = row.uuid || row.id;
+        const stats = rollups[id];
+        const thumb = getUniqueThumbnail(row);
+        const installs = Number(row.install_count ?? row.downloads ?? 0);
+        return {
+          id,
+          name: row.title || row.jamz || row.name || 'Untitled',
+          tagline: row.tagline || row.description || row.jamz || 'User published',
+          developer: row.studio || row.developer_name || 'Indie Engineer',
+          developerVerified: true,
+          category: row.category || row.blty || 'Other',
+          price: 0,
+          priceFormatted: 'Free',
+          priceModel: 'Free' as any,
+          rating: stats ? stats.avgRating : Number(row.rating || 5.0),
+          reviewCount: stats ? stats.reviewCount : Number(row.review_count || 0),
+          downloadsCount: String(installs),
+          sizeMB: row.size_mb || 15,
+          currentVersion: row.version_name || row.version || '1.0.0',
+          minOS: 'Android 12 / iOS 16 / macOS / Web',
+          supportedDevices: ['Phone', 'Tablet', 'Desktop', 'Vision'] as any,
+          heroImage: thumb,
+          thumbnail: thumb,
+          accentColor: '#38bdf8',
+          summary: row.description || row.title || row.jamz || '',
+          features: [row.changelog || 'Live'],
+          offlineCapable: true,
+          zeroTrackers: true,
+          openSource: false,
+          isUserUploaded: true,
+          ownerId: row.owner_uid,
+          owner_uid: row.owner_uid,
+          owner_id: row.owner_uid,
+          uploadedAt: 'Just now',
+          liveAppUrl: row.live_web_url || row.live_app_url || '',
+          websiteUrl: row.live_web_url || row.live_app_url || '',
+          apkUrl: row.apk_url || (String(row.download_url || '').endsWith('.apk') ? row.download_url : '') || '',
+          downloadUrl: row.download_url || '',
+          sourceCodeUrl: row.source_code_url,
+          packageBundleName: row.package_bundle_name,
+          privacyGrade: 'A+',
+          permissions: [],
+          dataCollected: [],
+          versionHistory: [{ version: row.version_name || row.version || '1.0.0', releaseDate: row.updated_at || 'Today', sizeMB: row.size_mb || 15, isLatest: true, highlights: [row.changelog || 'Live'] } as any],
+          reviews: [],
+          sandboxType: 'terminal' as any,
+          status: row.status || 'approved',
+          studio: row.studio,
+          title_raw: row.title,
+          jamz_raw: row.jamz,
+          raw: { ...row, install_count: installs },
+        } as any;
+      });
 
       setApps(prev => {
         const map = new Map<string, AppItem>();
         permanentApps.forEach(a => map.set(a.id, a));
-        prev.forEach(a => { if (!map.has(a.id)) map.set(a.id, a); });
+        prev.forEach(a => {
+          if (!map.has(a.id)) {
+            const stats = rollups[a.id];
+            map.set(a.id, stats ? { ...a, rating: stats.avgRating, reviewCount: stats.reviewCount } : a);
+          }
+        });
         return Array.from(map.values()).filter((a: any) => (a as any).status !== 'deleted');
       });
     } catch {} finally {
@@ -193,15 +202,11 @@ function AppStoreContent() {
     }
   }, []);
 
-  useEffect(() => {
-    loadPermanentApps();
-  }, [loadPermanentApps]);
+  useEffect(() => { loadPermanentApps(); }, [loadPermanentApps]);
 
   const [userUID, setUserUID] = useState(() => {
-    const existing = localStorage.getItem('prism_user_uid');
+    const existing = localStorage.getItem('prism_user_uid') || localStorage.getItem('prism_user_uid_backup');
     if (existing) return existing;
-    const backup = localStorage.getItem('prism_user_uid_backup');
-    if (backup) return backup;
     const newUid = 'PRISM-UID-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
     localStorage.setItem('prism_user_uid', newUid);
     localStorage.setItem('prism_user_uid_backup', newUid);
@@ -218,8 +223,8 @@ function AppStoreContent() {
   const [currentTab, setCurrentTab] = useState<'discover' | 'apps' | 'compare' | 'library' | 'myapps' | 'portal' | 'feedback'>(() => {
     try {
       const hash = window.location.hash;
-      if (hash.startsWith('#/p/')) return 'portal' as any;
-      if (hash === '#/feedback') return 'feedback' as any;
+      if (hash.startsWith('#/p/')) return 'portal';
+      if (hash === '#/feedback') return 'feedback';
       const saved = localStorage.getItem('prism_current_tab');
       if (saved && ['discover', 'apps', 'compare', 'library', 'myapps', 'portal', 'feedback'].includes(saved)) return saved as any;
     } catch {}
@@ -259,13 +264,9 @@ function AppStoreContent() {
       const hash = window.location.hash;
       if (hash.startsWith('#/p/')) {
         const slug = hash.replace('#/p/', '').trim();
-        if (slug) {
-          setPortalSlug(slug);
-          setCurrentTab('portal' as any);
-          try { localStorage.setItem('prism_current_tab', 'portal'); } catch {}
-        }
+        if (slug) { setPortalSlug(slug); setCurrentTab('portal'); try { localStorage.setItem('prism_current_tab', 'portal'); } catch {} }
       } else if (hash === '#/feedback') {
-        setCurrentTab('feedback' as any);
+        setCurrentTab('feedback');
       }
     };
     parseHash();
@@ -276,34 +277,24 @@ function AppStoreContent() {
   const handleSelectTab = useCallback((t: any) => {
     if (t === 'portal') {
       const slug = localStorage.getItem('prism_portal_slug') || portalSlug;
-      if (slug) {
-        setPortalSlug(slug);
-        window.location.hash = `#/p/${slug}`;
-        setCurrentTab('portal' as any);
-      } else {
-        setCurrentTab('myapps' as any);
-      }
+      if (slug) { setPortalSlug(slug); window.location.hash = `#/p/${slug}`; setCurrentTab('portal'); }
+      else setCurrentTab('myapps');
     } else if (t === 'feedback') {
       window.location.hash = '#/feedback';
-      setCurrentTab('feedback' as any);
+      setCurrentTab('feedback');
     } else {
-      if (window.location.hash.startsWith('#/p/') || window.location.hash === '#/feedback') {
-        window.location.hash = '';
-      }
+      if (window.location.hash.startsWith('#/p/') || window.location.hash === '#/feedback') window.location.hash = '';
       setCurrentTab(t);
     }
   }, [portalSlug]);
 
   const handleForcePurgeCache = async () => {
     if (typeof window !== 'undefined' && 'caches' in window) {
-      try {
-        const names = await caches.keys();
-        await Promise.all(names.map(n => caches.delete(n)));
-      } catch {}
+      try { const names = await caches.keys(); await Promise.all(names.map(n => caches.delete(n))); } catch {}
     }
   };
 
-  const [deletedAppsLog, setDeletedAppsLog] = useState<DeletedAppAuditItem[]>(() => { try { const s = localStorage.getItem('prism_deleted_apps_log'); if (s) return JSON.parse(s); } catch {} return []; });
+  const [deletedAppsLog, setDeletedAppsLog] = useState<DeletedAppAuditItem[]>(() => { try { return JSON.parse(localStorage.getItem('prism_deleted_apps_log') || '[]'); } catch { return []; } });
   const { isInstallable, isStandalone, install } = usePWAInstall();
   const handleDirectInstall = useCallback(async () => {
     if (isStandalone) return;
@@ -340,7 +331,7 @@ function AppStoreContent() {
     setTimeout(() => setInstalledMap(prev => prev[app.id] ? { ...prev, [app.id]: { ...prev[app.id], status: 'installed', progress: 100 } } : prev), 1200);
 
     if (app.id) {
-      const rawCount = (app as any).raw?.install_count ?? parseInt(String((app as any).downloadsCount || '0').replace(/\D/g, '')) ?? 0;
+      const rawCount = Number((app as any).raw?.install_count ?? parseInt(String((app as any).downloadsCount || '0').replace(/\D/g, '')) ?? 0);
       const nextCount = rawCount + 1;
       setApps(prev => prev.map(a => a.id === app.id ? { ...a, downloadsCount: String(nextCount), raw: { ...(a as any).raw, install_count: nextCount } } as any : a));
       backend.update('apps', app.id, { install_count: nextCount, downloads: nextCount }).catch(() => {});
@@ -349,14 +340,9 @@ function AppStoreContent() {
     const isAndroid = /Android/i.test(navigator.userAgent);
     const apkUrl = (app as any).apkUrl || '';
     const webUrl = (app as any).liveAppUrl || (app as any).websiteUrl || '';
-
-    if (isAndroid && apkUrl) {
-      setTimeout(() => { window.location.href = apkUrl; }, 1400);
-    } else if (webUrl) {
-      setTimeout(() => window.open(webUrl, '_blank'), 1400);
-    } else if (apkUrl) {
-      setTimeout(() => { window.location.href = apkUrl; }, 1400);
-    }
+    if (isAndroid && apkUrl) setTimeout(() => { window.location.href = apkUrl; }, 1400);
+    else if (webUrl) setTimeout(() => window.open(webUrl, '_blank'), 1400);
+    else if (apkUrl) setTimeout(() => { window.location.href = apkUrl; }, 1400);
   }, []);
 
   const handleUninstallApp = useCallback((appId: string) => { setInstalledMap(prev => { const c = { ...prev }; delete c[appId]; return c; }); }, []);
@@ -368,14 +354,25 @@ function AppStoreContent() {
   const handleUpdateAll = useCallback(() => { Object.keys(installedMap).forEach(id => { const app = apps.find(a => a.id === id); if (app && installedMap[id].installedVersion !== app.currentVersion) handleUpdateApp(app); }); }, [apps, installedMap, handleUpdateApp]);
   const handleStartCompare = useCallback((app: AppItem) => { setCompareAppA(app.id); const other = apps.find(a => a.id !== app.id); if (other) setCompareAppB(other.id); setSelectedApp(null); setCurrentTab('compare'); }, [apps]);
   const handleAddReview = useCallback((appId: string, rating: number, title: string, content: string) => {
-    setApps(prev => prev.map(a => { if (a.id === appId) { const rev = { id: `rev-${Date.now()}`, author: 'You', rating, date: 'Just now', device: 'Desktop', title, content, helpfulCount: 0, verifiedPurchase: true }; return { ...a, reviewCount: a.reviewCount + 1, reviews: [rev as any, ...a.reviews] }; } return a; }));
+    setApps(prev => prev.map(a => {
+      if (a.id !== appId) return a;
+      const nextCount = (a.reviewCount || 0) + 1;
+      const nextAvg = Number((((a.rating || 5) * (a.reviewCount || 0) + rating) / nextCount).toFixed(1));
+      const rev = { id: `rev-${Date.now()}`, author: 'You', rating, date: 'Just now', device: 'Desktop', title, content, helpfulCount: 0, verifiedPurchase: true };
+      return { ...a, rating: nextAvg, reviewCount: nextCount, reviews: [rev as any, ...a.reviews] };
+    }));
   }, []);
-  const handleAppPublished = useCallback((newApp: AppItem) => { setApps(prev => [newApp, ...prev]); }, []);
+  const handleAppPublished = useCallback((newApp: AppItem) => { setApps(prev => [newApp, ...prev]); loadPermanentApps(); }, [loadPermanentApps]);
   const handleAppDeleted = useCallback((appId: string, reason: string, deletedBy: any) => {
     const target = apps.find(a => a.id === appId);
-    if (target) { const entry: DeletedAppAuditItem = { id: `del-${Date.now()}`, name: target.name, developer: target.developer, category: target.category, reason, deletedBy, deletedAt: new Date().toLocaleTimeString(), originalApp: target } as any; setDeletedAppsLog(prev => { const n = [entry, ...prev]; try { localStorage.setItem('prism_deleted_apps_log', JSON.stringify(n)); } catch {} return n; }); }
+    if (target) {
+      const entry: DeletedAppAuditItem = { id: `del-${Date.now()}`, name: target.name, developer: target.developer, category: target.category, reason, deletedBy, deletedAt: new Date().toLocaleTimeString(), originalApp: target } as any;
+      setDeletedAppsLog(prev => { const n = [entry, ...prev]; try { localStorage.setItem('prism_deleted_apps_log', JSON.stringify(n)); } catch {} return n; });
+    }
     backend.update('apps', appId, { status: 'deleted', deleted_at: new Date().toISOString() }).catch(() => {});
-    setApps(prev => prev.filter(a => a.id !== appId)); setInstalledMap(prev => { const c = { ...prev }; delete c[appId]; return c; }); if (selectedApp?.id === appId) setSelectedApp(null);
+    setApps(prev => prev.filter(a => a.id !== appId));
+    setInstalledMap(prev => { const c = { ...prev }; delete c[appId]; return c; });
+    if (selectedApp?.id === appId) setSelectedApp(null);
   }, [apps, selectedApp]);
   const handleRestoreApp = useCallback((appToRestore: AppItem) => {
     backend.update('apps', appToRestore.id, { status: 'approved', deleted_at: null }).catch(() => {});
@@ -384,41 +381,21 @@ function AppStoreContent() {
   }, []);
   const handleBanUser = useCallback(async (ownerId: string) => {
     if (!confirm(`Ban user ${ownerId}?`)) return;
-    try {
-      await backend.create('banned_users', { owner_uid: ownerId, reason: 'Spam', banned_by: userUID });
-      alert('User banned');
-    } catch {
-      alert('User banned locally');
-    }
+    try { await backend.create('banned_users', { owner_uid: ownerId, reason: 'Spam', banned_by: userUID }); alert('User banned'); }
+    catch { alert('User banned locally'); }
   }, [userUID]);
 
   const baseApps = useMemo(() => apps.filter((a: any) => String((a as any).status || 'approved') !== 'deleted'), [apps]);
   const allApps = useMemo(() => { const map = new Map<string, AppItem>(); baseApps.forEach(a => { if (a?.id && !map.has(a.id)) map.set(a.id, a); }); return Array.from(map.values()); }, [baseApps]);
-  const myApps = useMemo(() => baseApps.filter((a: any) => { const owner = (a as any).ownerId || (a as any).owner_uid || (a as any).owner_id; return owner === userUID; }), [baseApps, userUID]);
+  const myApps = useMemo(() => baseApps.filter((a: any) => ((a as any).ownerId || (a as any).owner_uid || (a as any).owner_id) === userUID), [baseApps, userUID]);
   const activeFilterCount = useMemo(() => [selectedCategory !== 'All', selectedDevice !== 'All', selectedPriceModel !== 'All', sortBy !== 'rating', storeCategory !== 'All', view !== 'all'].filter(Boolean).length, [selectedCategory, selectedDevice, selectedPriceModel, sortBy, storeCategory, view]);
 
   const filteredApps = useMemo(() => {
     try {
       if (view === 'my') return myApps || [];
       let list = view === 'featured' ? (baseApps || []).filter((a: any) => (a as any)?.is_featured || (a as any)?.isUserUploaded) : [...(allApps || [])];
-      const normalize = (s: any) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
       if (storeCategory && storeCategory !== 'All') {
-        const filterN = normalize(storeCategory);
-        const filterRaw = String(storeCategory || '').toLowerCase();
-        list = (list || []).filter((a: any) => {
-          if (!a) return false;
-          const rawCat = a?.category ?? (a as any)?.blty ?? (a as any)?.storeCategory ?? '';
-          const catN = normalize(rawCat);
-          const catRaw = String(rawCat || '').toLowerCase();
-          if (filterN === 'labyrinth') {
-            return catN.includes('laby') || catN.includes('blty') || catN.includes('labr') || catRaw.includes('labyrinth') || catRaw.includes('horror');
-          }
-          if (filterN === 'all') return true;
-          if (filterN === 'other') {
-            return !['game', 'tool', 'utility', 'labyrinth', 'blty', 'laby', 'horror'].some(k => catN.includes(k) || catRaw.includes(k));
-          }
-          return catN.includes(filterN) || catRaw.includes(filterRaw);
-        });
+        list = (list || []).filter((a: any) => normalizeCategoryMatch(a?.category ?? (a as any)?.blty ?? (a as any)?.storeCategory, storeCategory));
       }
       const seen = new Set<string>();
       const q = String(debouncedSearch || '').toLowerCase().trim();
@@ -429,22 +406,17 @@ function AppStoreContent() {
           const haystack = `${String(app.name || '')} ${String((app as any).title_raw || '')} ${String((app as any).jamz_raw || '')} ${String(app.tagline || '')} ${String(app.developer || '')} ${String((app as any).studio || '')} ${String(app.category || '')} ${String(app.summary || '')} ${String((app as any).liveAppUrl || '')} ${String((app as any).websiteUrl || '')}`.toLowerCase();
           if (!haystack.includes(q)) return false;
         }
-        const matchesCategory = selectedCategory === 'All' || String(app.category || '').toLowerCase().includes(String(selectedCategory || '').toLowerCase());
+        const matchesCategory = selectedCategory === 'All' || normalizeCategoryMatch(app.category, String(selectedCategory));
         const devices = Array.isArray(app.supportedDevices) ? app.supportedDevices : [];
         const matchesDevice = selectedDevice === 'All' || devices.length === 0 || devices.includes(selectedDevice as any);
         const matchesPrice = selectedPriceModel === 'All' || app.priceModel === selectedPriceModel || !app.priceModel;
         return matchesCategory && matchesDevice && matchesPrice;
       }).sort((a, b) => {
-        try {
-          if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-          if (sortBy === 'size') return (a.sizeMB || 0) - (b.sizeMB || 0);
-          return parseInt(String(b.downloadsCount || '0').replace(/\D/g, '')) - parseInt(String(a.downloadsCount || '0').replace(/\D/g, ''));
-        } catch { return 0; }
+        if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+        if (sortBy === 'size') return (a.sizeMB || 0) - (b.sizeMB || 0);
+        return parseInt(String(b.downloadsCount || '0').replace(/\D/g, '') || '0') - parseInt(String(a.downloadsCount || '0').replace(/\D/g, '') || '0');
       });
-    } catch (e) {
-      console.error('filteredApps crash prevented', e);
-      return allApps || [];
-    }
+    } catch { return allApps || []; }
   }, [allApps, baseApps, myApps, view, debouncedSearch, selectedCategory, selectedDevice, selectedPriceModel, sortBy, storeCategory]);
 
   const paginatedApps = useMemo(() => filteredApps.slice(0, visibleCount), [filteredApps, visibleCount]);
@@ -479,17 +451,14 @@ function AppStoreContent() {
         <DirectInstallBanner onOpenManualModal={() => setIsInstallModalOpen(true)} />
         {isBackendSyncing && <div className="mb-4 px-3 py-2.5 bg-white/[0.04] border border-white/10 rounded-full text-xs text-indigo-200 flex items-center gap-2 w-fit"><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Syncing permanent apps...</span></div>}
 
-        {isStoreManager ? (
+        {isStoreManager && (
           <div className="space-y-4 p-4 bg-white/[0.03] border border-white/10 rounded-2xl mb-6">
             <div className="flex flex-wrap gap-2 items-center justify-between">
               <h2 className="font-bold text-sm">Manager Console (Owner Only)</h2>
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => setManagerTab('all')} className={`px-3 py-1 rounded-full text-xs ${managerTab === 'all' ? 'bg-white text-black' : 'bg-white/10'}`}>All</button>
-                <button onClick={() => setManagerTab('deleted')} className={`px-3 py-1 rounded-full text-xs ${managerTab === 'deleted' ? 'bg-white text-black' : 'bg-white/10'}`}>Deleted</button>
-                <button onClick={() => setManagerTab('reports')} className={`px-3 py-1 rounded-full text-xs ${managerTab === 'reports' ? 'bg-amber-200 text-amber-900' : 'bg-white/10'}`}>Reports</button>
-                <button onClick={() => setManagerTab('analytics')} className={`px-3 py-1 rounded-full text-xs ${managerTab === 'analytics' ? 'bg-white text-black' : 'bg-white/10'}`}>Analytics</button>
-                <button onClick={() => setManagerTab('announcements')} className={`px-3 py-1 rounded-full text-xs ${managerTab === 'announcements' ? 'bg-white text-black' : 'bg-white/10'}`}>Announce</button>
-                <button onClick={() => setManagerTab('feedback')} className={`px-3 py-1 rounded-full text-xs ${managerTab === 'feedback' ? 'bg-white text-black' : 'bg-white/10'}`}>Feedback</button>
+                {(['all', 'deleted', 'reports', 'analytics', 'announcements', 'feedback'] as const).map(t => (
+                  <button key={t} onClick={() => setManagerTab(t)} className={`px-3 py-1 rounded-full text-xs capitalize ${managerTab === t ? 'bg-white text-black' : 'bg-white/10'}`}>{t === 'announcements' ? 'Announce' : t}</button>
+                ))}
               </div>
             </div>
             {managerTab === 'reports' && <ManagerReports isManager={isStoreManager} />}
@@ -498,7 +467,7 @@ function AppStoreContent() {
             {managerTab === 'feedback' && <ManagerFeedbackView />}
             {managerTab === 'all' && <ManagerPendingView managerKey={userUID} />}
           </div>
-        ) : null}
+        )}
 
         {currentTab === 'discover' && (<DiscoverView featuredApp={featuredApp} becauseApps={becauseApps} filteredApps={filteredApps} installedMap={installedMap} onOpenDetails={openAppDetails} onQuickInstall={handleInstallApp} onOpenSandbox={(a) => openAppDetails(a, 'test-drive')} onOpenManualModal={() => setIsInstallModalOpen(true)} />)}
 
@@ -511,9 +480,11 @@ function AppStoreContent() {
               {isStoreManager && <span className="text-[10px] text-white/30 ml-2">UID: {userUID}</span>}
             </div>
             <div className="flex gap-2 flex-wrap">
-              {['All', 'Labyrinth', 'Game', 'Tool', 'Utility', 'Other'].map(c => <button key={c} onClick={() => setStoreCategory(c)} className={`px-3 py-1.5 rounded-full text-xs border ${storeCategory === c ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/60'}`}>{c}</button>)}
+              {ALL_STORE_CATEGORIES.map(c => (
+                <button key={c} onClick={() => setStoreCategory(c)} className={`px-3 py-1.5 rounded-full text-xs border transition ${storeCategory === c ? 'bg-white text-black border-white font-bold' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'}`}>{c}</button>
+              ))}
             </div>
-            <AppsSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} selectedDevice={selectedDevice} setSelectedDevice={setSelectedDevice} selectedPriceModel={selectedPriceModel} setSelectedPriceModel={setSelectedPriceModel} sortBy={sortBy} setSortBy={setSortBy} showFilters={showFilters} setShowFilters={setShowFilters} filteredCount={filteredApps.length} categories={['All', ...Array.from(new Set(APPS_DATA.map(a => String(a.category || 'Other'))))]} activeFilterCount={activeFilterCount} onOpenCommand={() => setCommandOpen(true)} />
+            <AppsSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} selectedDevice={selectedDevice} setSelectedDevice={setSelectedDevice} selectedPriceModel={selectedPriceModel} setSelectedPriceModel={setSelectedPriceModel} sortBy={sortBy} setSortBy={setSortBy} showFilters={showFilters} setShowFilters={setShowFilters} filteredCount={filteredApps.length} categories={ALL_STORE_CATEGORIES} activeFilterCount={activeFilterCount} onOpenCommand={() => setCommandOpen(true)} />
             {filteredApps.length === 0 ? (
               <div className="py-20 text-center">
                 <div className="w-12 h-12 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center mx-auto mb-3"><Search className="w-5 h-5 text-slate-500" /></div>
@@ -563,9 +534,7 @@ function AppStoreContent() {
             onBack={() => { window.location.hash = ''; setCurrentTab('discover'); }}
           />
         )}
-        {currentTab === 'feedback' && (
-          <FeedbackPortal userUID={userUID} onBack={() => handleSelectTab('discover')} />
-        )}
+        {currentTab === 'feedback' && <FeedbackPortal userUID={userUID} onBack={() => handleSelectTab('discover')} />}
       </main>
       {selectedApp && <AppDetailModal key={`${selectedApp.id}-${modalInitialTab}`} app={selectedApp} initialTab={modalInitialTab} installedState={installedMap[selectedApp.id]} onClose={() => setSelectedApp(null)} onInstall={handleInstallApp} onUninstall={handleUninstallApp} onStartCompare={handleStartCompare} onAddReview={handleAddReview} onAppDeleted={handleAppDeleted} onOpenOwnerGuide={() => { setSelectedApp(null); setDevModalInitialTab('guide'); setIsDevModalOpen(true); }} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} allApps={allApps} />}
       {isDevModalOpen && <DevSubmitModal onClose={() => setIsDevModalOpen(false)} apps={allApps} initialTab={devModalInitialTab} onAppPublished={handleAppPublished} onAppDeleted={handleAppDeleted} onRestoreApp={handleRestoreApp} deletedAppsLog={deletedAppsLog} userUID={userUID} isStoreManager={isStoreManager} onOpenStoreManagerAuth={() => setIsManagerAuthModalOpen(true)} onUpdateUID={handleUpdateUID} />}

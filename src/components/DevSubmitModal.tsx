@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Upload, Shield, Globe, Smartphone, FileDown, Check, ExternalLink, Download, Link as LinkIcon } from 'lucide-react';
+import { X, Upload, Shield, Globe, Smartphone, FileDown, Check, ExternalLink, Download } from 'lucide-react';
 import { backend } from '../lib/backend';
 
 function maskUID(uid: string) {
@@ -8,16 +8,19 @@ function maskUID(uid: string) {
 
 const CATEGORIES = ['Other', 'Social', 'Dating', 'Finance', 'Productivity', 'Games', 'Tools', 'Education', 'Health', 'Business'];
 
-function fileToDataUrl(file: File, onProgress?: (pct: number, loaded: number, total: number) => void): Promise<string> {
+function readFileAsDataUrl(file: File, onProgress: (pct: number, loaded: number, total: number) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) {
+      if (e.lengthComputable) {
         const pct = Math.round((e.loaded / e.total) * 100);
         onProgress(pct, e.loaded, e.total);
       }
     };
-    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onload = () => {
+      onProgress(100, file.size, file.size);
+      resolve(String(reader.result || ''));
+    };
     reader.onerror = () => reject(new Error('Failed to read selected file'));
     reader.readAsDataURL(file);
   });
@@ -28,7 +31,6 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
   const [appType, setAppType] = useState<'web' | 'android'>('android');
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
-  const [externalApkUrl, setExternalApkUrl] = useState('');
   const [includeWeb, setIncludeWeb] = useState(true);
   const [packageName, setPackageName] = useState('');
   const [description, setDescription] = useState('');
@@ -36,6 +38,7 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
   const [versionName, setVersionName] = useState('1.0.0');
   const [versionCode, setVersionCode] = useState('1');
   const [apkFile, setApkFile] = useState<File | null>(null);
+  const [apkDirectUrl, setApkDirectUrl] = useState('');
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState('');
   const [uploadPct, setUploadPct] = useState(0);
@@ -54,14 +57,14 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
       if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(packageName.trim())) {
         return alert('Package name must look like com.company.app (lowercase, with dots)');
       }
-      if (!apkFile && !externalApkUrl.trim()) {
-        return alert('Select an .apk file or paste a direct APK download URL (e.g. GitHub Release URL)');
+      if (!apkFile && !apkDirectUrl.trim()) {
+        return alert('Select an .apk file or paste a direct .apk download URL');
       }
       if (apkFile && !apkFile.name.toLowerCase().endsWith('.apk')) {
         return alert('File must be .apk');
       }
-      if (externalApkUrl.trim() && !externalApkUrl.trim().startsWith('http')) {
-        return alert('Direct APK download URL must start with https://');
+      if (apkDirectUrl.trim() && !apkDirectUrl.trim().startsWith('http')) {
+        return alert('Direct APK URL must start with https://');
       }
       if (includeWeb && !url.trim()) {
         return alert('You checked "Also include Web Version" — enter the Web URL, or uncheck it');
@@ -80,12 +83,8 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
     if (!isStoreManager) {
       try {
         const res = await backend.list('apps');
-        const allItems = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
-        const ownedCount = allItems.filter((item: any) => {
-          const d = item?.data || item || {};
-          return d.owner_uid === userUID && d.status !== 'deleted';
-        }).length;
-        if (ownedCount >= MAX_APPS) {
+        const existing = (res?.records || []).filter((r: any) => (r.data?.owner_uid || r.owner_uid) === userUID);
+        if (existing.length >= MAX_APPS) {
           return alert(`Limit reached: ${MAX_APPS} apps max`);
         }
       } catch {}
@@ -98,33 +97,31 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
     setUploadTotal(0);
 
     try {
-      let apkUrl = externalApkUrl.trim();
+      let apkUrl = apkDirectUrl.trim();
       let iconUrl = '';
 
       if (appType === 'android' && apkFile) {
-        const maxInlineBytes = 15 * 1024 * 1024;
-        if (apkFile.size > maxInlineBytes && !apkUrl) {
-          throw new Error('APK exceeds 15 MB inline limit. Paste a direct GitHub Release / cloud APK URL in the Direct APK URL box below.');
+        if (apkFile.size > 15 * 1024 * 1024) {
+          throw new Error('APK exceeds 15 MB inline limit. Host the .apk on GitHub Releases and paste its direct link below.');
         }
-        if (apkFile.size <= maxInlineBytes) {
-          setUploadProgress('Packaging APK...');
-          apkUrl = await fileToDataUrl(apkFile, (pct, loaded, total) => {
-            setUploadPct(pct);
-            setUploadLoaded(loaded);
-            setUploadTotal(total);
-            setUploadProgress(`Packaging APK... ${pct}%`);
-          });
-        }
+        setUploadProgress('Packaging APK...');
+        apkUrl = await readFileAsDataUrl(apkFile, (pct, loaded, total) => {
+          setUploadPct(pct);
+          setUploadLoaded(loaded);
+          setUploadTotal(total);
+          setUploadProgress(`Packaging APK... ${pct}%`);
+        });
       }
 
       if (iconFile) {
-        if (iconFile.size <= 2 * 1024 * 1024) {
-          setUploadProgress('Encoding icon...');
-          setUploadPct(50);
-          try {
-            iconUrl = await fileToDataUrl(iconFile);
-          } catch {}
-        }
+        setUploadProgress('Processing icon...');
+        setUploadPct(0);
+        try {
+          iconUrl = await readFileAsDataUrl(iconFile, (pct) => {
+            setUploadPct(pct);
+            setUploadProgress(`Processing icon... ${pct}%`);
+          });
+        } catch {}
       }
 
       setUploadProgress('Saving app to custom backend...');
@@ -132,12 +129,11 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
 
       const finalWebUrl = appType === 'web' ? url.trim() : (includeWeb ? url.trim() : '');
       const finalApkUrl = appType === 'android' ? apkUrl : '';
-      const generatedUuid = `app-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const generatedUuid = crypto.randomUUID ? crypto.randomUUID() : `app-${Date.now()}`;
 
       const payload = {
         uuid: generatedUuid,
         title: title.trim(),
-        jamz: title.trim(),
         studio: 'SwipeDebt Studio',
         live_web_url: finalWebUrl,
         download_url: appType === 'android' ? finalApkUrl : finalWebUrl,
@@ -146,27 +142,21 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
         app_type: appType,
         package_name: appType === 'android' ? packageName.trim() : null,
         description: description.trim() || url.trim() || title.trim(),
-        tagline: description.trim() || url.trim() || title.trim(),
         category,
-        version: appType === 'android' ? versionName.trim() : '1.0.0',
         version_name: appType === 'android' ? versionName.trim() : '1.0.0',
         version_code: appType === 'android' ? parseInt(versionCode, 10) || 1 : 1,
         apk_url: finalApkUrl || null,
         icon_url: iconUrl || null,
         thumbnail_url: iconUrl || null,
-        size_mb: apkFile ? Number((apkFile.size / (1024 * 1024)).toFixed(1)) : 12,
         install_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
 
       const created = await backend.create('apps', payload);
-      const savedId = created?.id || created?.item?.id || generatedUuid;
+      const recordId = created?.record?.id || generatedUuid;
 
       const local = JSON.parse(localStorage.getItem('prism_user_uploaded_apps') || '[]');
       local.unshift({
-        id: savedId,
-        uuid: generatedUuid,
+        id: recordId,
         name: title.trim(),
         liveAppUrl: finalWebUrl,
         download_url: payload.download_url,
@@ -181,12 +171,12 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
 
       setSuccess(true);
       setTimeout(() => {
-        onAppPublished?.({ id: savedId, name: title.trim() });
+        onAppPublished?.({ id: recordId, name: title.trim() });
         onClose();
       }, 1200);
     } catch (e: any) {
-      console.error('Publish error:', e?.message || e);
-      alert(`Publish failed: ${e?.message || e}`);
+      console.log('Publish error:', e.message);
+      alert(`Publish failed: ${e.message}`);
     } finally {
       setLoading(false);
       setUploadProgress('');
@@ -201,9 +191,7 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
       <div className="bg-[#10111f] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden max-h-[92vh] flex flex-col">
         <div className="p-4 border-b border-white/10 flex justify-between items-center shrink-0">
           <h2 className="text-sm font-bold">Developer Portal</h2>
-          <button onClick={onClose} className="w-7 h-7 bg-white/10 rounded-full flex items-center justify-center">
-            <X className="w-4 h-4" />
-          </button>
+          <button onClick={onClose} className="w-7 h-7 bg-white/10 rounded-full flex items-center justify-center"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="p-2 flex gap-2 border-b border-white/5 shrink-0">
@@ -222,108 +210,41 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
               </div>
 
               <div className="flex gap-2">
-                <button
-                  onClick={() => setAppType('web')}
-                  className={`flex-1 h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border ${appType === 'web' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/70 border-white/10'}`}
-                >
+                <button onClick={() => setAppType('web')} className={`flex-1 h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border ${appType === 'web' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/70 border-white/10'}`}>
                   <Globe className="w-4 h-4" /> Web App Only
                 </button>
-                <button
-                  onClick={() => setAppType('android')}
-                  className={`flex-1 h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border ${appType === 'android' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/70 border-white/10'}`}
-                >
+                <button onClick={() => setAppType('android')} className={`flex-1 h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border ${appType === 'android' ? 'bg-white text-black border-white' : 'bg-white/5 text-white/70 border-white/10'}`}>
                   <Smartphone className="w-4 h-4" /> Android APK
                 </button>
               </div>
 
-              <input
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="App title e.g. Intent-App"
-                className="w-full h-11 px-4 bg-black/40 border border-white/10 rounded-full text-sm"
-              />
+              <input value={title} onChange={e => setTitle(e.target.value)} placeholder="App title e.g. Intent-App" className="w-full h-11 px-4 bg-black/40 border border-white/10 rounded-full text-sm" />
 
               {appType === 'web' && (
-                <input
-                  value={url}
-                  onChange={e => setUrl(e.target.value)}
-                  placeholder="https://your-app.vercel.app"
-                  className="w-full h-11 px-4 bg-black/40 border border-white/10 rounded-full text-sm"
-                />
+                <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://your-app.vercel.app" className="w-full h-11 px-4 bg-black/40 border border-white/10 rounded-full text-sm" />
               )}
 
               {appType === 'android' && (
                 <>
-                  <input
-                    value={packageName}
-                    onChange={e => setPackageName(e.target.value.toLowerCase().trim())}
-                    placeholder="Package name e.g. com.rentmaster.intent"
-                    className="w-full h-11 px-4 bg-black/40 border border-white/10 rounded-full text-sm font-mono"
-                  />
-                  <textarea
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    placeholder="What does your app do? e.g. Intentional dating - max 3 active chats"
-                    rows={2}
-                    className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-2xl text-sm resize-none"
-                  />
+                  <input value={packageName} onChange={e => setPackageName(e.target.value.toLowerCase().trim())} placeholder="Package name e.g. com.rentmaster.intent" className="w-full h-11 px-4 bg-black/40 border border-white/10 rounded-full text-sm font-mono" />
+                  <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="What does your app do? e.g. Intentional dating - max 3 active chats" rows={2} className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-2xl text-sm resize-none" />
                   <div className="flex gap-2">
-                    <select
-                      value={category}
-                      onChange={e => setCategory(e.target.value)}
-                      className="flex-1 h-11 px-3 bg-black/40 border border-white/10 rounded-full text-sm"
-                    >
+                    <select value={category} onChange={e => setCategory(e.target.value)} className="flex-1 h-11 px-3 bg-black/40 border border-white/10 rounded-full text-sm">
                       {CATEGORIES.map(c => <option key={c} value={c} className="bg-[#10111f]">{c}</option>)}
                     </select>
-                    <input
-                      value={versionName}
-                      onChange={e => setVersionName(e.target.value)}
-                      placeholder="1.0.0"
-                      className="w-24 h-11 px-3 bg-black/40 border border-white/10 rounded-full text-sm text-center"
-                    />
-                    <input
-                      value={versionCode}
-                      onChange={e => setVersionCode(e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="Code 1"
-                      className="w-20 h-11 px-3 bg-black/40 border border-white/10 rounded-full text-sm text-center"
-                    />
+                    <input value={versionName} onChange={e => setVersionName(e.target.value)} placeholder="1.0.0" className="w-24 h-11 px-3 bg-black/40 border border-white/10 rounded-full text-sm text-center" />
+                    <input value={versionCode} onChange={e => setVersionCode(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Code 1" className="w-20 h-11 px-3 bg-black/40 border border-white/10 rounded-full text-sm text-center" />
                   </div>
 
-                  <input
-                    ref={apkInputRef}
-                    type="file"
-                    accept=".apk"
-                    className="hidden"
-                    onChange={e => setApkFile(e.target.files?.[0] || null)}
-                  />
-                  <button
-                    onClick={() => apkInputRef.current?.click()}
-                    className="w-full h-14 border-2 border-dashed border-white/20 rounded-2xl flex items-center justify-center gap-2 text-sm bg-white/[0.03] hover:bg-white/[0.06]"
-                  >
+                  <input ref={apkInputRef} type="file" accept=".apk" className="hidden" onChange={e => setApkFile(e.target.files?.[0] || null)} />
+                  <button onClick={() => apkInputRef.current?.click()} className="w-full h-14 border-2 border-dashed border-white/20 rounded-2xl flex items-center justify-center gap-2 text-sm bg-white/[0.03] hover:bg-white/[0.06]">
                     <FileDown className="w-5 h-5 text-emerald-400" />
-                    {apkFile ? (
-                      <span className="font-bold text-emerald-400 truncate max-w-[280px]">
-                        {apkFile.name} — {(apkFile.size / 1024 / 1024).toFixed(1)} MB
-                      </span>
-                    ) : (
-                      <span className="text-white/60">Tap to select .apk file (up to 15 MB)</span>
-                    )}
+                    {apkFile ? <span className="font-bold text-emerald-400 truncate max-w-[280px]">{apkFile.name} — {(apkFile.size / 1024 / 1024).toFixed(1)} MB</span> : <span className="text-white/60">Tap to select .apk file (up to 15 MB)</span>}
                   </button>
 
-                  <div className="relative">
-                    <LinkIcon className="w-4 h-4 text-white/40 absolute left-4 top-1/2 -translate-y-1/2" />
-                    <input
-                      value={externalApkUrl}
-                      onChange={e => setExternalApkUrl(e.target.value)}
-                      placeholder="Or paste direct .apk URL (e.g. GitHub Release link)"
-                      className="w-full h-11 pl-10 pr-4 bg-black/40 border border-white/10 rounded-full text-xs"
-                    />
-                  </div>
+                  <input value={apkDirectUrl} onChange={e => setApkDirectUrl(e.target.value)} placeholder="Or paste direct .apk URL (e.g. GitHub Release .apk link)" className="w-full h-10 px-4 bg-black/40 border border-white/10 rounded-full text-xs" />
 
-                  <button
-                    onClick={() => setIncludeWeb(!includeWeb)}
-                    className={`w-full p-3 rounded-xl border flex items-start gap-2.5 text-left transition ${includeWeb ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-white/[0.03] border-white/10'}`}
-                  >
+                  <button onClick={() => setIncludeWeb(!includeWeb)} className={`w-full p-3 rounded-xl border flex items-start gap-2.5 text-left transition ${includeWeb ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-white/[0.03] border-white/10'}`}>
                     <span className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${includeWeb ? 'bg-emerald-400 border-emerald-400' : 'border-white/30'}`}>
                       {includeWeb && <Check className="w-3.5 h-3.5 text-black" />}
                     </span>
@@ -334,12 +255,7 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
                   </button>
 
                   {includeWeb && (
-                    <input
-                      value={url}
-                      onChange={e => setUrl(e.target.value)}
-                      placeholder="Web URL e.g. https://intent-app.vercel.app"
-                      className="w-full h-11 px-4 bg-black/40 border border-emerald-500/40 rounded-full text-sm"
-                    />
+                    <input value={url} onChange={e => setUrl(e.target.value)} placeholder="Web URL e.g. https://intent-app.vercel.app" className="w-full h-11 px-4 bg-black/40 border border-emerald-500/40 rounded-full text-sm" />
                   )}
                   {!includeWeb && (
                     <p className="text-[11px] text-white/40 text-center">APK only — users will only see Download APK, no Open button.</p>
@@ -349,29 +265,16 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
                     <div className="text-[10px] text-white/40 mb-2">Users will see:</div>
                     <div className="flex gap-2">
                       {includeWeb && (
-                        <div className="flex-1 h-9 bg-white text-black rounded-full text-[12px] font-bold flex items-center justify-center gap-1.5">
-                          <ExternalLink className="w-3.5 h-3.5" /> Open
-                        </div>
+                        <div className="flex-1 h-9 bg-white text-black rounded-full text-[12px] font-bold flex items-center justify-center gap-1.5"><ExternalLink className="w-3.5 h-3.5" /> Open</div>
                       )}
-                      <div className="flex-1 h-9 bg-violet-600 text-white rounded-full text-[12px] font-bold flex items-center justify-center gap-1.5">
-                        <Download className="w-3.5 h-3.5" /> Download APK
-                      </div>
+                      <div className="flex-1 h-9 bg-violet-600 text-white rounded-full text-[12px] font-bold flex items-center justify-center gap-1.5"><Download className="w-3.5 h-3.5" /> Download APK</div>
                     </div>
                   </div>
                 </>
               )}
 
-              <input
-                ref={iconInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={e => setIconFile(e.target.files?.[0] || null)}
-              />
-              <button
-                onClick={() => iconInputRef.current?.click()}
-                className="w-full h-10 border border-white/10 rounded-full text-xs text-white/60 flex items-center justify-center gap-2"
-              >
+              <input ref={iconInputRef} type="file" accept="image/*" className="hidden" onChange={e => setIconFile(e.target.files?.[0] || null)} />
+              <button onClick={() => iconInputRef.current?.click()} className="w-full h-10 border border-white/10 rounded-full text-xs text-white/60 flex items-center justify-center gap-2">
                 <Upload className="w-3 h-3" /> {iconFile ? `Icon: ${iconFile.name}` : 'App Icon (optional, 512x512 PNG)'}
               </button>
 
@@ -392,33 +295,15 @@ export function DevSubmitModal({ onClose, apps, initialTab = 'publish', onAppPub
                 </div>
               )}
 
-              <button
-                onClick={handlePublish}
-                disabled={loading}
-                className="w-full h-11 bg-white text-black rounded-full font-bold text-sm flex items-center justify-center disabled:opacity-50"
-              >
+              <button onClick={handlePublish} disabled={loading} className="w-full h-11 bg-white text-black rounded-full font-bold text-sm flex items-center justify-center disabled:opacity-50">
                 {loading ? 'Publishing...' : 'Submit for Review'}
               </button>
-              <p className="text-[10px] text-white/30 text-center flex items-center justify-center gap-1">
-                <Shield className="w-3 h-3" /> Manager reviews before it goes live in Discover
-              </p>
+              <p className="text-[10px] text-white/30 text-center flex items-center justify-center gap-1"><Shield className="w-3 h-3" /> Manager reviews before it goes live in Discover</p>
             </>
           )}
           {success && <div className="text-center py-8 text-emerald-400 font-bold">Submitted! Awaiting approval</div>}
-          {tab === 'owner-apps' && (
-            <div className="text-xs text-white/50">
-              You have {JSON.parse(localStorage.getItem('prism_user_uploaded_apps') || '[]').length} uploads tied to your private UID. Other users cannot see this list.
-            </div>
-          )}
-          {tab === 'guide' && (
-            <div className="text-xs text-white/60 space-y-2">
-              <p>1. Your UID is generated automatically, stored locally.</p>
-              <p>2. No one else sees it — masked as PRISM-••••-XXX</p>
-              <p>3. Your uploads are tied to your UID, only you can edit/delete them.</p>
-              <p>4. Manager needs secret, not UID.</p>
-              <p>5. <b>Web Only:</b> just a URL. <b>Android APK:</b> select an .apk file (up to 15 MB) or paste a direct GitHub Release .apk URL. Tick “Also include Web Version” to give users both Open + Download APK.</p>
-            </div>
-          )}
+          {tab === 'owner-apps' && <div className="text-xs text-white/50">You have {JSON.parse(localStorage.getItem('prism_user_uploaded_apps') || '[]').length} uploads tied to your private UID. Other users cannot see this list.</div>}
+          {tab === 'guide' && <div className="text-xs text-white/60 space-y-2"><p>1. Your UID is generated automatically, stored locally.</p><p>2. No one else sees it — masked as PRISM-••••-XXX</p><p>3. Your uploads are tied to your UID, only you can edit/delete them.</p><p>4. Manager needs secret, not UID.</p><p>5. <b>Web Only:</b> just a URL. <b>Android APK:</b> APK file or direct link required. Tick “Also include Web Version” to give users both Open + Download APK.</p></div>}
         </div>
       </div>
     </div>

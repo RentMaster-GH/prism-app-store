@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import React, { useEffect, useState } from 'react';
+import { backend } from '../lib/backend';
 
 export default function ManagerReports({ isManager }: { isManager: boolean }) {
   const [reports, setReports] = useState<any[]>(() => {
@@ -9,14 +9,17 @@ export default function ManagerReports({ isManager }: { isManager: boolean }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!supabase) return;
     (async () => {
       try {
         setLoading(true);
-        const { data } = await supabase.from('reports').select('*').order('created_at',{ascending:false}).limit(50);
-        if (Array.isArray(data) && data.length > 0) {
-          setReports(data);
-          localStorage.setItem('prism_reports', JSON.stringify(data));
+        const res = await backend.list('reports');
+        const rows = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        if (rows.length > 0) {
+          const sorted = [...rows]
+            .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+            .slice(0, 50);
+          setReports(sorted);
+          localStorage.setItem('prism_reports', JSON.stringify(sorted));
         }
       } catch {} finally { setLoading(false); }
     })();
@@ -34,7 +37,6 @@ export default function ManagerReports({ isManager }: { isManager: boolean }) {
         <h3 className="text-sm font-bold text-white">User Reports (Private)</h3>
         <div className="flex gap-2 items-center">
           <span className="text-[10px] text-white/40">{filtered.length} reports</span>
-          {/* FIX: Never disabled, styled as active */}
           <select 
             value={filter} 
             onChange={e=>setFilter(e.target.value as any)}
@@ -49,7 +51,7 @@ export default function ManagerReports({ isManager }: { isManager: boolean }) {
 
       {filtered.length === 0 ? (
         <div className="py-10 text-center bg-white/[0.02] border border-white/10 rounded-xl">
-          <p className="text-xs text-white/50">No reports yet</p>
+          <p className="text-xs text-white/50">{loading ? 'Loading reports...' : 'No reports yet'}</p>
         </div>
       ) : (
         <div className="space-y-2">

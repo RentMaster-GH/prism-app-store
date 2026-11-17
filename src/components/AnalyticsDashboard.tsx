@@ -1,120 +1,94 @@
 import React, { useEffect, useState } from 'react';
+import { BarChart3, Package, ShieldAlert, Flag, CheckCircle2, Clock } from 'lucide-react';
 import { backend } from '../lib/backend';
 
-export default function AnalyticsDashboard({ isManager }: { isManager: boolean }) {
+interface AnalyticsDashboardProps {
+  apps?: any[];
+}
+
+export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ apps: propApps }) => {
   const [stats, setStats] = useState({
-    total: 0,
-    deleted: 0,
-    featured: 0,
-    reports: 0,
-    banned: 0,
-    installs: 0
+    totalApps: 0,
+    approvedApps: 0,
+    pendingApps: 0,
+    totalInstalls: 0,
+    totalReports: 0,
+    bannedUsers: 0,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
+    let active = true;
+    async function loadStats() {
       try {
-        setLoading(true);
-        const [appsRes, bannedRes, reportsRes] = await Promise.allSettled([
-          backend.list('apps'),
-          backend.list('banned_users'),
-          backend.list('reports')
+        const [appsList, reportsList, bannedList] = await Promise.all([
+          propApps && propApps.length > 0 ? Promise.resolve(propApps) : backend.list('apps').catch(() => []),
+          backend.list('reports').catch(() => []),
+          backend.list('banned_users').catch(() => []),
         ]);
 
-        const rawApps = appsRes.status === 'fulfilled'
-          ? (Array.isArray(appsRes.value?.items) ? appsRes.value.items : Array.isArray(appsRes.value) ? appsRes.value : [])
-          : [];
-        const rawBanned = bannedRes.status === 'fulfilled'
-          ? (Array.isArray(bannedRes.value?.items) ? bannedRes.value.items : Array.isArray(bannedRes.value) ? bannedRes.value : [])
-          : [];
-        const rawReports = reportsRes.status === 'fulfilled'
-          ? (Array.isArray(reportsRes.value?.items) ? reportsRes.value.items : Array.isArray(reportsRes.value) ? reportsRes.value : [])
-          : [];
+        if (!active) return;
 
-        let total = 0;
-        let deleted = 0;
-        let featured = 0;
-        let installs = 0;
-
-        rawApps.forEach((item: any) => {
-          const r = item?.data || item || {};
-          if (r.status === 'deleted') {
-            deleted++;
-          } else {
-            total++;
-          }
-          if (r.is_featured) featured++;
-          installs += Number(r.install_count || r.downloads || 0);
-        });
-
-        const localDeleted = (() => {
-          try {
-            return JSON.parse(localStorage.getItem('prism_deleted_apps_log') || '[]').length;
-          } catch {
-            return 0;
-          }
-        })();
-
-        const localReports = (() => {
-          try {
-            return JSON.parse(localStorage.getItem('prism_reports') || '[]').length;
-          } catch {
-            return 0;
-          }
-        })();
+        const approved = appsList.filter((a: any) => a.status === 'approved').length;
+        const pending = appsList.filter((a: any) => a.status === 'pending').length;
+        const installs = appsList.reduce((sum: number, a: any) => sum + (Number(a.install_count || a.installs) || 0), 0);
 
         setStats({
-          total,
-          deleted: Math.max(deleted, localDeleted),
-          featured,
-          reports: Math.max(rawReports.length, localReports),
-          banned: rawBanned.length,
-          installs
+          totalApps: appsList.length,
+          approvedApps: approved,
+          pendingApps: pending,
+          totalInstalls: installs,
+          totalReports: reportsList.length,
+          bannedUsers: bannedList.length,
         });
-      } catch (e) {
-        console.warn('Analytics load warning:', e);
-        try {
-          const localDeleted = JSON.parse(localStorage.getItem('prism_deleted_apps_log') || '[]').length;
-          setStats(s => ({ ...s, deleted: localDeleted }));
-        } catch {}
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
+    }
+    loadStats();
+    return () => {
+      active = false;
     };
+  }, [propApps]);
 
-    load();
-    const t = setTimeout(() => setLoading(false), 3000);
-    return () => clearTimeout(t);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {['TOTAL', 'DELETED', 'FEATURED', 'REPORTS', 'BANNED', 'INSTALLS'].map(k => (
-          <div key={k} className="h-[76px] bg-white/[0.04] border border-white/10 rounded-xl animate-pulse flex items-center justify-center text-[10px] text-white/30">
-            {k}...
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  const Card = ({ label, value }: { label: string; value: number }) => (
-    <div className="p-4 bg-white border border-black/5 rounded-xl">
-      <div className="text-[10px] tracking-widest text-black/40 font-bold">{label}</div>
-      <div className="text-2xl font-black text-black mt-1">{value}</div>
-    </div>
-  );
+  const cards = [
+    { label: 'Total Apps', value: stats.totalApps, icon: Package, color: 'text-indigo-400' },
+    { label: 'Approved Live', value: stats.approvedApps, icon: CheckCircle2, color: 'text-emerald-400' },
+    { label: 'Pending Review', value: stats.pendingApps, icon: Clock, color: 'text-amber-400' },
+    { label: 'Total Installs', value: stats.totalInstalls.toLocaleString(), icon: BarChart3, color: 'text-sky-400' },
+    { label: 'User Reports', value: stats.totalReports, icon: Flag, color: 'text-rose-400' },
+    { label: 'Banned Passkeys', value: stats.bannedUsers, icon: ShieldAlert, color: 'text-red-400' },
+  ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      <Card label="TOTAL" value={stats.total} />
-      <Card label="DELETED" value={stats.deleted} />
-      <Card label="FEATURED" value={stats.featured} />
-      <Card label="REPORTS" value={stats.reports} />
-      <Card label="BANNED" value={stats.banned} />
-      <Card label="INSTALLS" value={stats.installs} />
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-indigo-400" />
+          Store Telemetry & Backend Metrics
+        </h3>
+        {loading && <span className="text-xs text-slate-400">Syncing...</span>}
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {cards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.label}
+              className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                <span>{card.label}</span>
+                <Icon className={`w-4 h-4 ${card.color}`} />
+              </div>
+              <div className="text-xl font-bold text-white">{card.value}</div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
-}
+};
+
+export default AnalyticsDashboard;

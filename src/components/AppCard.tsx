@@ -1,188 +1,253 @@
-import React from 'react';
-import { ExternalLink, Info, Pencil, Trash2, Star, Download, ShieldCheck } from 'lucide-react';
-import { getUniqueThumbnail } from '../utils/storeHelpers';
-
-export interface AppItem {
-  id: string;
-  title?: string;
-  name?: string;
-  description?: string;
-  category?: string;
-  developer?: string;
-  studio?: string;
-  version?: string;
-  size?: string;
-  live_web_url?: string;
-  liveAppUrl?: string;
-  websiteUrl?: string;
-  apk_url?: string;
-  thumbnail_url?: string;
-  icon_url?: string;
-  hero_image?: string;
-  status?: string;
-  featured?: boolean;
-  owner_uid?: string;
-  rating?: number;
-  review_count?: number;
-  install_count?: number;
-  created_at?: string;
-}
+import React, { useState } from 'react';
+import {
+  Download,
+  ExternalLink,
+  Star,
+  Pencil,
+  Trash2,
+  ShieldCheck,
+  Sparkles,
+  Info,
+} from 'lucide-react';
+import { backend } from '../lib/backend';
 
 interface AppCardProps {
-  app: AppItem;
-  currentUid?: string;
+  app: any;
+  onSelect?: (app: any) => void;
+  onLaunch?: (app: any) => void;
+  onEdit?: (app: any) => void;
+  onDelete?: (app: any) => void;
   isManager?: boolean;
-  onOpenApp?: (app: AppItem) => void;
-  onSelectDetails?: (app: AppItem) => void;
-  onEditApp?: (app: AppItem) => void;
-  onDeleteApp?: (app: AppItem) => void;
+  currentUid?: string;
+}
+
+function getFallbackGradient(title: string): string {
+  const palettes = [
+    'from-indigo-600 via-purple-600 to-pink-600',
+    'from-emerald-600 via-teal-600 to-cyan-600',
+    'from-amber-500 via-orange-600 to-rose-600',
+    'from-blue-600 via-indigo-600 to-violet-700',
+    'from-fuchsia-600 via-pink-600 to-rose-500',
+    'from-cyan-600 via-sky-600 to-blue-700',
+  ];
+  let hash = 0;
+  for (let i = 0; i < title.length; i++) {
+    hash = title.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return palettes[Math.abs(hash) % palettes.length];
 }
 
 export const AppCard: React.FC<AppCardProps> = ({
   app,
-  currentUid,
+  onSelect,
+  onLaunch,
+  onEdit,
+  onDelete,
   isManager = false,
-  onOpenApp,
-  onSelectDetails,
-  onEditApp,
-  onDeleteApp,
+  currentUid = '',
 }) => {
-  const displayTitle = app.title || app.name || 'Untitled App';
-  const displayDeveloper = app.studio || app.developer || 'Community Developer';
-  const displayCategory = app.category || 'Other';
-  const isOwner = Boolean(currentUid && app.owner_uid && currentUid === app.owner_uid);
-  const canEdit = isManager || isOwner;
-  const canDelete = isManager || isOwner;
+  const [deleting, setDeleting] = useState(false);
 
-  const thumbnail = getUniqueThumbnail(app);
-  const ratingValue = typeof app.rating === 'number' && app.rating > 0 ? app.rating.toFixed(1) : '5.0';
-  const reviewCount = app.review_count || 0;
-  const installCount = app.install_count || 0;
+  const title = app.title || app.name || 'Untitled App';
+  const developer = app.developer || app.studio || app.author || 'Independent Developer';
+  const category = app.category || 'Other';
+  const description =
+    app.description ||
+    app.summary ||
+    app.tagline ||
+    'Verified application hosted on Prism Store.';
+  const coverImage =
+    app.hero_image ||
+    app.thumbnail_url ||
+    app.icon_url ||
+    app.image ||
+    '';
+
+  const liveUrl = app.live_web_url || app.liveAppUrl || app.websiteUrl || app.url || '';
+  const apkUrl = app.apk_url || app.apkUrl || app.downloadUrl || '';
+  const rating = Number(app.rating || app.average_rating || 5.0).toFixed(1);
+  const reviewCount = Number(app.review_count || app.reviewsCount || 0);
+  const installs = Number(app.install_count || app.installs || 0);
+  const isOwner = Boolean(currentUid && app.owner_uid && app.owner_uid === currentUid);
+  const canManage = isManager || isOwner;
+
+  const initials = title
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w: string) => w[0]?.toUpperCase() || '')
+    .join('') || 'AP';
+
+  const handleDeleteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (deleting) return;
+    const confirmed = window.confirm(`Delete "${title}" from Prism Store?`);
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      if (onDelete) {
+        await onDelete(app);
+      } else if (app.id) {
+        await backend.remove('apps', app.id);
+        window.dispatchEvent(new CustomEvent('prism:refresh-apps'));
+        window.location.reload();
+      }
+    } catch (err: any) {
+      alert(`Could not delete app: ${err?.message || 'Unknown error'}`);
+      setDeleting(false);
+    }
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(app);
+    }
+  };
+
+  const handleOpenClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onLaunch) {
+      onLaunch(app);
+    } else if (liveUrl) {
+      window.open(liveUrl, '_blank', 'noopener,noreferrer');
+    } else if (apkUrl) {
+      window.open(apkUrl, '_blank', 'noopener,noreferrer');
+    } else if (onSelect) {
+      onSelect(app);
+    }
+  };
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-800/90 bg-slate-900/90 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-500/50 hover:shadow-indigo-950/30">
-      {/* Clickable Thumbnail Banner */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => onSelectDetails?.(app)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelectDetails?.(app);
-          }
-        }}
-        className="relative h-40 w-full cursor-pointer overflow-hidden bg-slate-950"
-        title={`View details for ${displayTitle}`}
-      >
-        <img
-          src={thumbnail}
-          alt={displayTitle}
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/30" />
+    <div
+      onClick={() => onSelect && onSelect(app)}
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/90 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-500/60 hover:shadow-indigo-950/30 cursor-pointer"
+    >
+      {/* Clickable Cover Banner */}
+      <div className="relative h-40 w-full overflow-hidden bg-slate-950">
+        {coverImage ? (
+          <img
+            src={coverImage}
+            alt={title}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div
+            className={`flex h-full w-full flex-col items-center justify-center bg-gradient-to-br ${getFallbackGradient(
+              title
+            )} p-4 text-white`}
+          >
+            <span className="text-3xl font-extrabold tracking-wider drop-shadow">
+              {initials}
+            </span>
+            <span className="mt-1 rounded-full bg-black/25 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest">
+              {category}
+            </span>
+          </div>
+        )}
 
-        {/* Status Pill */}
+        {/* Top-Left Status & Featured Badges */}
         <div className="absolute left-3 top-3 flex items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-300 backdrop-blur-md border border-emerald-500/30">
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2.5 py-0.5 text-[11px] font-semibold text-slate-950 shadow">
             <ShieldCheck className="h-3 w-3" />
             {app.status === 'pending' ? 'Pending' : 'Approved'}
           </span>
+          {app.featured && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/95 px-2 py-0.5 text-[11px] font-semibold text-slate-950 shadow">
+              <Sparkles className="h-3 w-3" />
+              Featured
+            </span>
+          )}
         </div>
 
-        {/* Rating & Installs Pill */}
-        <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-slate-950/75 px-2.5 py-0.5 text-xs font-medium text-amber-300 backdrop-blur-md border border-slate-800">
-          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-          <span>{ratingValue}</span>
+        {/* Top-Right Rating Pill */}
+        <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-slate-950/85 px-2.5 py-1 text-xs font-semibold text-amber-400 backdrop-blur-sm">
+          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+          <span>{rating}</span>
           <span className="text-slate-400">({reviewCount})</span>
         </div>
-
-        {/* Edit & Delete Floating Controls on Thumbnail Top-Right Hover or Action Bar */}
-        {(canEdit || canDelete) && (
-          <div
-            className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {canEdit && onEditApp && (
-              <button
-                type="button"
-                onClick={() => onEditApp(app)}
-                title={isOwner ? 'Edit (you own this)' : 'Edit app listing'}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700/80 bg-slate-900/90 text-slate-200 shadow-md backdrop-blur-md transition hover:border-indigo-400 hover:bg-indigo-600 hover:text-white"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-            )}
-            {canDelete && onDeleteApp && (
-              <button
-                type="button"
-                onClick={() => onDeleteApp(app)}
-                title={isManager ? 'Delete app (Manager)' : 'Delete your app'}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-500/40 bg-rose-950/90 text-rose-300 shadow-md backdrop-blur-md transition hover:border-rose-400 hover:bg-rose-600 hover:text-white"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Card Body */}
-      <div className="flex flex-1 flex-col justify-between p-4">
-        <div>
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="line-clamp-1 text-base font-bold text-white">{displayTitle}</h3>
-            <span className="shrink-0 rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-300">
-              {displayCategory}
-            </span>
+      <div className="flex flex-1 flex-col p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-bold text-white group-hover:text-indigo-300">
+              {title}
+            </h3>
+            <p className="truncate text-xs text-slate-400">{developer}</p>
           </div>
-
-          <p className="mt-1 line-clamp-2 text-xs text-slate-400">
-            {app.description || 'No description provided.'}
-          </p>
-
-          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
-            <span className="truncate">{displayDeveloper}</span>
-            <span className="inline-flex items-center gap-1 text-slate-400">
-              <Download className="h-3 w-3" />
-              {installCount}
-            </span>
-          </div>
+          <span className="shrink-0 rounded-lg border border-slate-700/80 bg-slate-800/80 px-2 py-0.5 text-[11px] font-medium text-slate-300">
+            {category}
+          </span>
         </div>
 
-        {/* Action Buttons Row */}
-        <div className="mt-4 flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onOpenApp?.(app)}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-slate-200"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Open
-            </button>
+        <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed text-slate-300">
+          {description}
+        </p>
 
-            {canDelete && onDeleteApp && (
-              <button
-                type="button"
-                onClick={() => onDeleteApp(app)}
-                title={isManager ? 'Delete listing (Store Manager)' : 'Remove your listing'}
-                className="flex items-center justify-center rounded-xl border border-rose-500/40 bg-rose-500/10 px-2.5 py-2 text-rose-400 transition hover:bg-rose-600 hover:text-white"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+        {/* Action Row: Open + Details + Manager/Owner Edit & Trash Delete Buttons */}
+        <div className="mt-auto pt-4 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleOpenClick}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-950 transition hover:bg-indigo-100"
+          >
+            {liveUrl ? (
+              <>
+                <ExternalLink className="h-3.5 w-3.5" />
+                Open
+              </>
+            ) : (
+              <>
+                <Download className="h-3.5 w-3.5" />
+                Install
+              </>
             )}
-          </div>
+          </button>
 
           <button
             type="button"
-            onClick={() => onSelectDetails?.(app)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-slate-700 hover:bg-slate-800/70 hover:text-white"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect && onSelect(app);
+            }}
+            title="App Details"
+            className="inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-800/90 px-2.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-700"
           >
             <Info className="h-3.5 w-3.5" />
-            Details
           </button>
+
+          {canManage && onEdit && (
+            <button
+              type="button"
+              onClick={handleEditClick}
+              title="Edit App"
+              className="inline-flex items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-2 text-emerald-300 transition hover:bg-emerald-500/25"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+
+          {canManage && (
+            <button
+              type="button"
+              onClick={handleDeleteClick}
+              disabled={deleting}
+              title="Delete App"
+              aria-label="Delete App"
+              className="inline-flex items-center justify-center rounded-xl border border-rose-500/40 bg-rose-500/15 px-2.5 py-2 text-rose-400 transition hover:bg-rose-500/30 hover:text-rose-200 disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Footer Metadata */}
+        <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-2 text-[11px] text-slate-400">
+          <span>{installs.toLocaleString()} installs</span>
+          {liveUrl && <span className="truncate max-w-[160px] text-slate-500">{liveUrl.replace(/^https?:\/\//, '')}</span>}
         </div>
       </div>
     </div>

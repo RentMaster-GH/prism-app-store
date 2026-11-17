@@ -8,6 +8,7 @@ export class CustomBackendClient {
   private appId: string;
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
+  private sessionPromise: Promise<void> | null = null;
 
   constructor(baseUrl: string, appId: string) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
@@ -19,20 +20,16 @@ export class CustomBackendClient {
     }
   }
 
-  private saveTokens(accessToken: string, refreshToken?: string) {
-    this.accessToken = accessToken;
-    if (refreshToken) {
-      this.refreshToken = refreshToken;
-    }
+  private setTokens(tokens: AuthTokens) {
+    this.accessToken = tokens.accessToken;
+    this.refreshToken = tokens.refreshToken;
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`${this.appId}_access_token`, accessToken);
-      if (refreshToken) {
-        localStorage.setItem(`${this.appId}_refresh_token`, refreshToken);
-      }
+      localStorage.setItem(`${this.appId}_access_token`, tokens.accessToken);
+      localStorage.setItem(`${this.appId}_refresh_token`, tokens.refreshToken);
     }
   }
 
-  clearTokens() {
+  public clearTokens() {
     this.accessToken = null;
     this.refreshToken = null;
     if (typeof window !== 'undefined') {
@@ -41,233 +38,251 @@ export class CustomBackendClient {
     }
   }
 
-  private getDeviceCredentials() {
+  private flattenRecord(raw: any): any {
+    if (!raw || typeof raw !== 'object') return raw;
+    if (raw.data && typeof raw.data === 'object' && !Array.isArray(raw.data)) {
+      const { data, ...meta } = raw;
+      return {
+        ...data,
+        ...meta,
+      };
+    }
+    return raw;
+  }
+
+  private getOrCreateDeviceCredentials(): { email: string; password: string } {
     if (typeof window === 'undefined') {
-      return { email: 'server@prism.local', password: 'PrismServerDevice2026!' };
+      return { email: `device_${this.appId}@prism.local`, password: `PrismDevice!${this.appId}_2026` };
     }
 
-    let email = localStorage.getItem(`${this.appId}_device_email`);
-    let password = localStorage.getItem(`${this.appId}_device_password`);
+    const emailKey = `${this.appId}_device_email`;
+    const passKey = `${this.appId}_device_password`;
+
+    let email = localStorage.getItem(emailKey);
+    let password = localStorage.getItem(passKey);
 
     if (!email || !password) {
-      const uid =
+      const rawUid =
         localStorage.getItem('prism_user_uid') ||
-        `dev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-      localStorage.setItem('prism_user_uid', uid);
-      const cleanUid = uid.toLowerCase().replace(/[^a-z0-9]/g, '');
-      email = `device_${cleanUid}@${this.appId}.local`;
-      password = `PrismDevice_${cleanUid}_2026!`;
-      localStorage.setItem(`${this.appId}_device_email`, email);
-      localStorage.setItem(`${this.appId}_device_password`, password);
+        `dev_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const safeUid = rawUid.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+      email = `${safeUid}@device.${this.appId}.local`;
+      password = `PrismAuth!${safeUid}_2026#Key`;
+      localStorage.setItem(emailKey, email);
+      localStorage.setItem(passKey, password);
     }
 
     return { email, password };
   }
 
-  private async ensureDeviceSession(): Promise<boolean> {
-    if (this.accessToken) return true;
+  private async ensureDeviceSession(): Promise<void> {
+    if (this.accessToken) return;
+    if (this.sessionPromise) return this.sessionPromise;
 
-    const { email, password } = this.getDeviceCredentials();
+    this.sessionPromise = (async () => {
+      try {
+        const { email, password } = this.getOrCreateDeviceCredentials();
 
-    try {
-      const loginRes = await fetch(`${this.baseUrl}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ app_id: this.appId, email, password }),
-      });
+        const loginRes = await fetch(`${this.baseUrl}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ app_id: this.appId, email, password }),
+        });
 
-      if (loginRes.ok) {
-        const data = await loginRes.json();
-        const token = data?.accessToken || data?.token || data?.access_token;
-        if (token) {
-          this.saveTokens(token, data?.refreshToken || data?.refresh_token);
-          return true;
+        if (loginRes.ok) {
+          const data = await loginRes.json();
+          if (data?.accessToken) {
+            this.setTokens({
+              accessToken: data.accessToken,
+              refreshToken: data.refreshToken || '',
+            });
+            return;
+          }
         }
-      }
 
-      const regRes = await fetch(`${this.baseUrl}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          app_id: this.appId,
-          email,
-          password,
-          role: 'admin',
-        }),
-      });
+        const regRes = await fetch(`${this.baseUrl}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            app_id: this.appId,
+            email,
+            password,
+            role: 'admin',
+            custom_claims: { source: 'prism-device-session' },
+          }),
+        });
 
-      if (regRes.ok) {
-        const regData = await regRes.json();
-        const token = regData?.accessToken || regData?.token || regData?.access_token;
-        if (token) {
-          this.saveTokens(token, regData?.refreshToken || regData?.refresh_token);
-          return true;
+        if (regRes.ok) {
+          const regData = await regRes.json();
+          if (regData?.accessToken) {
+            this.setTokens({
+              accessToken: regData.accessToken,
+              refreshToken: regData.refreshToken || '',
+            });
+            return;
+          }
+
+          const secondLoginRes = await fetch(`${this.baseUrl}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ app_id: this.appId, email, password }),
+          });
+
+          if (secondLoginRes.ok) {
+            const secondData = await secondLoginRes.json();
+            if (secondData?.accessToken) {
+              this.setTokens({
+                accessToken: secondData.accessToken,
+                refreshToken: secondData.refreshToken || '',
+              });
+            }
+          }
         }
+      } finally {
+        this.sessionPromise = null;
       }
+    })();
 
-      if (regRes.status === 409) {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem(`${this.appId}_device_email`);
-          localStorage.removeItem(`${this.appId}_device_password`);
-        }
-        return await this.ensureDeviceSession();
-      }
-    } catch (err) {
-      console.error('Device session error:', err);
-    }
-
-    return false;
+    return this.sessionPromise;
   }
 
-  private async refreshAccessToken(): Promise<boolean> {
-    if (!this.refreshToken) return false;
-    try {
-      const res = await fetch(`${this.baseUrl}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: this.refreshToken }),
-      });
-      if (!res.ok) return false;
-      const data = await res.json();
-      const token = data?.accessToken || data?.token || data?.access_token;
-      if (token) {
-        this.saveTokens(token, data?.refreshToken || data?.refresh_token);
-        return true;
-      }
-    } catch {
-      return false;
-    }
-    return false;
-  }
-
-  private async request(path: string, options: RequestInit = {}, retry = true): Promise<any> {
-    if (!this.accessToken) {
-      await this.ensureDeviceSession();
-    }
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string>),
-    };
-
-    if (this.accessToken) {
-      headers['Authorization'] = `Bearer ${this.accessToken}`;
-    }
-
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      ...options,
-      headers,
+  async register(email: string, password: string, customClaims: Record<string, any> = {}) {
+    const res = await fetch(`${this.baseUrl}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        app_id: this.appId,
+        email,
+        password,
+        custom_claims: customClaims,
+      }),
     });
 
-    if (res.status === 401 && retry) {
-      const refreshed = await this.refreshAccessToken();
-      if (!refreshed) {
-        this.clearTokens();
-        await this.ensureDeviceSession();
-      }
-      return this.request(path, options, false);
-    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
 
-    const text = await res.text();
-    let data: any = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = text;
-    }
-
-    if (!res.ok) {
-      const errMsg = data?.error || data?.message || `Request failed with status ${res.status}`;
-      throw new Error(errMsg);
-    }
-
-    return data;
-  }
-
-  async register(email: string, password: string, custom_claims: Record<string, any> = {}) {
-    const data = await this.request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ app_id: this.appId, email, password, custom_claims }),
-    }, false);
-    const token = data?.accessToken || data?.token || data?.access_token;
-    if (token) {
-      this.saveTokens(token, data?.refreshToken || data?.refresh_token);
+    if (data?.accessToken) {
+      this.setTokens({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken || '',
+      });
     }
     return data;
   }
 
   async login(email: string, password: string) {
-    const data = await this.request('/auth/login', {
+    const res = await fetch(`${this.baseUrl}/auth/login`, {
       method: 'POST',
-      body: JSON.stringify({ app_id: this.appId, email, password }),
-    }, false);
-    const token = data?.accessToken || data?.token || data?.access_token;
-    if (token) {
-      this.saveTokens(token, data?.refreshToken || data?.refresh_token);
-    }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        app_id: this.appId,
+        email,
+        password,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+
+    this.setTokens({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken || '',
+    });
     return data;
   }
 
   async logout() {
     if (this.refreshToken) {
-      try {
-        await fetch(`${this.baseUrl}/auth/logout`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken: this.refreshToken }),
-        });
-      } catch {
-        // ignore network errors on logout
-      }
+      await fetch(`${this.baseUrl}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: this.refreshToken }),
+      }).catch(() => {});
     }
     this.clearTokens();
   }
 
-  async me() {
-    return this.request('/me', { method: 'GET' });
+  private async refreshAccessToken(): Promise<boolean> {
+    if (!this.refreshToken) return false;
+
+    const res = await fetch(`${this.baseUrl}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: this.refreshToken }),
+    });
+
+    if (!res.ok) {
+      this.clearTokens();
+      return false;
+    }
+
+    const tokens: AuthTokens = await res.json();
+    this.setTokens(tokens);
+    return true;
   }
 
-  async list(collection: string) {
-    const res = await this.request(`/data/${collection}`, { method: 'GET' });
-    const rows = Array.isArray(res) ? res : res?.records || res?.data || [];
-    return rows.map((row: any) => ({
-      ...(row.data || {}),
-      id: row.id,
-      owner_id: row.owner_id,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    }));
+  async request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    await this.ensureDeviceSession();
+
+    const makeRequest = async () => {
+      const headers = new Headers(options.headers || {});
+      if (!headers.has('Content-Type') && options.body) {
+        headers.set('Content-Type', 'application/json');
+      }
+      if (this.accessToken) {
+        headers.set('Authorization', `Bearer ${this.accessToken}`);
+      }
+
+      return fetch(`${this.baseUrl}${endpoint}`, {
+        ...options,
+        headers,
+      });
+    };
+
+    let res = await makeRequest();
+
+    if (res.status === 401) {
+      const refreshed = await this.refreshAccessToken();
+      if (!refreshed) {
+        this.clearTokens();
+        await this.ensureDeviceSession();
+      }
+      if (this.accessToken) {
+        res = await makeRequest();
+      }
+    }
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Request failed with status ${res.status}`);
+    }
+
+    return data as T;
   }
 
-  async create(collection: string, payload: Record<string, any>) {
-    const row = await this.request(`/data/${collection}`, {
+  async list<T = any>(collection: string): Promise<T[]> {
+    const res = await this.request<{ records?: any[] } | any[]>(`/data/${collection}`);
+    const items = Array.isArray(res) ? res : res?.records || [];
+    return items.map((item) => this.flattenRecord(item)) as T[];
+  }
+
+  async create<T = any>(collection: string, payload: Record<string, any>): Promise<T> {
+    const res = await this.request<any>(`/data/${collection}`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return {
-      ...(row?.data || payload),
-      id: row?.id,
-      owner_id: row?.owner_id,
-      created_at: row?.created_at,
-      updated_at: row?.updated_at,
-    };
+    return this.flattenRecord(res) as T;
   }
 
-  async update(collection: string, id: string, updates: Record<string, any>) {
-    const row = await this.request(`/data/${collection}/${id}`, {
+  async update<T = any>(collection: string, id: string, updates: Record<string, any>): Promise<T> {
+    const res = await this.request<any>(`/data/${collection}/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
     });
-    return {
-      ...(row?.data || updates),
-      id: row?.id || id,
-      owner_id: row?.owner_id,
-      created_at: row?.created_at,
-      updated_at: row?.updated_at,
-    };
+    return this.flattenRecord(res) as T;
   }
 
-  async remove(collection: string, id: string) {
+  async remove(collection: string, id: string): Promise<{ deleted: boolean; id: string }> {
     return this.request(`/data/${collection}/${id}`, {
       method: 'DELETE',
     });

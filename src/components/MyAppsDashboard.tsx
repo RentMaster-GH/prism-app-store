@@ -1,7 +1,7 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { X, Edit3, Trash2, Eye, ExternalLink, CheckCircle, Clock } from 'lucide-react';
 import { AppItem } from '../types';
-import { supabase } from '../lib/supabase';
+import { backend } from '../lib/backend';
 
 interface Props {
   isOpen: boolean;
@@ -25,10 +25,9 @@ export function MyAppsDashboard({ isOpen, onClose, apps, userUID, isManager, onE
   const handleDelete = async (app: AppItem) => {
     if (!confirm(`Delete "${app.name}"? This will move it to deleted status. You can restore from Manager Console.`)) return;
     try {
-      if (supabase) {
-        await supabase.from('apps').update({ status: 'deleted' } as any).eq('uuid', app.id);
-      }
-      // Also save to trash log for restore
+      const targetId = (app as any).raw?.id || app.id;
+      await backend.update('apps', targetId, { status: 'deleted' });
+
       const logRaw = localStorage.getItem('prism_deleted_apps_log');
       const log = logRaw ? JSON.parse(logRaw) : [];
       log.unshift({

@@ -23,6 +23,7 @@ export const MySubmissionsView = ({ userUID }: { userUID: string }) => {
         .filter((a: any) => a.owner_uid === uid && a.status !== 'deleted')
         .sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at)));
       setApps(owned);
+      window.dispatchEvent(new CustomEvent("prism-uploads-count", { detail: owned.length }));
     } catch (e) {
       console.warn('Failed to load user submissions:', e);
     } finally {

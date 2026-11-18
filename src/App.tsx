@@ -430,7 +430,7 @@ export function App() {
                   : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
               }`}
             >
-              My Uploads ({apps.filter((a: any) => { const uid = localStorage.getItem("prism_imported_uid") || developerUid; const owner = a.owner_uid || a.data?.owner_uid || a.raw?.owner_uid || a.ownerId; const st = a.status || a.data?.status || a.raw?.status; return owner === uid && st !== "deleted"; }).length})
+              My Uploads.length})
             </button>
           </div>
 

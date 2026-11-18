@@ -781,6 +781,7 @@ export function App() {
       {/* Edit App Modal */}
       {editingApp && (
         <EditAppModal
+          isOpen={true}
           app={editingApp}
           onClose={() => setEditingApp(null)}
           onSuccess={() => {

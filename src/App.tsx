@@ -430,7 +430,7 @@ export function App() {
                   : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
               }`}
             >
-              My Uploads ({apps.filter((a: any) => (a.owner_uid === developerUid || a.owner_id === developerUid) && a.status !== "deleted").length})
+              My Uploads ({apps.filter((a: any) => String(a.owner_uid || a.data?.owner_uid || "").trim().toLowerCase() === String(developerUid || "").trim().toLowerCase() && a.status !== "deleted").length})
             </button>
           </div>
 

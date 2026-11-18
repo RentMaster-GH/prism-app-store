@@ -795,7 +795,7 @@ export function App() {
           isStoreManager={isManager}
           developerUid={developerUid}
           onClose={() => setShowDevModal(false)}
-          onSuccess={() => {
+          onSaved={() => {
             setShowDevModal(false);
             fetchApps();
           }}
@@ -808,7 +808,7 @@ export function App() {
           isOpen={true}
           app={editingApp}
           onClose={() => setEditingApp(null)}
-          onSuccess={() => {
+          onSaved={() => {
             setEditingApp(null);
             fetchApps();
           }}

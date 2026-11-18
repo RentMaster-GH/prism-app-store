@@ -139,7 +139,7 @@ export function EditAppModal({ app, isOpen, onClose, onSaved }: Props) {
         }
       } catch {}
 
-      onSaved();
+      onSaved?.();
       onClose();
     } catch (e: any) {
       alert('Save failed: ' + (e.message || e));

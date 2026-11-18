@@ -145,7 +145,7 @@ export function DevSubmitModal({ onClose, initialTab = 'publish', onAppPublished
 
     try {
       let apkUrl = apkExternalUrl.trim();
-      let finalThumbnailUrl = thumbnailPreview || thumbnailUrlInput.trim();
+      let finalThumbnailUrl = thumbnailUrlInput.trim();
 
       if (appType === 'android' && apkFile) {
         setUploadProgress('Packaging APK...');
@@ -153,10 +153,10 @@ export function DevSubmitModal({ onClose, initialTab = 'publish', onAppPublished
         apkUrl = await fileToDataUrl(apkFile);
       }
 
-      if (iconFile && !finalThumbnailUrl) {
+      if (iconFile) {
         setUploadProgress('Optimizing thumbnail...');
         setUploadPct(70);
-        finalThumbnailUrl = await compressImageToDataUrl(iconFile, 800, 0.82);
+        finalThumbnailUrl = await compressImageToDataUrl(iconFile, 480, 0.72);
       }
 
       setUploadProgress('Saving app to store...');

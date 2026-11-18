@@ -430,7 +430,7 @@ export function App() {
                   : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
               }`}
             >
-              My Uploads.length})
+              My Uploads
             </button>
           </div>
 

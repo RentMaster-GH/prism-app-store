@@ -67,7 +67,8 @@ export function EditAppModal({ app, isOpen, onClose, onSaved }: Props) {
 
   const currentUID = localStorage.getItem('prism_user_uid') || localStorage.getItem('prism_uid') || '';
   const owner = app.ownerId || app.owner_uid || app.owner_id || app.raw?.owner_uid || '';
-  const isOwner = owner === currentUID;
+  const managerBypass = typeof window !== 'undefined' && localStorage.getItem('prism_is_manager') === 'true';
+  const isOwner = managerBypass || owner === currentUID;
 
   const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

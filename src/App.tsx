@@ -125,9 +125,27 @@ export interface StoreApp {
   created_at?: string;
 }
 
+const CATALOG_CACHE_KEY = 'prism_cached_apps_v1';
+
 export function App() {
-  const [apps, setApps] = useState<StoreApp[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [apps, setApps] = useState<StoreApp[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const cached = localStorage.getItem(CATALOG_CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const cached = localStorage.getItem(CATALOG_CACHE_KEY);
+      return !(cached && JSON.parse(cached).length > 0);
+    } catch {
+      return true;
+    }
+  });
   const [activeTab, setActiveTab] = useState<'all' | 'featured' | 'mine'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -161,7 +179,7 @@ export function App() {
   }, []);
 
   const fetchApps = async () => {
-    setLoading(true);
+    if (apps.length === 0) setLoading(true);
     try {
       const records = await backend.list('apps');
       const mapped: StoreApp[] = (records || []).map((item: any) => {
@@ -197,9 +215,12 @@ export function App() {
         };
       });
       setApps(mapped);
+      try {
+        localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(mapped));
+      } catch {}
     } catch (err) {
       console.error('Failed to load apps:', err);
-      setApps([]);
+      if (apps.length === 0) setApps([]);
     } finally {
       setLoading(false);
     }

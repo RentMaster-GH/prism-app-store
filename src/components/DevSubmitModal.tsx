@@ -139,7 +139,6 @@ export function DevSubmitModal({ onClose, initialTab = 'publish', onAppPublished
         }
       } catch {}
     }
-
     setLoading(true);
     setUploadProgress('');
     setUploadPct(15);

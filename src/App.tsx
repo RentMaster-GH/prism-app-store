@@ -155,6 +155,7 @@ export function App() {
     setDeveloperUidState(uid);
     if (typeof window !== 'undefined' && sessionStorage.getItem('prism_manager_unlocked') === 'true') {
       setIsManager(true);
+      localStorage.setItem('prism_is_manager', 'true');
     }
     fetchApps();
   }, []);
@@ -236,6 +237,7 @@ export function App() {
 
   const handleManagerLock = () => {
     setIsManager(false);
+    localStorage.removeItem('prism_is_manager');
     setShowManagerConsole(false);
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('prism_manager_unlocked');
@@ -769,6 +771,7 @@ export function App() {
       {/* Developer Submit Modal */}
       {showDevModal && (
         <DevSubmitModal
+          isStoreManager={isManager}
           developerUid={developerUid}
           onClose={() => setShowDevModal(false)}
           onSuccess={() => {

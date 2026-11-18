@@ -125,19 +125,18 @@ export function DevSubmitModal({ onClose, initialTab = 'publish', onAppPublished
       if (includeWeb && url.trim() && !url.trim().startsWith('http')) return alert('Web URL must start with https://');
     }
 
-    const localApps = JSON.parse(localStorage.getItem('prism_user_uploaded_apps') || '[]');
-    const MAX_APPS = isStoreManager ? 9999 : 5;
-    if (localApps.length >= MAX_APPS) {
-      return alert(`Limit reached: You can only publish ${MAX_APPS} apps. Contact store manager.`);
-    }
-
-    if (!isStoreManager) {
+    const managerActive = Boolean(isStoreManager) || localStorage.getItem('prism_is_manager') === 'true';
+    if (!managerActive) {
       try {
+        const activeUid = localStorage.getItem('prism_imported_uid') || userUID;
         const existingRecords = await backend.list<any>('apps');
-        const ownedCount = existingRecords.filter(
-          (r) => r.data?.owner_uid === userUID && r.data?.status !== 'deleted'
-        ).length;
-        if (ownedCount >= MAX_APPS) return alert(`Limit reached: ${MAX_APPS} apps max`);
+        const ownedCount = existingRecords.filter((r) => {
+          const item = r?.data || r || {};
+          return item.owner_uid === activeUid && item.status !== 'deleted';
+        }).length;
+        if (ownedCount >= 5) {
+          return alert('Limit reached: You can list up to 5 active apps. Delete one or more existing apps in My Uploads to free up space for a new app.');
+        }
       } catch {}
     }
 

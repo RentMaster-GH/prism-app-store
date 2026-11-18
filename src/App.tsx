@@ -430,7 +430,7 @@ export function App() {
                   : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
               }`}
             >
-              My Uploads ({myApps.length})
+              My Uploads ({apps.filter((a: any) => a.developer_uid === developerUid && a.status !== "deleted").length || myApps.length})
             </button>
           </div>
 
@@ -704,7 +704,7 @@ export function App() {
                             {app.featured ? 'Featured' : 'Feature'}
                           </button>
                           <button
-                            onClick={() => setEditingApp(app)}
+                            onClick={(e) => { e.stopPropagation(); setEditingApp(app); }}
                             className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200"
                           >
                             Edit

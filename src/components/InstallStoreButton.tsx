@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Download, X, Share, PlusSquare, Monitor } from 'lucide-react';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://credibleartisans.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://api.credibleartisans.com';
 
 export function InstallStoreButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);

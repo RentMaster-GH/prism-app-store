@@ -7,10 +7,10 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://credibleartisan
 // Update these URLs once you host your packaged .apk and desktop installers (e.g., GitHub Releases or self-hosted storage)
 const APK_DOWNLOAD_URL =
   import.meta.env.VITE_STORE_APK_URL ||
-  'https://github.com';
+  `${BACKEND_URL}/api/store/releases/prism-store.apk`;
 const DESKTOP_DOWNLOAD_URL =
   import.meta.env.VITE_STORE_DESKTOP_URL ||
-  'https://github.com';
+  `${BACKEND_URL}/api/store/releases/prism-store.apk`;
 
 export function InstallStoreButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);

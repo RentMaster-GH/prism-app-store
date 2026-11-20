@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Download, X, Share, PlusSquare, Monitor } from 'lucide-react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://api.credibleartisans.com';
@@ -96,7 +97,7 @@ export function InstallStoreButton() {
         )}
       </button>
 
-      {showFallbackModal && (
+      {showFallbackModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="relative w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 text-slate-200 shadow-2xl">
             <button
@@ -161,7 +162,7 @@ export function InstallStoreButton() {
             </button>
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   );
 }

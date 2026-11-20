@@ -267,4 +267,17 @@ export class CustomBackendClient {
       method: 'DELETE',
     });
   }
+
+  async trackInstall(id: string): Promise<number | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/data/public/install/${this.appId}/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      return typeof data.install_count === "number" ? data.install_count : null;
+    } catch {
+      return null;
+    }
+  }
 }

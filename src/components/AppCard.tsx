@@ -47,6 +47,13 @@ export const AppCard: React.FC<AppCardProps> = ({
   currentUid = '',
 }) => {
   const [deleting, setDeleting] = useState(false);
+  const [installCount, setInstallCount] = useState<number>(Number(app.install_count || app.installs || 0));
+  const [installedLocal, setInstalledLocal] = useState<boolean>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("prism_installed_apps") || "[]");
+      return Array.isArray(saved) && saved.includes(String(app.id));
+    } catch { return false; }
+  });
 
   const title = app.title || app.name || 'Untitled App';
   const developer = app.developer || app.studio || app.author || 'Independent Developer';
@@ -67,7 +74,7 @@ export const AppCard: React.FC<AppCardProps> = ({
   const apkUrl = app.apk_url || app.apkUrl || app.downloadUrl || '';
   const rating = Number(app.rating || app.average_rating || 5.0).toFixed(1);
   const reviewCount = Number(app.review_count || app.reviewsCount || 0);
-  const installs = Number(app.install_count || app.installs || 0);
+  const installs = installCount;
   const isOwner = Boolean(currentUid && app.owner_uid && app.owner_uid === currentUid);
   const canManage = isManager || isOwner;
 
@@ -102,6 +109,40 @@ export const AppCard: React.FC<AppCardProps> = ({
     e.stopPropagation();
     if (onEdit) {
       onEdit(app);
+    }
+  };
+
+  const handleInstallClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // 1. Increment install count in PostgreSQL (core_platform)
+    if (app.id) {
+      const updated = await backend.trackInstall(String(app.id));
+      setInstallCount((prev) => (typeof updated === "number" ? updated : prev + 1));
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem("prism_installed_apps") || "[]");
+      if (Array.isArray(saved) && !saved.includes(String(app.id))) {
+        saved.push(String(app.id));
+        localStorage.setItem("prism_installed_apps", JSON.stringify(saved));
+      }
+      setInstalledLocal(true);
+    } catch {}
+
+    // 2. Trigger APK download if available, or installable standalone app window + offline shortcut
+    if (apkUrl) {
+      const a = document.createElement("a");
+      a.href = apkUrl;
+      a.download = `${title.replace(/\s+/g, "-").toLowerCase()}.apk`;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } else if (liveUrl) {
+      const w = Math.min(window.screen.availWidth, 1280);
+      const h = Math.min(window.screen.availHeight, 840);
+      window.open(liveUrl, `prism_app_${app.id || title}`, `width=${w},height=${h},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`);
+    } else if (onSelect) {
+      onSelect(app);
     }
   };
 
@@ -189,22 +230,24 @@ export const AppCard: React.FC<AppCardProps> = ({
 
         {/* Action Row: Open + Details + Manager/Owner Edit & Trash Delete Buttons */}
         <div className="mt-auto pt-4 flex items-center gap-2">
+          {liveUrl && (
+            <button
+              type="button"
+              onClick={handleOpenClick}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-950 transition hover:bg-indigo-100"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open
+            </button>
+          )}
+
           <button
             type="button"
-            onClick={handleOpenClick}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-950 transition hover:bg-indigo-100"
+            onClick={handleInstallClick}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-indigo-500 shadow-sm shadow-indigo-950/40"
           >
-            {liveUrl ? (
-              <>
-                <ExternalLink className="h-3.5 w-3.5" />
-                Open
-              </>
-            ) : (
-              <>
-                <Download className="h-3.5 w-3.5" />
-                Install
-              </>
-            )}
+            <Download className="h-3.5 w-3.5" />
+            {apkUrl ? "APK" : installedLocal ? "Installed" : "Install"}
           </button>
 
           <button

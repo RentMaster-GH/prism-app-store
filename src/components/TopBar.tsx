@@ -160,7 +160,28 @@ export function TopBar({
               <div className="text-[10px] text-white/40">PORTAL URL</div>
               <div className="text-xs font-mono text-indigo-300 break-all">#/p/{showKeyModal.slug}</div>
               <div className="text-[10px] text-white/40 mt-2">PASSKEY</div>
-              <div className="flex items-center gap-2">
+              {(() => {
+          const { isInstallable, isInstalled, isIOS, install, launchStandaloneWindow } = usePWAInstall();
+          const handleStoreInstall = async () => {
+            const ok = await install();
+            if (!ok) {
+              if (isIOS) {
+                alert("To install Prism Store on iPhone/iPad: tap the Share button in Safari, then tap \"Add to Home Screen\".");
+              } else {
+                launchStandaloneWindow();
+              }
+            }
+          };
+          return (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleStoreInstall}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 text-xs font-semibold transition-colors"
+                title="Install Prism Store on Phone or Laptop (Works Offline)"
+              >
+                {isInstalled ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Download className="w-3.5 h-3.5" />}
+                <span>{isInstalled ? "Installed" : "Install Store"}</span>
+              </button>
                 <div className="text-sm font-mono font-bold text-white break-all flex-1">{showKeyModal.key}</div>
                 <button
                   onClick={async () => {

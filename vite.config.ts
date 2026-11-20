@@ -10,7 +10,7 @@ export default defineConfig({
       manifest: {
         name: "Prism App Store",
         short_name: "Prism Store",
-        description: "Self-Hosted Cross-Device Application Directory with Offline Mode",
+        description: "Self-Hosted Cross-Device App Directory with Offline Mode",
         theme_color: "#12132a",
         background_color: "#0a0b18",
         display: "standalone",
@@ -34,10 +34,10 @@ export default defineConfig({
             }
           },
           {
-            urlPattern: /^https:\/\/api\.credibleartisans\.com\/api\/.*/,
+            urlPattern: /^https:\/\/api\.credibleartisans\.com\/data\/.*/,
             handler: "NetworkFirst",
             options: {
-              cacheName: "prism-api-offline-cache",
+              cacheName: "prism-offline-catalog",
               networkTimeoutSeconds: 4,
               expiration: { maxEntries: 60, maxAgeSeconds: 604800 }
             }

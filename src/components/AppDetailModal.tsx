@@ -2,6 +2,7 @@
 import { X, ExternalLink, Star, Shield, Download, Smartphone, Globe, Copy, Check } from 'lucide-react';
 import { AppItem } from '../types';
 import { AppReviews } from './AppReviews';
+import { backend } from '../lib/backend';
 
 export function AppDetailModal({ app, installedState, onClose, onInstall, onUninstall, userUID, isStoreManager }: any) {
   const [tab, setTab] = useState<'overview' | 'reviews'>('overview');
@@ -110,9 +111,23 @@ export function AppDetailModal({ app, installedState, onClose, onInstall, onUnin
               {/* --- ACTIONS: Web + APK side by side --- */}
               <div className="flex gap-2">
                 {hasWeb && (
-                  <button onClick={handleOpen} className="flex-1 h-11 bg-white text-black rounded-full font-bold text-sm flex items-center justify-center gap-2">
-                    <ExternalLink className="w-4 h-4" /> Open
-                  </button>
+                  <>
+                    <button onClick={handleOpen} className="flex-1 h-11 bg-white text-black rounded-full font-bold text-sm flex items-center justify-center gap-2">
+                      <ExternalLink className="w-4 h-4" /> Open
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (app.id) await backend.trackInstall(String(app.id));
+                        if (onInstall) onInstall(app);
+                        const w = Math.min(window.screen.availWidth, 1280);
+                        const h = Math.min(window.screen.availHeight, 840);
+                        window.open(safeLiveUrl, `prism_standalone_${app.id || safeName}`, `width=${w},height=${h},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`);
+                      }}
+                      className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full font-bold text-sm flex items-center justify-center gap-2"
+                    >
+                      <Download className="w-4 h-4" /> {isInstalled ? "Installed (Launch)" : "Install App"}
+                    </button>
+                  </>
                 )}
 
                 {hasApk && (

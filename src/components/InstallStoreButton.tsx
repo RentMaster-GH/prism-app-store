@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Download, X, Share, PlusSquare, Monitor } from 'lucide-react';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://credibleartisans.com';
+
 export function InstallStoreButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showFallbackModal, setShowFallbackModal] = useState(false);
+  const [installCount, setInstallCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (
@@ -13,6 +16,32 @@ export function InstallStoreButton() {
     ) {
       setIsInstalled(true);
     }
+
+    // Fetch live store install count from custom backend
+    fetch(`${BACKEND_URL}/api/store/installs`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.count === 'number') {
+          setInstallCount(data.count);
+        }
+      })
+      .catch(() => {});
+
+    const recordInstall = () => {
+      fetch(`${BACKEND_URL}/api/store/installs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && typeof data.count === 'number') {
+            setInstallCount(data.count);
+          } else {
+            setInstallCount((prev) => (prev !== null ? prev + 1 : 1));
+          }
+        })
+        .catch(() => {});
+    };
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -23,6 +52,7 @@ export function InstallStoreButton() {
       setIsInstalled(true);
       setDeferredPrompt(null);
       setShowFallbackModal(false);
+      recordInstall();
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -59,6 +89,11 @@ export function InstallStoreButton() {
       >
         <Download className="w-3.5 h-3.5" />
         <span>Install Store</span>
+        {installCount !== null && installCount > 0 && (
+          <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-950/60 text-emerald-200 border border-emerald-400/30">
+            {installCount}
+          </span>
+        )}
       </button>
 
       {showFallbackModal && (
@@ -73,12 +108,18 @@ export function InstallStoreButton() {
             </button>
 
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                <Download className="w-5 h-5" />
-              </div>
+              <img
+                src="/icon-192.png"
+                alt="Prism Store"
+                className="w-10 h-10 rounded-xl border border-slate-700"
+              />
               <div>
                 <h3 className="text-base font-bold text-white">Install Prism Store</h3>
-                <p className="text-xs text-slate-400">Add to your home screen or desktop</p>
+                <p className="text-xs text-slate-400">
+                  {installCount !== null
+                    ? `${installCount} installs • Add to your device`
+                    : 'Add to your home screen or desktop'}
+                </p>
               </div>
             </div>
 

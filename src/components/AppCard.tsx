@@ -71,7 +71,10 @@ export const AppCard: React.FC<AppCardProps> = ({
     '';
 
   const liveUrl = app.live_web_url || app.liveAppUrl || app.websiteUrl || app.url || '';
-  const apkUrl = app.apk_url || app.apkUrl || app.downloadUrl || '';
+  const apkUrl = app.apk_url || app.apkUrl || (String(app.downloadUrl || '').endsWith('.apk') ? app.downloadUrl : '') || '';
+  const desktopUrl = app.desktop_url || app.desktopUrl || '';
+  const isAndroidDevice = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+  const preferredBinaryUrl = isAndroidDevice ? (apkUrl || desktopUrl) : (desktopUrl || apkUrl);
   const rating = Number(app.rating || app.average_rating || 5.0).toFixed(1);
   const reviewCount = Number(app.review_count || app.reviewsCount || 0);
   const installs = installCount;
@@ -129,11 +132,12 @@ export const AppCard: React.FC<AppCardProps> = ({
     } catch {}
 
     // 2. Trigger APK download if available, or installable standalone app window + offline shortcut
-    if (apkUrl) {
+    if (preferredBinaryUrl) {
       const a = document.createElement("a");
-      a.href = apkUrl;
-      a.download = `${title.replace(/\s+/g, "-").toLowerCase()}.apk`;
+      a.href = preferredBinaryUrl;
+      a.download = "";
       a.target = "_blank";
+      a.rel = "noopener noreferrer";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -247,7 +251,7 @@ export const AppCard: React.FC<AppCardProps> = ({
             className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-indigo-500 shadow-sm shadow-indigo-950/40"
           >
             <Download className="h-3.5 w-3.5" />
-            {apkUrl ? "APK" : installedLocal ? "Installed" : "Install"}
+            {preferredBinaryUrl ? (isAndroidDevice && apkUrl ? "Get APK" : desktopUrl && !isAndroidDevice ? "Download" : "Get APK") : installedLocal ? "Installed" : "Install"}
           </button>
 
           <button

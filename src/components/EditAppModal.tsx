@@ -39,6 +39,11 @@ export function EditAppModal({ app, isOpen, onClose, onSaved }: Props) {
   const [changelog, setChangelog] = useState('');
   const [studio, setStudio] = useState('');
   const [liveUrl, setLiveUrl] = useState('');
+  const [apkUrl, setApkUrl] = useState('');
+  const [desktopUrl, setDesktopUrl] = useState('');
+  const [uploadingBinary, setUploadingBinary] = useState<string>('');
+  const apkFileRef = useRef<HTMLInputElement>(null);
+  const desktopFileRef = useRef<HTMLInputElement>(null);
   const [category, setCategory] = useState('Other');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [saving, setSaving] = useState(false);
@@ -51,6 +56,8 @@ export function EditAppModal({ app, isOpen, onClose, onSaved }: Props) {
     setChangelog(app.changelog || app.raw?.changelog || app.features?.[0] || 'Live');
     setStudio(app.developer || app.studio || app.raw?.studio || '');
     setLiveUrl(app.liveAppUrl || app.websiteUrl || app.raw?.live_web_url || app.raw?.live_app_url || '');
+    setApkUrl(app.apk_url || app.apkUrl || app.raw?.apk_url || '');
+    setDesktopUrl(app.desktop_url || app.desktopUrl || app.raw?.desktop_url || '');
     setCategory(app.category || app.raw?.category || 'Other');
     setThumbnailUrl(
       app.thumbnail_url ||
@@ -81,6 +88,27 @@ export function EditAppModal({ app, isOpen, onClose, onSaved }: Props) {
     }
   };
 
+  const handleBinaryUpload = async (file: File | undefined, target: "apk" | "desktop") => {
+    if (!file) return;
+    setUploadingBinary(target);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("https://credibleartisans.com", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || "Upload failed");
+      if (target === "apk") setApkUrl(data.url);
+      else setDesktopUrl(data.url);
+    } catch (err: any) {
+      alert("Installer upload failed: " + (err.message || "Unknown error"));
+    } finally {
+      setUploadingBinary("");
+    }
+  };
+
   const handleSave = async () => {
     if (!isOwner) {
       alert(`You can't edit this app. Owner is ${owner}, you are ${currentUID}`);
@@ -105,6 +133,9 @@ export function EditAppModal({ app, isOpen, onClose, onSaved }: Props) {
         studio: studio.trim(),
         category,
         live_web_url: liveUrl.trim(),
+        apk_url: apkUrl.trim() || null,
+        desktop_url: desktopUrl.trim() || null,
+        download_url: apkUrl.trim() || desktopUrl.trim() || liveUrl.trim(),
         thumbnail_url: cleanThumb,
         icon_url: cleanThumb,
         updated_at: new Date().toISOString(),
@@ -226,8 +257,32 @@ export function EditAppModal({ app, isOpen, onClose, onSaved }: Props) {
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-white/50 uppercase tracking-widest mb-1.5 block">Live URL</label>
+            <label className="text-[11px] font-bold text-white/50 uppercase tracking-widest mb-1.5 block">Live Web URL</label>
             <input value={liveUrl} onChange={(e) => setLiveUrl(e.target.value)} placeholder="https://rentmastergh.com" className="w-full h-11 px-4 bg-white/[0.06] border border-white/10 rounded-full text-[14px] text-white placeholder:text-white/30 focus:outline-none focus:border-white/20 transition" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 p-3.5 rounded-2xl bg-white/[0.03] border border-white/10">
+            <div>
+              <label className="text-[11px] font-bold text-violet-300 uppercase tracking-widest mb-1.5 block">Android APK Link or Upload (.apk)</label>
+              <div className="flex gap-2">
+                <input ref={apkFileRef} type="file" accept=".apk" className="hidden" onChange={(e) => handleBinaryUpload(e.target.files?.[0], "apk")} />
+                <button type="button" onClick={() => apkFileRef.current?.click()} disabled={uploadingBinary === "apk"} className="px-3 h-10 bg-violet-600/30 hover:bg-violet-600/50 border border-violet-500/40 rounded-full text-xs font-bold text-violet-200 flex items-center gap-1.5 shrink-0">
+                  <Upload className="w-3.5 h-3.5" /> {uploadingBinary === "apk" ? "Uploading..." : "Upload APK"}
+                </button>
+                <input value={apkUrl} onChange={(e) => setApkUrl(e.target.value)} placeholder="https://.../app-release.apk" className="flex-1 h-10 px-3.5 bg-white/[0.06] border border-white/10 rounded-full text-xs text-white placeholder:text-white/30 focus:outline-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-cyan-300 uppercase tracking-widest mb-1.5 block">Desktop Installer Link or Upload (.exe, .dmg, .AppImage, .deb)</label>
+              <div className="flex gap-2">
+                <input ref={desktopFileRef} type="file" accept=".exe,.dmg,.AppImage,.deb,.msi,.zip" className="hidden" onChange={(e) => handleBinaryUpload(e.target.files?.[0], "desktop")} />
+                <button type="button" onClick={() => desktopFileRef.current?.click()} disabled={uploadingBinary === "desktop"} className="px-3 h-10 bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/40 rounded-full text-xs font-bold text-cyan-200 flex items-center gap-1.5 shrink-0">
+                  <Upload className="w-3.5 h-3.5" /> {uploadingBinary === "desktop" ? "Uploading..." : "Upload Installer"}
+                </button>
+                <input value={desktopUrl} onChange={(e) => setDesktopUrl(e.target.value)} placeholder="https://.../setup.exe or .AppImage" className="flex-1 h-10 px-3.5 bg-white/[0.06] border border-white/10 rounded-full text-xs text-white placeholder:text-white/30 focus:outline-none" />
+              </div>
+            </div>
           </div>
 
           <div>

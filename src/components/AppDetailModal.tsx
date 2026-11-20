@@ -29,7 +29,9 @@ export function AppDetailModal({ app, installedState, onClose, onInstall, onUnin
   const safeApkUrl = rawApk || (rawDownload.endsWith('.apk') ? rawDownload : '') || (safeLiveUrl.endsWith('.apk') ? safeLiveUrl : '');
 
   const hasWeb = !!safeLiveUrl && safeLiveUrl.startsWith('http');
-  const hasApk = !!safeApkUrl && safeApkUrl.startsWith('http') && safeApkUrl.includes('.apk');
+  const hasApk = !!safeApkUrl && safeApkUrl.startsWith('http');
+  const safeDesktopUrl = String((app as any).desktop_url || (app as any).desktopUrl || (app as any).raw?.desktop_url || '');
+  const hasDesktop = !!safeDesktopUrl && safeDesktopUrl.startsWith('http');
   const isAndroid = /Android/i.test(navigator.userAgent);
   const isPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent);
   const isInstalled = installedState?.status === 'installed';
@@ -128,6 +130,25 @@ export function AppDetailModal({ app, installedState, onClose, onInstall, onUnin
                       <Download className="w-4 h-4" /> {isInstalled ? "Installed (Launch)" : "Install App"}
                     </button>
                   </>
+                )}
+
+                {hasDesktop && (
+                  <button
+                    onClick={async () => {
+                      if (app.id) await backend.trackInstall(String(app.id));
+                      const a = document.createElement('a');
+                      a.href = safeDesktopUrl;
+                      a.download = '';
+                      a.target = '_blank';
+                      a.rel = 'noopener noreferrer';
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                    }}
+                    className="flex-1 h-11 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full font-bold text-sm flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" /> Desktop Installer
+                  </button>
                 )}
 
                 {hasApk && (

@@ -1,3 +1,4 @@
+import { InstallStoreButton } from './components/InstallStoreButton';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search,
@@ -371,6 +372,8 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            <InstallStoreButton />
+
             <button
               onClick={() => setShowFeedbackModal(true)}
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition"

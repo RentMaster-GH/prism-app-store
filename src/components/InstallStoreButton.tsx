@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Download } from 'lucide-react';
+import { Download, X, Share, PlusSquare, Monitor } from 'lucide-react';
 
 export function InstallStoreButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [showFallbackModal, setShowFallbackModal] = useState(false);
 
   useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    if (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true
+    ) {
       setIsInstalled(true);
     }
 
@@ -18,6 +22,7 @@ export function InstallStoreButton() {
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
+      setShowFallbackModal(false);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -30,24 +35,92 @@ export function InstallStoreButton() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      setShowFallbackModal(true);
     }
   };
 
-  if (isInstalled || !deferredPrompt) return null;
+  if (isInstalled) return null;
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   return (
-    <button
-      type="button"
-      onClick={handleInstallClick}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer"
-    >
-      <Download className="w-3.5 h-3.5" />
-      <span>Install Store</span>
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={handleInstallClick}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer"
+      >
+        <Download className="w-3.5 h-3.5" />
+        <span>Install Store</span>
+      </button>
+
+      {showFallbackModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 text-slate-200 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setShowFallbackModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <Download className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Install Prism Store</h3>
+                <p className="text-xs text-slate-400">Add to your home screen or desktop</p>
+              </div>
+            </div>
+
+            {isIOS ? (
+              <div className="space-y-3 text-sm text-slate-300 bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+                <p className="flex items-center gap-2">
+                  <span className="font-bold text-indigo-400">1.</span>
+                  Tap the <Share className="w-4 h-4 inline text-sky-400" /> <strong>Share</strong> button in Safari&apos;s toolbar.
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="font-bold text-indigo-400">2.</span>
+                  Scroll down and tap <PlusSquare className="w-4 h-4 inline text-slate-300" /> <strong>Add to Home Screen</strong>.
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="font-bold text-indigo-400">3.</span>
+                  Tap <strong>Add</strong> in the top-right corner.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3 text-sm text-slate-300 bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+                <p className="flex items-start gap-2">
+                  <Monitor className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                  <span>
+                    For one-click installation, open <strong>Prism Store</strong> in <strong>Chrome, Edge, or Brave</strong> and click the install icon in the address bar.
+                  </span>
+                </p>
+                <p className="text-xs text-slate-400 pt-1 border-t border-slate-800">
+                  Tip: In Firefox, you can bookmark this page or drag the URL icon to your desktop for quick access.
+                </p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowFallbackModal(false)}
+              className="mt-5 w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition cursor-pointer"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -116,6 +116,7 @@ export const AppCard: React.FC<AppCardProps> = ({
   };
 
   const handleInstallClick = async (e: React.MouseEvent) => {
+    trackListedAppMetric('app_install');
     e.stopPropagation();
     // 1. Increment install count in PostgreSQL (core_platform)
     if (app.id) {
@@ -150,7 +151,27 @@ export const AppCard: React.FC<AppCardProps> = ({
     }
   };
 
+  const trackListedAppMetric = (metricType: 'app_open' | 'app_install') => {
+    try {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== 'localhost' ? 'https://credibleartisans.com' : 'http://localhost:3000');
+      let vid = localStorage.getItem('prism_vid');
+      if (!vid) { vid = 'V-' + Math.random().toString(36).slice(2, 10); localStorage.setItem('prism_vid', vid); }
+      fetch(apiBase + '/api/store/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appSlug: String(app.id || title),
+          visitorId: vid,
+          eventType: metricType,
+          actionLabel: title,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        })
+      }).catch(() => {});
+    } catch {}
+  };
+
   const handleOpenClick = (e: React.MouseEvent) => {
+    trackListedAppMetric('app_open');
     e.stopPropagation();
     if (onLaunch) {
       onLaunch(app);

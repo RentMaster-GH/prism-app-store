@@ -18,11 +18,13 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ apps: pr
   const [ecosystem, setEcosystem] = useState<{
     totals: { total_views: number; unique_visitors: number; total_interactions: number; active_24h: number };
     apps: Array<{ app_slug: string; views: number; unique_visitors: number; interactions: number; last_active: string }>;
+    listedApps: Array<{ app_title: string; app_key: string; category: string; opens: number; installs: number; last_activity: string }>;
     countries: Array<{ country: string; visitors: number; events: number }>;
     recentEvents: Array<{ app_slug: string; visitor_id: string; event_type: string; action_label: string; country: string; device_info: string; created_at: string }>;
   }>({
     totals: { total_views: 0, unique_visitors: 0, total_interactions: 0, active_24h: 0 },
     apps: [],
+    listedApps: [],
     countries: [],
     recentEvents: [],
   });
@@ -41,6 +43,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ apps: pr
         setEcosystem({
           totals: ecoRes.totals,
           apps: ecoRes.apps || [],
+          listedApps: ecoRes.listedApps || [],
           countries: ecoRes.countries || [],
           recentEvents: ecoRes.recentEvents || [],
         });
@@ -106,6 +109,43 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ apps: pr
           );
         })}
       </div>
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-indigo-300">Individual Listed Apps — Opens &amp; Installs (All Current &amp; Future Apps)</span>
+          <span className="text-[11px] text-slate-400 font-mono">{ecosystem.listedApps.length} APPS TRACKED</span>
+        </div>
+        <div className="overflow-x-auto max-h-72 overflow-y-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-950/70 text-slate-400 border-b border-slate-800 sticky top-0">
+              <tr>
+                <th className="py-2.5 px-4">Listed App Name</th>
+                <th className="py-2.5 px-3">Category</th>
+                <th className="py-2.5 px-3 text-right">Opens</th>
+                <th className="py-2.5 px-3 text-right">Installs</th>
+                <th className="py-2.5 px-3 text-right">Last Activity</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/70">
+              {ecosystem.listedApps.length > 0 ? (
+                ecosystem.listedApps.map((item) => (
+                  <tr key={item.app_key} className="hover:bg-slate-800/40">
+                    <td className="py-2.5 px-4 font-semibold text-white">{item.app_title}</td>
+                    <td className="py-2.5 px-3 text-slate-400">{item.category}</td>
+                    <td className="py-2.5 px-3 text-right font-bold text-sky-300">{Number(item.opens || 0).toLocaleString()}</td>
+                    <td className="py-2.5 px-3 text-right font-bold text-emerald-300">{Number(item.installs || 0).toLocaleString()}</td>
+                    <td className="py-2.5 px-3 text-right text-[11px] text-slate-400">{item.last_activity ? formatDateTime(item.last_activity) : '—'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="py-5 text-center text-slate-500">Click Open or Install on any app card to record live per-app metrics.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-2 bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">

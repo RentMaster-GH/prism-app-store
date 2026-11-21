@@ -182,7 +182,19 @@ export function App() {
       const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== "localhost" ? "https://credibleartisans.com" : "http://localhost:3000");
       let vid = localStorage.getItem("prism_vid");
       if (!vid) { vid = "V-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("prism_vid", vid); }
-      fetch(apiBase + "/api/store/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appSlug: "prism-app-store", visitorId: vid, eventType: "page_view", actionLabel: "Visited Prism App Store" }) }).catch(() => {});
+      fetch(apiBase + "/api/store/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appSlug: "prism-app-store", visitorId: vid, eventType: "page_view", actionLabel: "Visited Prism App Store", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, referrer: document.referrer || "Direct" }) }).catch(() => {});
+      let lastClick = 0;
+      const prism_click_tracker = (e: any) => {
+        const now = Date.now();
+        if (now - lastClick < 1000) return;
+        const btn = e.target && e.target.closest ? e.target.closest("button,a") : null;
+        if (btn) {
+          lastClick = now;
+          const lbl = (btn.innerText || btn.getAttribute("aria-label") || "Store Click").trim().slice(0, 60);
+          fetch(apiBase + "/api/store/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appSlug: "prism-app-store", visitorId: vid, eventType: "interaction", actionLabel: lbl, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) }).catch(() => {});
+        }
+      };
+      document.addEventListener("click", prism_click_tracker, true);
     } catch {}
     const syncHandler = () => fetchApps();
     window.addEventListener("prism-sync-catalog", syncHandler);

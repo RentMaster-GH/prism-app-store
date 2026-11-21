@@ -206,13 +206,11 @@ export function App() {
       };
       document.addEventListener("click", prism_click_tracker, true);
     } catch {}
-    const syncHandler = () => fetchApps();
+    const syncHandler = () => fetchApps(true);
     window.addEventListener("prism-sync-catalog", syncHandler);
-    window.addEventListener("focus", syncHandler);
-    const poll = setInterval(syncHandler, 20000);
+    const poll = setInterval(syncHandler, 60000);
     return () => {
       window.removeEventListener("prism-sync-catalog", syncHandler);
-      window.removeEventListener("focus", syncHandler);
       clearInterval(poll);
     };
   }, []);
@@ -223,8 +221,8 @@ export function App() {
     return () => { document.body.style.overflow = ""; };
   }, [showPasskeyModal, showDevModal, editingApp, selectedApp, reportingApp, showFeedbackModal, showAnalyticsModal, showManagerLoginModal, showManagerConsole]);
 
-  const fetchApps = async () => {
-    if (apps.length === 0) setLoading(true);
+  const fetchApps = async (silent = false) => {
+    if (!silent && apps.length === 0) setLoading(true);
     try {
       const records = await backend.list('apps');
       const mapped: StoreApp[] = (records || []).map((item: any) => {

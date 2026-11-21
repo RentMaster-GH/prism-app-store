@@ -161,6 +161,7 @@ export function App() {
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
   const [reportingApp, setReportingApp] = useState<StoreApp | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState<boolean>(false);
 
   const [isManager, setIsManager] = useState<boolean>(false);
   const [showManagerLoginModal, setShowManagerLoginModal] = useState<boolean>(false);
@@ -177,6 +178,12 @@ export function App() {
       localStorage.setItem('prism_is_manager', 'true');
     }
     fetchApps();
+    try {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== "localhost" ? "https://credibleartisans.com" : "http://localhost:3000");
+      let vid = localStorage.getItem("prism_vid");
+      if (!vid) { vid = "V-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("prism_vid", vid); }
+      fetch(apiBase + "/api/store/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appSlug: "prism-app-store", visitorId: vid, eventType: "page_view", actionLabel: "Visited Prism App Store" }) }).catch(() => {});
+    } catch {}
     const syncHandler = () => fetchApps();
     window.addEventListener("prism-sync-catalog", syncHandler);
     window.addEventListener("focus", syncHandler);
@@ -189,10 +196,10 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const anyModalOpen = showPasskeyModal || showDevModal || Boolean(editingApp) || Boolean(selectedApp) || Boolean(reportingApp) || showFeedbackModal || showManagerLoginModal || showManagerConsole;
+    const anyModalOpen = showPasskeyModal || showDevModal || Boolean(editingApp) || Boolean(selectedApp) || Boolean(reportingApp) || showFeedbackModal || showAnalyticsModal || showManagerLoginModal || showManagerConsole;
     document.body.style.overflow = anyModalOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [showPasskeyModal, showDevModal, editingApp, selectedApp, reportingApp, showFeedbackModal, showManagerLoginModal, showManagerConsole]);
+  }, [showPasskeyModal, showDevModal, editingApp, selectedApp, reportingApp, showFeedbackModal, showAnalyticsModal, showManagerLoginModal, showManagerConsole]);
 
   const fetchApps = async () => {
     if (apps.length === 0) setLoading(true);
@@ -388,6 +395,14 @@ export function App() {
 
           <div className="flex items-center gap-2 sm:gap-3">
             <InstallStoreButton />
+
+            <button
+              onClick={() => setShowAnalyticsModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 transition"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Analytics</span>
+            </button>
 
             <button
               onClick={() => setShowFeedbackModal(true)}
@@ -880,6 +895,21 @@ export function App() {
                 Switch / Restore Passkey
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Public & Manager Live Ecosystem Analytics Portal */}
+      {showAnalyticsModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+              <span className="text-sm font-bold text-emerald-300">📊 Public &amp; Manager Ecosystem Analytics</span>
+              <button onClick={() => setShowAnalyticsModal(false)} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <AnalyticsDashboard apps={apps} />
           </div>
         </div>
       )}

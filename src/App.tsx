@@ -982,7 +982,11 @@ export function App() {
 
       {/* Feedback Portal Modal */}
       {showFeedbackModal && (
-        <FeedbackPortal onClose={() => setShowFeedbackModal(false)} />
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-2xl">
+            <FeedbackPortal userUID={developerUid} onBack={() => setShowFeedbackModal(false)} />
+          </div>
+        </div>
       )}
 
       {/* Report Portal Modal */}

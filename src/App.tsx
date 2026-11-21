@@ -1,4 +1,5 @@
 import { InstallStoreButton } from './components/InstallStoreButton';
+import { EdgeStatusAndAlerts } from './components/EdgeStatusAndAlerts';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search,
@@ -162,6 +163,10 @@ export function App() {
   const [reportingApp, setReportingApp] = useState<StoreApp | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState<boolean>(false);
+  const [tipApp, setTipApp] = useState<StoreApp | null>(null);
+  const [tipAmount, setTipAmount] = useState<string>("5");
+  const [tipPin, setTipPin] = useState<string>("");
+  const [tipBusy, setTipBusy] = useState<boolean>(false);
 
   const [isManager, setIsManager] = useState<boolean>(false);
   const [showManagerLoginModal, setShowManagerLoginModal] = useState<boolean>(false);
@@ -173,6 +178,11 @@ export function App() {
   useEffect(() => {
     const uid = getOrCreateDeveloperUid();
     setDeveloperUidState(uid);
+    const wTok = localStorage.getItem("soul_trader_token");
+    if (wTok && uid) {
+      const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== "localhost" ? "https://credibleartisans.com" : "http://localhost:3000");
+      fetch(apiBase + "/public/soulpay/link-prism-uid", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ownerToken: wTok, prismUid: uid }) }).catch(() => {});
+    }
     if (typeof window !== 'undefined' && sessionStorage.getItem('prism_manager_unlocked') === 'true') {
       setIsManager(true);
       localStorage.setItem('prism_is_manager', 'true');
@@ -406,6 +416,7 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            <EdgeStatusAndAlerts />
             <InstallStoreButton />
 
             <button
@@ -907,6 +918,49 @@ export function App() {
                 Switch / Restore Passkey
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Developer SOUL Tipping Modal */}
+      {tipApp && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-emerald-500/40 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <strong className="text-sm font-bold text-emerald-300">🪙 Tip Developer with SoulPay (SOUL)</strong>
+              <button onClick={() => setTipApp(null)} className="p-1 rounded-lg bg-slate-800 text-slate-300"><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-xs text-slate-400">
+              Send an instant zero-middleman <strong className="text-white">SOUL</strong> tip to <strong className="text-indigo-300">{tipApp.developer}</strong> ({tipApp.owner_uid || "Community Dev"}) for <strong className="text-white">{tipApp.title}</strong>.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="number" min="1" value={tipAmount} onChange={(e) => setTipAmount(e.target.value)} placeholder="Amount (SOUL)" className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-mono" />
+              <input type="password" maxLength={6} value={tipPin} onChange={(e) => setTipPin(e.target.value)} placeholder="SoulPay PIN" className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-mono" />
+            </div>
+            <button
+              disabled={tipBusy}
+              onClick={async () => {
+                const tok = localStorage.getItem("soul_trader_token") || "";
+                if (!tok) { alert("Please activate your SoulPay wallet first at soulpay.soul"); return; }
+                setTipBusy(true);
+                try {
+                  const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== "localhost" ? "https://credibleartisans.com" : "http://localhost:3000");
+                  const r = await fetch(apiBase + "/public/soulpay/tip-developer", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ senderToken: tok, pin: tipPin, developerUid: tipApp.owner_uid || "PRISM-UID-CREATOR", appTitle: tipApp.title, amountSoul: Number(tipAmount) })
+                  });
+                  const d = await r.json();
+                  if (!r.ok) { alert(d.error || "Tip failed"); return; }
+                  alert(`Sent ${tipAmount} SOUL tip to ${d.toHandle} (Hash: ${d.txHash})`);
+                  setTipPin("");
+                  setTipApp(null);
+                } finally { setTipBusy(false); }
+              }}
+              className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold"
+            >
+              {tipBusy ? "Sending SOUL Tip..." : `Send ${tipAmount || 0} SOUL Tip Now`}
+            </button>
           </div>
         </div>
       )}

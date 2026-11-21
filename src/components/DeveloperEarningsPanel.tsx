@@ -9,6 +9,7 @@ const API_BASE =
 
 export const DeveloperEarningsPanel: React.FC<{ developerUid: string }> = ({ developerUid }) => {
   const [loading, setLoading] = useState(true);
+  const [rep, setRep] = useState<{ badge: string; trustScore: number; approvedApps: number; completedTxs: number }>({ badge: "🛡️ Verified Edge Creator", trustScore: 95, approvedApps: 0, completedTxs: 0 });
   const [data, setData] = useState<{
     linked: boolean;
     handle?: string;
@@ -23,6 +24,8 @@ export const DeveloperEarningsPanel: React.FC<{ developerUid: string }> = ({ dev
     try {
       const r = await fetch(`${API_BASE}/public/soulpay/developer-earnings?uid=${encodeURIComponent(developerUid)}`);
       if (r.ok) setData(await r.json());
+      const rr = await fetch(`${API_BASE}/public/soulpay/reputation?uid=${encodeURIComponent(developerUid)}`);
+      if (rr.ok) setRep(await rr.json());
     } finally {
       setLoading(false);
     }
@@ -37,7 +40,7 @@ export const DeveloperEarningsPanel: React.FC<{ developerUid: string }> = ({ dev
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
           <Wallet className="w-3.5 h-3.5" />
-          Developer Earnings &amp; Payouts
+          Developer Earnings &amp; Payouts • <span className="text-amber-300">{rep.badge} ({rep.trustScore}%)</span>
         </span>
         <button type="button" onClick={loadEarnings} className="text-[11px] text-slate-400 hover:text-white inline-flex items-center gap-1">
           <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />

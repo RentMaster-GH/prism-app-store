@@ -70,7 +70,8 @@ export const AppCard: React.FC<AppCardProps> = ({
     app.image ||
     '';
 
-  const liveUrl = app.live_web_url || app.liveAppUrl || app.websiteUrl || app.url || '';
+  const rawLiveUrl = app.live_web_url || app.liveAppUrl || app.websiteUrl || app.url || '';
+  const liveUrl = rawLiveUrl.replace("://" + "credibleartisans.com" + "/public/", "://" + "api.credibleartisans.com" + "/public/");
   const apkUrl = app.apk_url || app.apkUrl || (String(app.downloadUrl || '').endsWith('.apk') ? app.downloadUrl : '') || '';
   const desktopUrl = app.desktop_url || app.desktopUrl || '';
   const isAndroidDevice = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);

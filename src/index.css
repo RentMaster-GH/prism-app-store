@@ -1,25 +1,26 @@
 @import "tailwindcss";
 
 @layer base {
-    * {
+  * {
     -webkit-tap-highlight-color: transparent;
   }
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    scroll-behavior: smooth;
-    overflow-x: hidden;
+    height: auto;
+    min-height: 100%;
+    overflow-x: clip;
     overflow-y: auto;
-    overscroll-behavior-y: auto;
-    touch-action: pan-y;
+    touch-action: manipulation;
   }
   body {
     @apply bg-[#05060f] text-slate-100 antialiased;
-    overflow-x: hidden;
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: clip;
     overflow-y: auto;
-    overscroll-behavior-y: auto;
-    touch-action: pan-y;
+    touch-action: manipulation;
     -webkit-overflow-scrolling: touch;
   }
   input, select, textarea {

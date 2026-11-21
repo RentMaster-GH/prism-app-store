@@ -177,7 +177,22 @@ export function App() {
       localStorage.setItem('prism_is_manager', 'true');
     }
     fetchApps();
+    const syncHandler = () => fetchApps();
+    window.addEventListener("prism-sync-catalog", syncHandler);
+    window.addEventListener("focus", syncHandler);
+    const poll = setInterval(syncHandler, 20000);
+    return () => {
+      window.removeEventListener("prism-sync-catalog", syncHandler);
+      window.removeEventListener("focus", syncHandler);
+      clearInterval(poll);
+    };
   }, []);
+
+  useEffect(() => {
+    const anyModalOpen = showPasskeyModal || showDevModal || Boolean(editingApp) || Boolean(selectedApp) || Boolean(reportingApp) || showFeedbackModal || showManagerLoginModal || showManagerConsole;
+    document.body.style.overflow = anyModalOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [showPasskeyModal, showDevModal, editingApp, selectedApp, reportingApp, showFeedbackModal, showManagerLoginModal, showManagerConsole]);
 
   const fetchApps = async () => {
     if (apps.length === 0) setLoading(true);

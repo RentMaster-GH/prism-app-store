@@ -1,5 +1,6 @@
 import { InstallStoreButton } from './components/InstallStoreButton';
 import { EdgeStatusAndAlerts } from './components/EdgeStatusAndAlerts';
+import { DeveloperEarningsPanel } from './components/DeveloperEarningsPanel';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search,
@@ -916,6 +917,7 @@ export function App() {
                 Switch / Restore Passkey
               </button>
             </form>
+            <DeveloperEarningsPanel developerUid={developerUid} />
           </div>
         </div>
       )}

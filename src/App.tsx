@@ -422,7 +422,7 @@ export function App() {
                 const l = e.target.value;
                 localStorage.setItem("sov_lang", l);
                 document.documentElement.lang = l;
-                document.documentElement.dir = l === "ar" ? "rtl" : "ltr";
+                document.documentElement.dir = l === "ar" ? "rtl" : "ltr"; if (l === "en") { location.reload(); } else if ((window as any).__translateAppDom) { (window as any).__translateAppDom(l); }
               }}
               className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-200 border border-slate-700/80 cursor-pointer"
             >

@@ -175,6 +175,8 @@ export function App() {
   const [managerPasswordInput, setManagerPasswordInput] = useState<string>('');
   const [managerAuthError, setManagerAuthError] = useState<string>('');
   const [managerTab, setManagerTab] = useState<'pending' | 'all' | 'deleted' | 'announcements' | 'analytics'>('pending');
+  const [draggedAppId, setDraggedAppId] = useState<string | null>(null);
+  const [dragOverAppId, setDragOverAppId] = useState<string | null>(null);
 
   useEffect(() => {
     const uid = getOrCreateDeveloperUid();
@@ -251,6 +253,7 @@ export function App() {
           status: item.status || 'pending',
           featured: Boolean(item.featured),
           owner_uid: item.owner_uid || '',
+          sort_order: typeof item.sort_order === 'number' ? item.sort_order : 9999,
           installs: Number(item.installs || 0),
           rating: Number(item.rating || 5.0),
           reviews_count: Number(item.reviews_count || 0),
@@ -258,6 +261,7 @@ export function App() {
           created_at: item.created_at || new Date().toISOString(),
         };
       });
+      mapped.sort((a: any, b: any) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999));
       setApps(mapped);
       try {
         localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(mapped));
@@ -268,6 +272,22 @@ export function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReorderApps = async (sourceId: string, targetId: string) => {
+    if (!isManager || !sourceId || !targetId || sourceId === targetId) return;
+    const list = [...apps];
+    const fromIdx = list.findIndex((a) => a.id === sourceId);
+    const toIdx = list.findIndex((a) => a.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = list.splice(fromIdx, 1);
+    list.splice(toIdx, 0, moved);
+    const updated = list.map((item, idx) => ({ ...item, sort_order: idx }));
+    setApps(updated);
+    try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(updated)); } catch {}
+    await Promise.all(
+      updated.map((item, idx) => backend.update('apps', item.id, { sort_order: idx }).catch(() => {}))
+    );
   };
 
   const handleManagerButtonClick = () => {
@@ -622,16 +642,36 @@ export function App() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredApps.map((app) => (
-              <AppCard
+              <div
                 key={app.id}
-                app={app}
-                isManager={isManager}
-                currentUid={developerUid}
-                onSelect={() => setSelectedApp(app)}
-                onEdit={() => setEditingApp(app)}
-                onDelete={() => handleDeleteApp(app)}
-                onReport={() => setReportingApp(app)}
-              />
+                draggable={isManager}
+                onDragStart={() => isManager && setDraggedAppId(app.id)}
+                onDragOver={(e) => { if (isManager) { e.preventDefault(); setDragOverAppId(app.id); } }}
+                onDragLeave={() => setDragOverAppId(null)}
+                onDrop={(e) => {
+                  if (!isManager) return;
+                  e.preventDefault();
+                  if (draggedAppId) handleReorderApps(draggedAppId, app.id);
+                  setDraggedAppId(null);
+                  setDragOverAppId(null);
+                }}
+                className={`relative rounded-2xl transition ${isManager ? 'cursor-grab active:cursor-grabbing' : ''} ${dragOverAppId === app.id ? 'ring-2 ring-emerald-400 scale-[1.01]' : ''}`}
+              >
+                {isManager && (
+                  <div className="mb-1.5 flex items-center justify-between px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-[11px] font-semibold text-emerald-300">
+                    <span>⠿ Drag card to any row or position</span>
+                  </div>
+                )}
+                <AppCard
+                  app={app}
+                  isManager={isManager}
+                  currentUid={developerUid}
+                  onSelect={() => setSelectedApp(app)}
+                  onEdit={() => setEditingApp(app)}
+                  onDelete={() => handleDeleteApp(app)}
+                  onReport={() => setReportingApp(app)}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -780,9 +820,20 @@ export function App() {
                     activeCatalogApps.map((app) => (
                       <div
                         key={app.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900/90 border border-slate-800"
+                        draggable={true}
+                        onDragStart={() => setDraggedAppId(app.id)}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverAppId(app.id); }}
+                        onDragLeave={() => setDragOverAppId(null)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (draggedAppId) handleReorderApps(draggedAppId, app.id);
+                          setDraggedAppId(null);
+                          setDragOverAppId(null);
+                        }}
+                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900/90 border cursor-grab active:cursor-grabbing transition ${dragOverAppId === app.id ? 'border-emerald-400 bg-emerald-950/30' : 'border-slate-800'}`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-slate-400 font-bold select-none" title="Drag to reorder">⠿</span>
                           <img
                             src={app.hero_image}
                             alt={app.title}

@@ -415,6 +415,23 @@ export function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 max-w-full">
+            <select
+              id="sov_lang_select"
+              defaultValue={typeof window !== "undefined" ? localStorage.getItem("sov_lang") || "en" : "en"}
+              onChange={(e) => {
+                const l = e.target.value;
+                localStorage.setItem("sov_lang", l);
+                document.documentElement.lang = l;
+                document.documentElement.dir = l === "ar" ? "rtl" : "ltr";
+              }}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-200 border border-slate-700/80 cursor-pointer"
+            >
+              <option value="en">🌐 English</option>
+              <option value="fr">🇫🇷 Français</option>
+              <option value="es">🇪🇸 Español</option>
+              <option value="ar">🇸🇦 العربية</option>
+              <option value="pt">🇵🇹 Português</option>
+            </select>
             <EdgeStatusAndAlerts />
             <InstallStoreButton />
 

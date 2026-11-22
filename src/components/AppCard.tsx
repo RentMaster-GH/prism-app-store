@@ -116,6 +116,19 @@ export const AppCard: React.FC<AppCardProps> = ({
     }
   };
 
+  const downloadWebShortcut = () => {
+    if (!liveUrl) return;
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "prism-app";
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><meta http-equiv="refresh" content="0;url=${liveUrl}"></head><body style="background:#020617;color:#fff;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh"><p>Launching ${title}... <a href="${liveUrl}" style="color:#34d399">Open Now</a></p><script>location.replace(${JSON.stringify(liveUrl)});</script></body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = slug + "-launcher.html";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
   const handleInstallClick = async (e: React.MouseEvent) => {
     trackListedAppMetric('app_install');
     e.stopPropagation();
@@ -131,6 +144,7 @@ export const AppCard: React.FC<AppCardProps> = ({
         localStorage.setItem("prism_installed_apps", JSON.stringify(saved));
       }
       setInstalledLocal(true);
+    if (!preferredBinaryUrl && liveUrl) downloadWebShortcut();
     } catch {}
 
     // 2. Trigger APK download if available, or installable standalone app window + offline shortcut

@@ -17,17 +17,16 @@ export function translateAppDom(lang: string) {
   localStorage.setItem("sov_lang", lang);
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
-  const dict = DICT[lang];
-  if (!dict) return;
+  const dict = DICT[lang] || {};
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  let node: Node | null;
+  let node: any;
   while ((node = walker.nextNode())) {
     const parent = node.parentElement;
     if (!parent || ["SCRIPT", "STYLE", "OPTION", "TEXTAREA", "INPUT"].includes(parent.tagName)) continue;
-    const raw = (node.nodeValue || "").trim();
-    if (raw && dict[raw]) {
-      node.nodeValue = (node.nodeValue || "").replace(raw, dict[raw]);
-    }
+    if (!node.__origEn) node.__origEn = node.nodeValue || "";
+    const raw = node.__origEn.trim();
+    if (!raw) continue;
+    node.nodeValue = lang === "en" ? node.__origEn : (dict[raw] ? node.__origEn.replace(raw, dict[raw]) : node.__origEn);
   }
 }
 

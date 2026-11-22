@@ -175,6 +175,14 @@ export function AppDetailModal({ app, installedState, onClose, onInstall, onUnin
 
                 {!hasWeb && !hasApk && (
                   <>
+                    {safeLiveUrl && (
+                      <button
+                        onClick={() => window.open(safeLiveUrl, "_blank")}
+                        className="flex-1 h-11 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-full font-bold text-sm flex items-center justify-center gap-2"
+                      >
+                        <ExternalLink className="w-4 h-4" /> Open App ↗
+                      </button>
+                    )}
                     {!isInstalled
                       ? <button onClick={() => { if (onInstall) onInstall(app); downloadWebShortcut(); }} className="flex-1 h-11 bg-white text-black rounded-full font-bold text-sm flex items-center justify-center gap-2"><Download className="w-4 h-4" /> Install</button>
                       : <button onClick={() => onUninstall && onUninstall(app.id || app.uuid)} className="flex-1 h-11 bg-white/10 text-white rounded-full font-bold text-sm">Uninstall</button>}

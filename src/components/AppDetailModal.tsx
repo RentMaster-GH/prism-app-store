@@ -67,6 +67,21 @@ export function AppDetailModal({ app, installedState, onClose, onInstall, onUnin
   const safeChangelog = String((app as any).changelog_raw || (app as any).changelog || '');
   const safeSummary = String(app.summary || app.tagline || (app as any).description || (app as any).raw?.description || '');
 
+  const downloadWebShortcut = () => {
+    const rawUrl = app.live_web_url || app.liveAppUrl || app.websiteUrl || app.url || "";
+    const targetUrl = rawUrl.replace("://" + "credibleartisans" + ".com/public/", "://" + "api.credibleartisans" + ".com/public/");
+    if (!targetUrl) return;
+    const slug = (app.title || "prism-app").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${app.title}</title><meta http-equiv="refresh" content="0;url=${targetUrl}"></head><body style="background:#020617;color:#fff;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh"><p>Launching ${app.title}... <a href="${targetUrl}" style="color:#34d399">Open Now</a></p><script>location.replace(${JSON.stringify(targetUrl)});</script></body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = slug + "-launcher.html";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
   return (
     <div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -121,6 +136,7 @@ export function AppDetailModal({ app, installedState, onClose, onInstall, onUnin
                       onClick={async () => {
                         if (app.id) await backend.trackInstall(String(app.id));
                         if (onInstall) onInstall(app);
+                    downloadWebShortcut();
                         const w = Math.min(window.screen.availWidth, 1280);
                         const h = Math.min(window.screen.availHeight, 840);
                         window.open(safeLiveUrl, `prism_standalone_${app.id || safeName}`, `width=${w},height=${h},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes`);

@@ -403,7 +403,7 @@ export function App() {
 
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-30 bg-[#0b1120]/90 backdrop-blur-md border-b border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-0 min-h-16 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <Sparkles className="w-5 h-5 text-white" />
@@ -414,7 +414,7 @@ export function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 max-w-full">
             <EdgeStatusAndAlerts />
             <InstallStoreButton />
 
@@ -428,7 +428,7 @@ export function App() {
 
             <button
               onClick={() => setShowFeedbackModal(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700/70 transition"
             >
               <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
               Feedback
@@ -451,7 +451,7 @@ export function App() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/80 transition"
             >
               <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden md:inline">{developerUid}</span>
+              <span className="inline max-w-[110px] sm:max-w-none truncate">{developerUid}</span>
             </button>
 
             <button

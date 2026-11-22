@@ -427,6 +427,14 @@ export function App() {
               className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-200 border border-slate-700/80 cursor-pointer"
             >
               <option value="en">🌐 English</option>
+              <option value="tw">🇬🇭 Twi</option>
+              <option value="gaa">🇬🇭 Ga</option>
+              <option value="ee">🇬🇭 Ewe</option>
+              <option value="ig">🇳🇬 Igbo</option>
+              <option value="ha">🇳🇬 Hausa</option>
+              <option value="yo">🇳🇬 Yorùbá</option>
+              <option value="sw">🇰🇪 Kiswahili</option>
+              <option value="af">🇿🇦 Afrikaans</option>
               <option value="fr">🇫🇷 Français</option>
               <option value="es">🇪🇸 Español</option>
               <option value="ar">🇸🇦 العربية</option>

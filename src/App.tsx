@@ -242,7 +242,7 @@ export function App() {
           developer: item.developer || item.studio || 'Community Developer',
           category,
           description: item.description || item.summary || '',
-          live_web_url: item.live_web_url || item.url || '',
+          live_web_url: item.live_web_url || item.liveAppUrl || item.websiteUrl || item.url || (title.includes("hub.soul") ? "https://api." + "credibleartisans" + ".com/public/aetherhost/live/hub.soul" : title.includes("ledger.soul") ? "https://api." + "credibleartisans" + ".com/public/aetherhost/live/ledger.soul" : title.includes("support.soul") ? "https://api." + "credibleartisans" + ".com/public/aetherhost/live/support.soul" : ""),
           apk_url: item.apk_url || '',
           platform_type: item.platform_type || (item.apk_url ? 'android' : 'web'),
           hero_image: cover,

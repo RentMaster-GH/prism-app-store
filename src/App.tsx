@@ -274,6 +274,16 @@ export function App() {
     }
   };
 
+  const handleMoveAppStep = async (appId: string, dir: 'top' | 'left' | 'right') => {
+    if (!isManager) return;
+    const visible = [...filteredApps];
+    const vIdx = visible.findIndex((a) => a.id === appId);
+    if (vIdx === -1) return;
+    const targetIdx = dir === 'top' ? 0 : dir === 'left' ? Math.max(0, vIdx - 1) : Math.min(visible.length - 1, vIdx + 1);
+    if (targetIdx === vIdx) return;
+    await handleReorderApps(appId, visible[targetIdx].id);
+  };
+
   const handleReorderApps = async (sourceId: string, targetId: string) => {
     if (!isManager || !sourceId || !targetId || sourceId === targetId) return;
     const list = [...apps];
@@ -410,7 +420,10 @@ export function App() {
       );
     }
 
-    return [...list].sort((a, b) => {
+    return [...list].sort((a: any, b: any) => {
+      const ao = typeof a.sort_order === 'number' && a.sort_order < 9999 ? a.sort_order : 9999;
+      const bo = typeof b.sort_order === 'number' && b.sort_order < 9999 ? b.sort_order : 9999;
+      if (ao !== bo) return ao - bo;
       if (sortBy === 'popular') return (b.installs || 0) - (a.installs || 0);
       if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
@@ -645,21 +658,31 @@ export function App() {
               <div
                 key={app.id}
                 draggable={isManager}
-                onDragStart={() => isManager && setDraggedAppId(app.id)}
+                onDragStart={(e) => {
+                  if (!isManager) return;
+                  setDraggedAppId(app.id);
+                  try { e.dataTransfer.setData('text/plain', app.id); e.dataTransfer.effectAllowed = 'move'; } catch {}
+                }}
                 onDragOver={(e) => { if (isManager) { e.preventDefault(); setDragOverAppId(app.id); } }}
                 onDragLeave={() => setDragOverAppId(null)}
                 onDrop={(e) => {
                   if (!isManager) return;
                   e.preventDefault();
-                  if (draggedAppId) handleReorderApps(draggedAppId, app.id);
+                  const src = draggedAppId || (() => { try { return e.dataTransfer.getData('text/plain'); } catch { return ''; } })();
+                  if (src) handleReorderApps(src, app.id);
                   setDraggedAppId(null);
                   setDragOverAppId(null);
                 }}
                 className={`relative rounded-2xl transition ${isManager ? 'cursor-grab active:cursor-grabbing' : ''} ${dragOverAppId === app.id ? 'ring-2 ring-emerald-400 scale-[1.01]' : ''}`}
               >
                 {isManager && (
-                  <div className="mb-1.5 flex items-center justify-between px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-[11px] font-semibold text-emerald-300">
-                    <span>⠿ Drag card to any row or position</span>
+                  <div className="mb-1.5 flex items-center justify-between gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-[11px] font-semibold text-emerald-300">
+                    <span>⠿ Drag to move</span>
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); handleMoveAppStep(app.id, 'top'); }} className="px-1.5 py-0.5 rounded bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-200" title="Move to Top">⬆️ Top</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); handleMoveAppStep(app.id, 'left'); }} className="px-1.5 py-0.5 rounded bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-200" title="Move Earlier">⬅️</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); handleMoveAppStep(app.id, 'right'); }} className="px-1.5 py-0.5 rounded bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-200" title="Move Later">➡️</button>
+                    </div>
                   </div>
                 )}
                 <AppCard

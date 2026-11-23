@@ -228,9 +228,22 @@ export function App() {
     if (!silent && apps.length === 0) { setLoading(true); setTimeout(() => setLoading(false), 12500); }
     try {
       const records = await Promise.race([backend.list('apps'), new Promise((_, rej) => setTimeout(() => rej(new Error('Catalog fetch timeout')), 12000))]);
+      let portalMeta = new Map<string, any>();
+      try {
+        const rp = await fetch("https://" + "api." + "credibleartisans" + ".com/public/soulpay/portals/index");
+        if (rp.ok) {
+          const dp = await rp.json();
+          for (const p of (dp.portals || [])) portalMeta.set(String(p.slug || "").toLowerCase(), p);
+        }
+      } catch {}
+      const seenSlugs = new Set<string>();
       const mapped: StoreApp[] = (records || []).map((item: any) => {
         const title = item.title || item.name || 'Untitled App';
-        const category = item.category || 'Tools';
+        const slugMatch = (String(title) + " " + String(item.live_web_url || item.url || "")).match(/([a-z0-9-]+\.soul)/i);
+        const slug = slugMatch ? slugMatch[1].toLowerCase() : "";
+        if (slug) seenSlugs.add(slug);
+        const meta = slug ? portalMeta.get(slug) : undefined;
+        const category = (meta?.category) || (item.category && item.category !== "Tools" && item.category !== "Utilities" ? item.category : "Tools");
         const cover =
           item.thumbnail_url ||
           item.hero_image ||
@@ -243,7 +256,7 @@ export function App() {
           title,
           developer: item.developer || item.studio || 'Community Developer',
           category,
-          description: item.description || item.summary || '',
+          description: item.description || item.summary || meta?.description || (slug ? `Live Sovereign Edge portal (${slug})` : ''),
           live_web_url: item.live_web_url || item.liveAppUrl || item.websiteUrl || item.url || (title.includes("hub.soul") ? "https://api." + "credibleartisans" + ".com/public/aetherhost/live/hub.soul" : title.includes("ledger.soul") ? "https://api." + "credibleartisans" + ".com/public/aetherhost/live/ledger.soul" : title.includes("support.soul") ? "https://api." + "credibleartisans" + ".com/public/aetherhost/live/support.soul" : ""),
           apk_url: item.apk_url || '',
           platform_type: item.platform_type || (item.apk_url ? 'android' : 'web'),
@@ -254,13 +267,42 @@ export function App() {
           featured: Boolean(item.featured),
           owner_uid: item.owner_uid || '',
           sort_order: typeof item.sort_order === 'number' ? item.sort_order : 9999,
-          installs: Number(item.installs || 0),
+          installs: Math.max(Number(item.installs || 0), Number(meta?.views24h || 0)),
           rating: Number(item.rating || 5.0),
           reviews_count: Number(item.reviews_count || 0),
           version: item.version || '1.0.0',
           created_at: item.created_at || new Date().toISOString(),
         };
       });
+      let idx = mapped.length;
+      for (const [slug, p] of portalMeta.entries()) {
+        if (seenSlugs.has(slug)) continue;
+        idx += 1;
+        const pCat = p.category || "Business";
+        const pThumb = getUniqueThumbnail(p.title || slug, pCat);
+        mapped.push({
+          id: "soul-" + slug,
+          title: (p.title || slug) + " (" + slug + ")",
+          developer: "Sovereign Core",
+          category: pCat,
+          description: p.description || "Live Sovereign Edge portal (" + slug + ")",
+          live_web_url: "https://" + "api." + "credibleartisans" + ".com/public/aetherhost/live/" + slug,
+          apk_url: "",
+          platform_type: "web",
+          hero_image: pThumb,
+          thumbnail_url: pThumb,
+          icon_url: pThumb,
+          status: "approved",
+          featured: idx <= 12,
+          owner_uid: "sovereign-core",
+          sort_order: 500 + idx,
+          installs: Math.max(1, Number(p.views24h || 1)),
+          rating: 5.0,
+          reviews_count: 1,
+          version: "1.0.0",
+          created_at: p.updatedAt || new Date().toISOString(),
+        });
+      }
       if (mapped.length === 0) throw new Error('Empty backend apps list, using portals fallback');
       mapped.sort((a: any, b: any) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999));
       setApps(mapped);

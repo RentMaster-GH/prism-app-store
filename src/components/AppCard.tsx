@@ -48,9 +48,6 @@ export const AppCard: React.FC<AppCardProps> = ({
 }) => {
   const [deleting, setDeleting] = useState(false);
   const [installCount, setInstallCount] = useState<number>(Number(app.install_count || app.installs || 0));
-  useEffect(() => {
-    setInstallCount(Number(app.install_count || app.installs || 0));
-  }, [app.install_count, app.installs]);
   const [installedLocal, setInstalledLocal] = useState<boolean>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("prism_installed_apps") || "[]");

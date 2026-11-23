@@ -94,7 +94,7 @@ export function EditAppModal({ app, isOpen, onClose, onSaved }: Props) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("https://credibleartisans.com", {
+      const res = await fetch("https://api.credibleartisans.com/data/upload-installer", {
         method: "POST",
         body: fd,
       });

@@ -167,7 +167,7 @@ export const AppCard: React.FC<AppCardProps> = ({
 
   const trackListedAppMetric = (metricType: 'app_open' | 'app_install') => {
     try {
-      const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== 'localhost' ? 'https://credibleartisans.com' : 'http://localhost:3000');
+      const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== 'localhost' ? 'https://api.credibleartisans.com' : 'http://localhost:3000');
       let vid = localStorage.getItem('prism_vid');
       if (!vid) { vid = 'V-' + Math.random().toString(36).slice(2, 10); localStorage.setItem('prism_vid', vid); }
       fetch(apiBase + '/api/store/track', {

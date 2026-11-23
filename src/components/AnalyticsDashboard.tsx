@@ -9,7 +9,7 @@ interface AnalyticsDashboardProps {
 const API_BASE =
   import.meta.env.VITE_BACKEND_URL ||
   (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-    ? 'https://credibleartisans.com'
+    ? 'https://api.credibleartisans.com'
     : 'http://localhost:3000');
 
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ apps: propApps }) => {

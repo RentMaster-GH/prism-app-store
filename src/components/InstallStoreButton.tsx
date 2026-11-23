@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Download, X, Share, PlusSquare, Monitor, Smartphone, HardDrive, FileArchive } from 'lucide-react';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://credibleartisans.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://api.credibleartisans.com';
 
 interface ReleaseFile {
   name: string;

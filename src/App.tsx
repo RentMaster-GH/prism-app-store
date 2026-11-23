@@ -183,7 +183,7 @@ export function App() {
     setDeveloperUidState(uid);
     const wTok = localStorage.getItem("soul_trader_token");
     if (wTok && uid) {
-      const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== "localhost" ? "https://credibleartisans.com" : "http://localhost:3000");
+      const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== "localhost" ? "https://api.credibleartisans.com" : "http://localhost:3000");
       fetch(apiBase + "/public/soulpay/link-prism-uid", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ownerToken: wTok, prismUid: uid }) }).catch(() => {});
     }
     if (typeof window !== 'undefined' && sessionStorage.getItem('prism_manager_unlocked') === 'true') {
@@ -192,7 +192,7 @@ export function App() {
     }
     fetchApps();
     try {
-      const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== "localhost" ? "https://credibleartisans.com" : "http://localhost:3000");
+      const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== "localhost" ? "https://api.credibleartisans.com" : "http://localhost:3000");
       let vid = localStorage.getItem("prism_vid");
       if (!vid) { vid = "V-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("prism_vid", vid); }
       fetch(apiBase + "/api/store/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appSlug: "prism-app-store", visitorId: vid, eventType: "page_view", actionLabel: "Visited Prism App Store", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, referrer: document.referrer || "Direct" }) }).catch(() => {});
@@ -455,7 +455,7 @@ export function App() {
       setApps((prev) => [restoredApp, ...prev.filter((a) => String(a.id) !== String(id))]);
     }
     try {
-      await fetch('https://credibleartisans.com', {
+      await fetch('https://api.credibleartisans.com/public/prism/hidden-apps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action: 'restore' })
@@ -1163,7 +1163,7 @@ export function App() {
                 if (!tok) { alert("Please activate your SoulPay wallet first at soulpay.soul"); return; }
                 setTipBusy(true);
                 try {
-                  const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== "localhost" ? "https://credibleartisans.com" : "http://localhost:3000");
+                  const apiBase = import.meta.env.VITE_BACKEND_URL || (window.location.hostname !== "localhost" ? "https://api.credibleartisans.com" : "http://localhost:3000");
                   const r = await fetch(apiBase + "/public/soulpay/tip-developer", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

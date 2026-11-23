@@ -239,6 +239,16 @@ export class CustomBackendClient {
   }
 
   async list(collection: string): Promise<any[]> {
+    try {
+      const headers: Record<string, string> = {};
+      if (this.accessToken) headers['Authorization'] = `Bearer ${this.accessToken}`;
+      const directRes = await fetch(`${this.baseUrl}/data/${collection}`, { headers });
+      if (directRes.ok) {
+        const directData = await directRes.json();
+        const rawList = Array.isArray(directData) ? directData : directData?.records || directData?.data || [];
+        if (rawList.length > 0) return rawList.map((item: any) => this.normalizeRecord(item));
+      }
+    } catch {}
     const result = await this.request(`/data/${collection}`);
     const rawList = Array.isArray(result) ? result : result?.records || result?.data || [];
     return rawList.map((item: any) => this.normalizeRecord(item));

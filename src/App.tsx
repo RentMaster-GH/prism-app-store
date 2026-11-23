@@ -1,3 +1,4 @@
+import { SovereignSsoBadge } from './components/SovereignSsoBadge';
 import { InstallStoreButton } from './components/InstallStoreButton';
 import { EdgeStatusAndAlerts } from './components/EdgeStatusAndAlerts';
 import { DeveloperEarningsPanel } from './components/DeveloperEarningsPanel';
@@ -1239,6 +1240,7 @@ export function App() {
           onClose={() => setReportingApp(null)}
         />
       )}
+          <SovereignSsoBadge />
     </div>
   );
 }

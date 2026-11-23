@@ -261,6 +261,7 @@ export function App() {
           created_at: item.created_at || new Date().toISOString(),
         };
       });
+      if (mapped.length === 0) throw new Error('Empty backend apps list, using portals fallback');
       mapped.sort((a: any, b: any) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999));
       setApps(mapped);
       try {
@@ -279,7 +280,7 @@ export function App() {
         }
       } catch {}
       try {
-        const rPortals = await fetch('https://credibleartisans.com');
+        const rPortals = await fetch('https://api.credibleartisans.com/public/soulpay/portals/index');
         if (rPortals.ok) {
           const dPortals = await rPortals.json();
           const fallbackMapped: StoreApp[] = (dPortals.portals || []).map((p: any, i: number) => ({
@@ -288,7 +289,7 @@ export function App() {
             developer: 'Sovereign Core',
             category: p.category || 'Utilities',
             description: p.description || 'Live Sovereign Edge portal (' + p.slug + ')',
-            live_web_url: 'https://credibleartisans.com' + p.slug,
+            live_web_url: 'https://api.credibleartisans.com/public/aetherhost/live/' + p.slug,
             apk_url: '',
             platform_type: 'web',
             hero_image: getUniqueThumbnail(p.title || p.slug, p.category || 'Utilities'),
@@ -314,7 +315,7 @@ export function App() {
       if (apps.length === 0) setApps([]);
     } finally {
       try {
-      const rHidden = await fetch('https://credibleartisans.com');
+      const rHidden = await fetch('https://api.credibleartisans.com/public/prism/hidden-apps');
       if (rHidden.ok) {
         const dHidden = await rHidden.json();
         if (Array.isArray(dHidden.hiddenIds)) {
@@ -433,7 +434,7 @@ export function App() {
     try {
       await Promise.allSettled([
         backend.remove('apps', id),
-        fetch('https://credibleartisans.com', {
+        fetch('https://api.credibleartisans.com/public/prism/hidden-apps', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, action: 'hide' })

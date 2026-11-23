@@ -225,9 +225,9 @@ export function App() {
   }, [showPasskeyModal, showDevModal, editingApp, selectedApp, reportingApp, showFeedbackModal, showAnalyticsModal, showManagerLoginModal, showManagerConsole]);
 
   const fetchApps = async (silent = false) => {
-    if (!silent && apps.length === 0) setLoading(true);
+    if (!silent && apps.length === 0) { setLoading(true); setTimeout(() => setLoading(false), 5000); }
     try {
-      const records = await backend.list('apps');
+      const records = await Promise.race([backend.list('apps'), new Promise((_, rej) => setTimeout(() => rej(new Error('Catalog fetch timeout')), 4500))]);
       const mapped: StoreApp[] = (records || []).map((item: any) => {
         const title = item.title || item.name || 'Untitled App';
         const category = item.category || 'Tools';

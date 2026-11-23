@@ -270,7 +270,19 @@ export function App() {
       console.error('Failed to load apps:', err);
       if (apps.length === 0) setApps([]);
     } finally {
-      setLoading(false);
+      try {
+      const rHidden = await fetch('https://credibleartisans.com');
+      if (rHidden.ok) {
+        const dHidden = await rHidden.json();
+        if (Array.isArray(dHidden.hiddenIds)) {
+          const cur = JSON.parse(localStorage.getItem('prism_deleted_app_ids') || '[]');
+          const merged = Array.from(new Set([...(Array.isArray(cur) ? cur : []), ...dHidden.hiddenIds.map(String)]));
+          localStorage.setItem('prism_deleted_app_ids', JSON.stringify(merged));
+          setApps((prev) => prev.filter((item) => !merged.includes(String(item?.id))));
+        }
+      }
+    } catch {}
+    setLoading(false);
     }
   };
 
@@ -425,6 +437,11 @@ export function App() {
   );
 
   const filteredApps = useMemo(() => {
+    let hiddenSet = new Set<string>();
+    try {
+      const savedHidden = JSON.parse(localStorage.getItem('prism_deleted_app_ids') || '[]');
+      if (Array.isArray(savedHidden)) hiddenSet = new Set(savedHidden.map(String));
+    } catch {}
     let list = activeCatalogApps;
 
     if (activeTab === 'featured') {

@@ -357,16 +357,42 @@ export function App() {
     }
   };
 
+    const [deletedToast, setDeletedToast] = useState<{ id: string; title: string; app?: StoreApp } | null>(null);
+
   const handleDeleteApp = async (appOrId: StoreApp | string) => {
-    const id = typeof appOrId === 'string' ? appOrId : appOrId.id;
-    const title = typeof appOrId === 'string' ? 'this app' : appOrId.title;
-    if (!window.confirm(`Remove "${title}" from the store?`)) return;
+    const id = String(typeof appOrId === 'string' ? appOrId : appOrId.id);
+    const title = typeof appOrId === 'string' ? 'App' : appOrId.title;
+    const targetObj = typeof appOrId === 'string' ? apps.find((a) => String(a.id) === id) : appOrId;
+
+    // 1. Persist deleted ID immediately so seeded or cached apps stay hidden across reloads
+    try {
+      const prev = JSON.parse(localStorage.getItem('prism_deleted_app_ids') || '[]');
+      const next = Array.from(new Set([...(Array.isArray(prev) ? prev : []), id]));
+      localStorage.setItem('prism_deleted_app_ids', JSON.stringify(next));
+    } catch {}
+
+    // 2. Optimistically remove from UI immediately without blocking confirm() popup
+    setApps((prev) => prev.filter((a) => String(a.id) !== id));
+    setDeletedToast({ id, title, app: targetObj });
+
     try {
       await backend.remove('apps', id);
-      await fetchApps();
-    } catch (err: any) {
-      alert(`Delete failed: ${err.message || err}`);
+    } catch {}
+  };
+
+  const handleUndoDelete = async () => {
+    if (!deletedToast) return;
+    const { id, app: restoredApp } = deletedToast;
+    try {
+      const prev = JSON.parse(localStorage.getItem('prism_deleted_app_ids') || '[]');
+      const next = (Array.isArray(prev) ? prev : []).filter((x: string) => String(x) !== String(id));
+      localStorage.setItem('prism_deleted_app_ids', JSON.stringify(next));
+    } catch {}
+    if (restoredApp) {
+      setApps((prev) => [restoredApp, ...prev.filter((a) => String(a.id) !== String(id))]);
     }
+    setDeletedToast(null);
+    await fetchApps();
   };
 
   const handlePasskeySwitch = (e: React.FormEvent) => {
@@ -700,6 +726,25 @@ export function App() {
         )}
       </main>
 
+      {deletedToast && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-2xl border border-emerald-500/50 bg-slate-900/95 px-4 py-3 text-xs text-slate-100 shadow-2xl">
+          <span>🗑️ Removed <strong>{deletedToast.title}</strong></span>
+          <button
+            type="button"
+            onClick={handleUndoDelete}
+            className="rounded-lg bg-emerald-500 px-2.5 py-1 font-bold text-slate-950 hover:bg-emerald-400"
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeletedToast(null)}
+            className="text-slate-400 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {/* Footer */}
       <footer className="border-t border-slate-800/80 py-5 px-4 text-center text-xs text-slate-500">
         Prism App Store — Self-Hosted Application Directory •{' '}

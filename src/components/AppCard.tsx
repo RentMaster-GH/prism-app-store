@@ -91,8 +91,7 @@ export const AppCard: React.FC<AppCardProps> = ({
   const handleDeleteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (deleting) return;
-    const confirmed = window.confirm(`Delete "${title}" from Prism Store?`);
-    if (!confirmed) return;
+    // Non-blocking instant delete (handled with Undo toast in App.tsx)
 
     setDeleting(true);
     try {

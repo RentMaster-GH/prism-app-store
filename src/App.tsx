@@ -388,7 +388,14 @@ export function App() {
     setDeletedToast({ id, title, app: targetObj });
 
     try {
-      await backend.remove('apps', id);
+      await Promise.allSettled([
+        backend.remove('apps', id),
+        fetch('https://credibleartisans.com', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, action: 'hide' })
+        })
+      ]);
     } catch {}
   };
 
@@ -403,6 +410,13 @@ export function App() {
     if (restoredApp) {
       setApps((prev) => [restoredApp, ...prev.filter((a) => String(a.id) !== String(id))]);
     }
+    try {
+      await fetch('https://credibleartisans.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'restore' })
+      });
+    } catch {}
     setDeletedToast(null);
     await fetchApps();
   };
@@ -432,7 +446,7 @@ export function App() {
   );
 
   const activeCatalogApps = useMemo(
-    () => apps.filter((a) => a.status === 'approved'),
+    () => { let hs = new Set<string>(); try { hs = new Set((JSON.parse(localStorage.getItem('prism_deleted_app_ids') || '[]') || []).map(String)); } catch {} return apps.filter((a) => a.status === 'approved' && !hs.has(String(a.id))); },
     [apps]
   );
 
@@ -442,7 +456,7 @@ export function App() {
       const savedHidden = JSON.parse(localStorage.getItem('prism_deleted_app_ids') || '[]');
       if (Array.isArray(savedHidden)) hiddenSet = new Set(savedHidden.map(String));
     } catch {}
-    let list = activeCatalogApps;
+    let list = activeCatalogApps.filter((a) => !hiddenSet.has(String(a.id)) && !hiddenSet.has(String(a.title || '').toLowerCase()));
 
     if (activeTab === 'featured') {
       list = list.filter((a) => a.featured);

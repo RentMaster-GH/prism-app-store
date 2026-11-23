@@ -691,9 +691,20 @@ export function App() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Escape") setSearchQuery(""); }}
                 placeholder="Search apps, creators, categories..."
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full pl-9 pr-8 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs font-bold px-1"
+                >
+                  ×
+                </button>
+              )}
             </div>
             <select
               value={sortBy}
@@ -720,7 +731,7 @@ export function App() {
                     : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
-                {cat}
+                {cat} ({cat === "All" ? apps.length : apps.filter((a) => (a.category || "").toLowerCase() === cat.toLowerCase()).length})
               </button>
             ))}
           </div>

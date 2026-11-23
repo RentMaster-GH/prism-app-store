@@ -14,6 +14,7 @@ const API_BASE =
 
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ apps: propApps }) => {
   const [loading, setLoading] = useState(true);
+  const [appFilter, setAppFilter] = useState("");
   const [storeStats, setStoreStats] = useState({ totalApps: 0, approvedApps: 0, totalInstalls: 0 });
   const [ecosystem, setEcosystem] = useState<{
     totals: { total_views: number; unique_visitors: number; total_interactions: number; active_24h: number };
@@ -59,6 +60,30 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ apps: pr
     return () => clearInterval(timer);
   }, [propApps]);
 
+  const exportCsv = () => {
+    const rows = [
+      ["App Title", "Category", "Opens", "Installs", "Last Activity"],
+      ...ecosystem.listedApps.map((r) => [
+        JSON.stringify(String(r.app_title || "")),
+        JSON.stringify(String(r.category || "")),
+        r.opens || 0,
+        r.installs || 0,
+        r.last_activity || ""
+      ])
+    ];
+    const blob = new Blob([rows.map((r) => r.join(",")).join("\n")], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `prism-ecosystem-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  };
+
+  const filteredListedApps = ecosystem.listedApps.filter((item) => {
+    const q = appFilter.trim().toLowerCase();
+    if (!q) return true;
+    return String(item.app_title || "").toLowerCase().includes(q) || String(item.category || "").toLowerCase().includes(q);
+  });
+
   const kpis = [
     { label: 'Total Page Views', value: Number(ecosystem.totals.total_views || 0).toLocaleString(), icon: Eye, color: 'text-sky-400' },
     { label: 'Unique Visitors', value: Number(ecosystem.totals.unique_visitors || 0).toLocaleString(), icon: Users, color: 'text-emerald-400' },
@@ -89,10 +114,10 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ apps: pr
             Real-time public telemetry across Prism App Store, SoulPay, SoulMarket, Digital Remote Services &amp; all hosted apps.
           </p>
         </div>
-        <button type="button" onClick={loadAll} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+        <div className="flex items-center gap-2"><button type="button" onClick={exportCsv} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950/70 hover:bg-emerald-900/70 text-emerald-300 border border-emerald-700/50">Export CSV</button><button type="button" onClick={loadAll} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-400' : ''}`} />
           Refresh
-        </button>
+        </button></div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -112,7 +137,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ apps: pr
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-indigo-300">Individual Listed Apps — Opens &amp; Installs (All Current &amp; Future Apps)</span>
-          <span className="text-[11px] text-slate-400 font-mono">{ecosystem.listedApps.length} APPS TRACKED</span>
+          <div className="flex items-center gap-2"><input type="text" value={appFilter} onChange={(e) => setAppFilter(e.target.value)} placeholder="Filter apps..." className="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-700 text-[11px] text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500" /><span className="text-[11px] text-slate-400 font-mono">{filteredListedApps.length}/{ecosystem.listedApps.length} APPS</span></div>
         </div>
         <div className="overflow-x-auto max-h-72 overflow-y-auto">
           <table className="w-full text-left text-xs">
@@ -126,8 +151,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ apps: pr
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/70">
-              {ecosystem.listedApps.length > 0 ? (
-                ecosystem.listedApps.map((item) => (
+              {filteredListedApps.length > 0 ? (
+                filteredListedApps.map((item) => (
                   <tr key={item.app_key} className="hover:bg-slate-800/40">
                     <td className="py-2.5 px-4 font-semibold text-white">{item.app_title}</td>
                     <td className="py-2.5 px-3 text-slate-400">{item.category}</td>

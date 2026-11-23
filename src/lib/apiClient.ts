@@ -242,7 +242,8 @@ export class CustomBackendClient {
     try {
       const headers: Record<string, string> = {};
       if (this.accessToken) headers['Authorization'] = `Bearer ${this.accessToken}`;
-      const directRes = await fetch(`${this.baseUrl}/data/${collection}`, { headers });
+      const endpoint = collection === 'apps' ? '/data/public-apps' : `/data/${collection}`;
+      const directRes = await fetch(`${this.baseUrl}${endpoint}`, { headers });
       if (directRes.ok) {
         const directData = await directRes.json();
         const rawList = Array.isArray(directData) ? directData : directData?.records || directData?.data || [];

@@ -266,8 +266,51 @@ export function App() {
       try {
         localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(mapped));
       } catch {}
-    } catch (err) {
+        } catch (err) {
       console.error('Failed to load apps:', err);
+      try {
+        const cachedRaw = localStorage.getItem(CATALOG_CACHE_KEY);
+        if (cachedRaw) {
+          const parsed = JSON.parse(cachedRaw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setApps(parsed);
+            return;
+          }
+        }
+      } catch {}
+      try {
+        const rPortals = await fetch('https://credibleartisans.com');
+        if (rPortals.ok) {
+          const dPortals = await rPortals.json();
+          const fallbackMapped: StoreApp[] = (dPortals.portals || []).map((p: any, i: number) => ({
+            id: 'soul-' + p.slug,
+            title: (p.title || p.slug) + ' (' + p.slug + ')',
+            developer: 'Sovereign Core',
+            category: p.category || 'Utilities',
+            description: p.description || 'Live Sovereign Edge portal (' + p.slug + ')',
+            live_web_url: 'https://credibleartisans.com' + p.slug,
+            apk_url: '',
+            platform_type: 'web',
+            hero_image: getUniqueThumbnail(p.title || p.slug, p.category || 'Utilities'),
+            thumbnail_url: getUniqueThumbnail(p.title || p.slug, p.category || 'Utilities'),
+            icon_url: getUniqueThumbnail(p.title || p.slug, p.category || 'Utilities'),
+            status: 'approved',
+            featured: i < 12,
+            owner_uid: 'sovereign-core',
+            sort_order: i + 1,
+            installs: 1,
+            rating: 5.0,
+            reviews_count: 1,
+            version: '1.0.0',
+            created_at: new Date().toISOString(),
+          }));
+          if (fallbackMapped.length > 0) {
+            setApps(fallbackMapped);
+            localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(fallbackMapped));
+            return;
+          }
+        }
+      } catch {}
       if (apps.length === 0) setApps([]);
     } finally {
       try {

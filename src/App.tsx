@@ -299,11 +299,11 @@ export function App() {
             featured: i < 12,
             owner_uid: 'sovereign-core',
             sort_order: i + 1,
-            installs: 1,
+            installs: Math.max(1, Number(p.views24h || 1)),
             rating: 5.0,
             reviews_count: 1,
             version: '1.0.0',
-            created_at: new Date().toISOString(),
+            created_at: p.updatedAt || new Date().toISOString(),
           }));
           if (fallbackMapped.length > 0) {
             setApps(fallbackMapped);

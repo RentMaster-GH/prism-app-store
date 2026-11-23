@@ -5,6 +5,8 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [
     VitePWA({
+      selfDestroying: true,
+      cleanupOutdatedCaches: true,
       registerType: "autoUpdate",
       includeAssets: ["icon-192.png", "icon-512.png", "pwa-maskable-512x512.png"],
       manifest: {

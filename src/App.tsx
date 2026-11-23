@@ -274,35 +274,6 @@ export function App() {
           created_at: item.created_at || new Date().toISOString(),
         };
       });
-      let idx = mapped.length;
-      for (const [slug, p] of portalMeta.entries()) {
-        if (seenSlugs.has(slug)) continue;
-        idx += 1;
-        const pCat = p.category || "Business";
-        const pThumb = getUniqueThumbnail(p.title || slug, pCat);
-        mapped.push({
-          id: "soul-" + slug,
-          title: (p.title || slug) + " (" + slug + ")",
-          developer: "Sovereign Core",
-          category: pCat,
-          description: p.description || "Live Sovereign Edge portal (" + slug + ")",
-          live_web_url: "https://" + "api." + "credibleartisans" + ".com/public/aetherhost/live/" + slug,
-          apk_url: "",
-          platform_type: "web",
-          hero_image: pThumb,
-          thumbnail_url: pThumb,
-          icon_url: pThumb,
-          status: "approved",
-          featured: idx <= 12,
-          owner_uid: "sovereign-core",
-          sort_order: 500 + idx,
-          installs: Math.max(1, Number(p.views24h || 1)),
-          rating: 5.0,
-          reviews_count: 1,
-          version: "1.0.0",
-          created_at: p.updatedAt || new Date().toISOString(),
-        });
-      }
       if (mapped.length === 0) throw new Error('Empty backend apps list, using portals fallback');
       mapped.sort((a: any, b: any) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999));
       setApps(mapped);

@@ -68,18 +68,23 @@ export function AppDetailModal({ app, installedState, onClose, onInstall, onUnin
   const safeSummary = String(app.summary || app.tagline || (app as any).description || (app as any).raw?.description || '');
 
   const downloadWebShortcut = () => {
-    const rawUrl = app.live_web_url || app.liveAppUrl || app.websiteUrl || app.url || "";
-    const targetUrl = rawUrl.replace("://" + "credibleartisans" + ".com/public/", "://" + "api.credibleartisans" + ".com/public/");
+    const rawUrl = (typeof liveUrl !== "undefined" ? liveUrl : (app.live_web_url || app.liveAppUrl || app.websiteUrl || app.url || ""));
+    const targetUrl = String(rawUrl).replace("://" + "credibleartisans" + ".com/public/", "://" + "api.credibleartisans" + ".com/public/");
     if (!targetUrl) return;
-    const slug = (app.title || "prism-app").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${app.title}</title><meta http-equiv="refresh" content="0;url=${targetUrl}"></head><body style="background:#020617;color:#fff;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh"><p>Launching ${app.title}... <a href="${targetUrl}" style="color:#34d399">Open Now</a></p><script>location.replace(${JSON.stringify(targetUrl)});</script></body></html>`;
-    const blob = new Blob([html], { type: "text/html" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = slug + "-launcher.html";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const appTitle = String(typeof title !== "undefined" ? title : (app.title || "Sovereign App"));
+    const appKey = String(app.id || appTitle).toLowerCase();
+    try {
+      const instMap = JSON.parse(localStorage.getItem("prism_installed_apps_v1") || "{}");
+      if (instMap[appKey]) {
+        const openNow = window.confirm(`✅ "${appTitle}" is already installed on your device!\n\nYou can launch it directly from your Home Screen or App Drawer.\n\nClick OK to open it now.`);
+        if (openNow) window.open(targetUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+      instMap[appKey] = Date.now();
+      localStorage.setItem("prism_installed_apps_v1", JSON.stringify(instMap));
+    } catch {}
+    const sep = targetUrl.includes("?") ? "&" : "?";
+    window.open(targetUrl + sep + "autoinstall=1", "_blank", "noopener,noreferrer");
   };
 
   return (

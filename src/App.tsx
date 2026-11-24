@@ -575,9 +575,12 @@ export function App() {
               className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-200 border border-slate-700/80 cursor-pointer"
             >
               <option value="en">🌐 English</option>
+              <option value="nzi">🇬🇭 Nzema</option>
+              <option value="dag">🇬🇭 Dagbani</option>
+              <option value="fat">🇬🇭 Fante</option>
               <option value="tw">🇬🇭 Twi</option>
-              <option value="gaa">🇬🇭 Ga</option>
               <option value="ee">🇬🇭 Ewe</option>
+              <option value="gaa">🇬🇭 Ga</option>
               <option value="ig">🇳🇬 Igbo</option>
               <option value="ha">🇳🇬 Hausa</option>
               <option value="yo">🇳🇬 Yorùbá</option>
@@ -592,9 +595,6 @@ export function App() {
               <option value="zh">🇨🇳 中文 (Chinese)</option>
               <option value="ru">🇷🇺 Русский (Russian)</option>
               <option value="ja">🇯🇵 日本語 (Japanese)</option>
-              <option value="fat">🇬🇭 Fante</option>
-              <option value="nzi">🇬🇭 Nzema</option>
-              <option value="dag">🇬🇭 Dagbani</option>
             </select>
             <EdgeStatusAndAlerts />
             <InstallStoreButton />

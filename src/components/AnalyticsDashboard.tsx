@@ -33,18 +33,38 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ apps: pr
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [appsList, ecoRes] = await Promise.all([
+      const [appsList, ecoRes, storeInstRes] = await Promise.all([
         propApps && propApps.length > 0 ? Promise.resolve(propApps) : backend.list('apps').catch(() => []),
         fetch(`${API_BASE}/api/store/analytics`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch(`${API_BASE}/api/store/installs`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
       const approved = appsList.filter((a: any) => a.status === 'approved').length;
       const installs = appsList.reduce((sum: number, a: any) => sum + (Number(a.install_count || a.installs) || 0), 0);
       setStoreStats({ totalApps: appsList.length, approvedApps: approved, totalInstalls: installs });
       if (ecoRes && ecoRes.totals) {
+        const rawListed = Array.isArray(ecoRes.listedApps) ? [...ecoRes.listedApps] : [];
+        const prismTrack = (ecoRes.apps || []).find((x: any) => String(x.app_slug || '').toLowerCase() === 'prism-app-store');
+        const prismOpens = Number(prismTrack?.views || 0);
+        const prismInstalls = Number(storeInstRes?.count || 0);
+        const prismLast = prismTrack?.last_active || new Date().toISOString();
+        const existingIdx = rawListed.findIndex((x: any) => String(x.app_key || '').toLowerCase() === 'prism-app-store');
+        const prismEntry = {
+          app_title: 'Prism Store — Sovereign App Directory (prism-app-store)',
+          app_key: 'prism-app-store',
+          category: 'Platform',
+          opens: prismOpens,
+          installs: prismInstalls,
+          last_activity: prismLast,
+        };
+        if (existingIdx >= 0) rawListed[existingIdx] = prismEntry;
+        else rawListed.push(prismEntry);
+        rawListed.sort((a: any, b: any) =>
+          String(a.app_title || '').localeCompare(String(b.app_title || ''), undefined, { sensitivity: 'base' })
+        );
         setEcosystem({
           totals: ecoRes.totals,
           apps: ecoRes.apps || [],
-          listedApps: ecoRes.listedApps || [],
+          listedApps: rawListed,
           countries: ecoRes.countries || [],
           recentEvents: ecoRes.recentEvents || [],
         });

@@ -587,6 +587,14 @@ export function App() {
               <option value="es">🇪🇸 Español</option>
               <option value="ar">🇸🇦 العربية</option>
               <option value="pt">🇵🇹 Português</option>
+              <option value="nl">🇳🇱 Nederlands (Dutch)</option>
+              <option value="nl-BE">🇧🇪 Vlaams (Flemish)</option>
+              <option value="zh">🇨🇳 中文 (Chinese)</option>
+              <option value="ru">🇷🇺 Русский (Russian)</option>
+              <option value="ja">🇯🇵 日本語 (Japanese)</option>
+              <option value="fat">🇬🇭 Fante</option>
+              <option value="nzi">🇬🇭 Nzema</option>
+              <option value="dag">🇬🇭 Dagbani</option>
             </select>
             <EdgeStatusAndAlerts />
             <InstallStoreButton />

@@ -596,6 +596,27 @@ export function App() {
               <option value="ru">🇷🇺 Русский (Russian)</option>
               <option value="ja">🇯🇵 日本語 (Japanese)</option>
             </select>
+            <select
+              id="sov_currency_select"
+              title="Display currency across Prism Store & all .soul apps (All currencies accepted)"
+              defaultValue={typeof window !== "undefined" ? localStorage.getItem("sov_display_currency") || "USD" : "USD"}
+              onChange={(e) => {
+                const cur = e.target.value;
+                localStorage.setItem("sov_display_currency", cur);
+                window.dispatchEvent(new CustomEvent("sov-currency-change", { detail: cur }));
+              }}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-sky-300 border border-sky-500/40 cursor-pointer"
+            >
+              <option value="USD">🌍 USD $</option>
+              <option value="EUR">🇪🇺 EUR €</option>
+              <option value="GBP">🇬🇧 GBP £</option>
+              <option value="GHS">🇬🇭 GHS ₵</option>
+              <option value="NGN">🇳🇬 NGN ₦</option>
+              <option value="XOF">🌍 XOF CFA</option>
+              <option value="KES">🇰🇪 KES</option>
+              <option value="ZAR">🇿🇦 ZAR R</option>
+              <option value="CAD">🇨🇦 CAD C$</option>
+            </select>
             <EdgeStatusAndAlerts />
             <InstallStoreButton />
 

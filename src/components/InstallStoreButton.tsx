@@ -35,8 +35,13 @@ export function InstallStoreButton() {
   };
 
   useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true || localStorage.getItem('prism_store_installed') === '1') {
       setIsInstalled(true);
+    }
+    if ((navigator as any).getInstalledRelatedApps) {
+      (navigator as any).getInstalledRelatedApps().then((apps: any[]) => {
+        if (apps && apps.length > 0) { setIsInstalled(true); localStorage.setItem('prism_store_installed', '1'); }
+      }).catch(() => {});
     }
     fetch(`${BACKEND_URL}/api/store/installs`).then((r) => (r.ok ? r.json() : null)).then((d) => {
       if (d && typeof d.count === 'number') setInstallCount(d.count);
@@ -46,7 +51,7 @@ export function InstallStoreButton() {
     }).catch(() => {});
 
     const onPrompt = (e: Event) => { e.preventDefault(); setDeferredPrompt(e); };
-    const onInstalled = () => { setIsInstalled(true); setDeferredPrompt(null); setShowFallbackModal(false); recordInstall(); };
+    const onInstalled = () => { setIsInstalled(true); localStorage.setItem('prism_store_installed', '1'); setDeferredPrompt(null); setShowFallbackModal(false); recordInstall(); };
     window.addEventListener('beforeinstallprompt', onPrompt);
     window.addEventListener('appinstalled', onInstalled);
     return () => {
@@ -65,7 +70,21 @@ export function InstallStoreButton() {
     }
   };
 
-  if (isInstalled) return null;
+  if (isInstalled) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          if (window.confirm('✅ Prism Store is already installed on this device!\n\nOpen it directly from your Home Screen, Desktop, or App Drawer.\n\nClick OK if you still want to open the installer options.')) {
+            setShowFallbackModal(true);
+          }
+        }}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/40 transition cursor-pointer"
+      >
+        <span>✅ Installed on Device</span>
+      </button>
+    );
+  }
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const getMeta = (n: string) => {
     const l = n.toLowerCase();

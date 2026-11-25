@@ -180,7 +180,7 @@ html.sov-theme-hc .min-h-screen {
 }
 html.sov-theme-hc header, html.sov-theme-hc nav {
   background: #03050a !important;
-  border-bottom: 2px solid #94a3b8 !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.35) !important;
 }
 html.sov-theme-hc article,
 html.sov-theme-hc div[class*="bg-[#0"],
@@ -188,10 +188,10 @@ html.sov-theme-hc div[class*="bg-[#1"],
 html.sov-theme-hc div[class*="bg-slate-900"],
 html.sov-theme-hc div[class*="bg-slate-950"]:not(.h-40):not(.h-40 *) {
   background: #080c16 !important;
-  border-color: #94a3b8 !important;
+  border-color: rgba(226, 232, 240, 0.36) !important;
 }
 html.sov-theme-hc article {
-  border-width: 2px !important;
+  border-width: 1px !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9) !important;
 }
 html.sov-theme-hc article:hover {
@@ -219,7 +219,7 @@ html.sov-theme-hc select,
 html.sov-theme-hc textarea {
   background: #080c16 !important;
   color: #ffffff !important;
-  border: 2px solid #94a3b8 !important;
+  border: 1px solid rgba(226, 232, 240, 0.36) !important;
 }
 html.sov-theme-hc button.bg-slate-100 {
   background: #ffffff !important;
@@ -257,8 +257,8 @@ html.sov-theme-hc header button,
 html.sov-theme-hc header select,
 html.sov-theme-hc header div[class*="rounded-lg"],
 html.sov-theme-hc header div[class*="rounded-full"] {
-  border-width: 1.5px !important;
-  border-color: #cbd5e1 !important;
+  border-width: 1px !important;
+  border-color: rgba(226, 232, 240, 0.38) !important;
   color: #ffffff !important;
 }
 html.sov-theme-hc header button.bg-indigo-600 {
@@ -303,7 +303,7 @@ html.sov-theme-day .prism-cat-badge {
 }
 html.sov-theme-hc .prism-cat-badge {
   background-color: #0f172a !important;
-  border: 1.5px solid #fbbf24 !important;
+  border: 1px solid rgba(251, 191, 36, 0.65) !important;
   color: #fde68a !important;
   font-weight: 800 !important;
 }

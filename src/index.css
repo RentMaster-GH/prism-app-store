@@ -61,7 +61,7 @@
   isolation: isolate;
 }
 
-/* === ☀️ DAYLIGHT: CRISP STUDIO LIGHT === */
+/* === ☀️ DAYLIGHT: CRISP STUDIO LIGHT (100% Universal Coverage) === */
 html.sov-theme-day,
 html.sov-theme-day body,
 html.sov-theme-day .min-h-screen {
@@ -78,15 +78,20 @@ html.sov-theme-day footer {
   border-top: 1px solid #e2e8f0 !important;
   color: #475569 !important;
 }
-html.sov-theme-day article {
+html.sov-theme-day article,
+html.sov-theme-day div[class*="bg-[#0"],
+html.sov-theme-day div[class*="bg-[#1"],
+html.sov-theme-day div[class*="bg-slate-900"],
+html.sov-theme-day div[class*="bg-slate-950"]:not(.h-40):not(.h-40 *),
+html.sov-theme-day a[class*="bg-slate-950"] {
   background: #ffffff !important;
   color: #0f172a !important;
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.07) !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 6px 20px -4px rgba(15, 23, 42, 0.08) !important;
 }
 html.sov-theme-day article:hover {
   border-color: #6366f1 !important;
-  box-shadow: 0 10px 24px -4px rgba(79, 70, 229, 0.14) !important;
+  box-shadow: 0 12px 26px -4px rgba(79, 70, 229, 0.15) !important;
 }
 html.sov-theme-day article span.rounded-lg {
   background: #f1f5f9 !important;
@@ -97,7 +102,7 @@ html.sov-theme-day h1,
 html.sov-theme-day h2,
 html.sov-theme-day h3,
 html.sov-theme-day h4,
-html.sov-theme-day .text-white,
+html.sov-theme-day [class*="text-white"],
 html.sov-theme-day .text-slate-100,
 html.sov-theme-day .text-slate-200 {
   color: #0f172a !important;
@@ -107,10 +112,15 @@ html.sov-theme-day .text-slate-400,
 html.sov-theme-day .text-slate-500 {
   color: #475569 !important;
 }
+html.sov-theme-day [class*="border-white/"] {
+  border-color: #cbd5e1 !important;
+}
 html.sov-theme-day .bg-indigo-600,
 html.sov-theme-day .bg-indigo-600 *,
 html.sov-theme-day .bg-emerald-600,
 html.sov-theme-day .bg-emerald-600 *,
+html.sov-theme-day .bg-violet-600,
+html.sov-theme-day .bg-violet-600 *,
 html.sov-theme-day .h-40 span,
 html.sov-theme-day a.bg-white,
 html.sov-theme-day button.bg-white {
@@ -134,7 +144,8 @@ html.sov-theme-day .h-40 .bg-slate-950\/85 .text-slate-400 {
 html.sov-theme-day button[class*="bg-slate-800"],
 html.sov-theme-day button[class*="bg-slate-900"],
 html.sov-theme-day input,
-html.sov-theme-day select {
+html.sov-theme-day select,
+html.sov-theme-day textarea {
   background: #ffffff !important;
   color: #0f172a !important;
   border: 1px solid #cbd5e1 !important;
@@ -157,7 +168,7 @@ html.sov-theme-day .text-amber-300 {
   color: #b45309 !important;
 }
 
-/* === 👁️ HIGH-CONTRAST: PRO WCAG AAA DARK (Identical Geometry to Night + Pure 21:1 Contrast) === */
+/* === 👁️ HIGH-CONTRAST: PRO WCAG AAA DARK (100% Universal Coverage) === */
 html.sov-theme-hc,
 html.sov-theme-hc body,
 html.sov-theme-hc .min-h-screen {
@@ -168,9 +179,16 @@ html.sov-theme-hc header {
   background: #03050a !important;
   border-bottom: 2px solid #94a3b8 !important;
 }
-html.sov-theme-hc article {
+html.sov-theme-hc article,
+html.sov-theme-hc div[class*="bg-[#0"],
+html.sov-theme-hc div[class*="bg-[#1"],
+html.sov-theme-hc div[class*="bg-slate-900"],
+html.sov-theme-hc div[class*="bg-slate-950"]:not(.h-40):not(.h-40 *) {
   background: #080c16 !important;
-  border: 2px solid #94a3b8 !important;
+  border-color: #94a3b8 !important;
+}
+html.sov-theme-hc article {
+  border-width: 2px !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9) !important;
 }
 html.sov-theme-hc article:hover {
@@ -180,7 +198,7 @@ html.sov-theme-hc article:hover {
 html.sov-theme-hc h1,
 html.sov-theme-hc h2,
 html.sov-theme-hc h3,
-html.sov-theme-hc .text-white,
+html.sov-theme-hc [class*="text-white"],
 html.sov-theme-hc .text-slate-100,
 html.sov-theme-hc .text-slate-200,
 html.sov-theme-hc .text-slate-300,
@@ -188,10 +206,14 @@ html.sov-theme-hc .text-slate-400,
 html.sov-theme-hc .text-slate-500 {
   color: #ffffff !important;
 }
+html.sov-theme-hc [class*="border-white/"] {
+  border-color: #94a3b8 !important;
+}
 html.sov-theme-hc button[class*="bg-slate-800"],
 html.sov-theme-hc button[class*="bg-slate-900"],
 html.sov-theme-hc input,
-html.sov-theme-hc select {
+html.sov-theme-hc select,
+html.sov-theme-hc textarea {
   background: #080c16 !important;
   color: #ffffff !important;
   border: 2px solid #94a3b8 !important;

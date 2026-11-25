@@ -1,3 +1,4 @@
+import { useTheme } from './context/ThemeContext';
 import { SovereignSsoBadge } from './components/SovereignSsoBadge';
 import { InstallStoreButton } from './components/InstallStoreButton';
 import { EdgeStatusAndAlerts } from './components/EdgeStatusAndAlerts';
@@ -138,14 +139,31 @@ export function App() {
       return v === "day" || v === "hc" ? v : "night";
     } catch { return "night"; }
   });
+  const { setTheme: setPrismBaseTheme } = useTheme();
+  const applyPrismEyeMode = (mode: "night" | "day" | "hc") => {
+    setPrismEyeMode(mode);
+    setPrismBaseTheme(mode === "night" ? "dark" : "light");
+    try { localStorage.setItem("sov_eye_theme_v1", mode); } catch {}
+    document.documentElement.classList.remove("sov-theme-night", "sov-theme-day", "sov-theme-hc");
+    document.documentElement.classList.add("sov-theme-" + mode);
+  };
   const cyclePrismEyeMode = () => {
     const order: ("night" | "day" | "hc")[] = ["night", "day", "hc"];
-    const next = order[(order.indexOf(prismEyeMode) + 1) % order.length];
-    setPrismEyeMode(next);
-    try { localStorage.setItem("sov_eye_theme_v1", next); } catch {}
-    document.documentElement.classList.remove("sov-theme-night", "sov-theme-day", "sov-theme-hc");
-    document.documentElement.classList.add("sov-theme-" + next);
+    applyPrismEyeMode(order[(order.indexOf(prismEyeMode) + 1) % order.length]);
   };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && e.key.toLowerCase() === "t") { e.preventDefault(); cyclePrismEyeMode(); }
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "sov_eye_theme_v1" && (e.newValue === "night" || e.newValue === "day" || e.newValue === "hc")) {
+        applyPrismEyeMode(e.newValue);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("storage", onStorage);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("storage", onStorage); };
+  });
   const [apps, setApps] = useState<StoreApp[]>(() => {
     if (typeof window === 'undefined') return [];
     try {

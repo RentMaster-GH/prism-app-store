@@ -607,15 +607,42 @@ export function App() {
               }}
               className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-sky-300 border border-sky-500/40 cursor-pointer"
             >
-              <option value="USD">🌍 USD $</option>
+              <option value="USD">🇺🇸 USD $</option>
               <option value="EUR">🇪🇺 EUR €</option>
               <option value="GBP">🇬🇧 GBP £</option>
-              <option value="GHS">🇬🇭 GHS ₵</option>
+              <option value="GHS">🇬🇭 GHS GH₵</option>
               <option value="NGN">🇳🇬 NGN ₦</option>
-              <option value="XOF">🌍 XOF CFA</option>
-              <option value="KES">🇰🇪 KES</option>
+              <option value="KES">🇰🇪 KES KSh</option>
               <option value="ZAR">🇿🇦 ZAR R</option>
+              <option value="XOF">🌍 XOF CFA</option>
+              <option value="XAF">🌍 XAF FCFA</option>
+              <option value="UGX">🇺🇬 UGX USh</option>
+              <option value="TZS">🇹🇿 TZS TSh</option>
+              <option value="RWF">🇷🇼 RWF RF</option>
+              <option value="ETB">🇪🇹 ETB Br</option>
+              <option value="EGP">🇪🇬 EGP E£</option>
+              <option value="MAD">🇲🇦 MAD DH</option>
+              <option value="ZMW">🇿🇲 ZMW ZK</option>
+              <option value="BWP">🇧🇼 BWP P</option>
+              <option value="NAD">🇳🇦 NAD N$</option>
+              <option value="MZN">🇲🇿 MZN MT</option>
+              <option value="GMD">🇬🇲 GMD D</option>
+              <option value="SLE">🇸🇱 SLE Le</option>
+              <option value="LRD">🇱🇷 LRD L$</option>
               <option value="CAD">🇨🇦 CAD C$</option>
+              <option value="AUD">🇦🇺 AUD A$</option>
+              <option value="NZD">🇳🇿 NZD NZ$</option>
+              <option value="CHF">🇨🇭 CHF</option>
+              <option value="JPY">🇯🇵 JPY ¥</option>
+              <option value="CNY">🇨🇳 CNY ¥</option>
+              <option value="INR">🇮🇳 INR ₹</option>
+              <option value="AED">🇦🇪 AED</option>
+              <option value="SAR">🇸🇦 SAR</option>
+              <option value="QAR">🇶🇦 QAR</option>
+              <option value="SGD">🇸🇬 SGD S$</option>
+              <option value="HKD">🇭🇰 HKD HK$</option>
+              <option value="BRL">🇧🇷 BRL R$</option>
+              <option value="MXN">🇲🇽 MXN Mex$</option>
             </select>
             <EdgeStatusAndAlerts />
             <InstallStoreButton />

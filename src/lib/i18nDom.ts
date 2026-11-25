@@ -51,6 +51,43 @@ function translateSentence(text: string, lang: string): string {
   return out;
 }
 
+
+const ISO_MAP: Record<string, string> = {
+  tw: "ak", fat: "ak", nzi: "ak", ee: "ee", gaa: "ak", dag: "ak",
+  ig: "ig", ha: "ha", yo: "yo", sw: "sw", af: "af",
+  fr: "fr", es: "es", ar: "ar", pt: "pt", nl: "nl", "nl-BE": "nl",
+  zh: "zh-CN", ru: "ru", ja: "ja"
+};
+const CACHE_KEY = "sov_dyn_tr_v1";
+let trCache: Record<string, string> = {};
+try { trCache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}"); } catch {}
+const inFlight = new Set<string>();
+
+async function fetchDynamicTranslation(text: string, lang: string) {
+  const tl = ISO_MAP[lang];
+  if (!tl || text.length < 3 || text.length > 320) return;
+  if (!/[a-zA-Z]{2,}/.test(text)) return;
+  if (/^(https?:|PRISM-)/i.test(text) || text.endsWith(".soul")) return;
+  const ck = lang + "::" + text;
+  if (trCache[ck] || inFlight.has(ck)) return;
+  inFlight.add(ck);
+  try {
+    const url = "https://googleapis.com" + encodeURIComponent(tl) + "&dt=t&q=" + encodeURIComponent(text);
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const data = await res.json();
+    const first = Array.isArray(data) ? data.at(0) : null;
+    const out = Array.isArray(first) ? first.map((seg: any) => (Array.isArray(seg) ? seg.at(0) : "") || "").join("").trim() : "";
+    if (out && out.toLowerCase() !== text.toLowerCase()) {
+      trCache[ck] = out;
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(trCache)); } catch {}
+      if ((localStorage.getItem("sov_lang") || "en") === lang) translateAppDom(lang);
+    }
+  } catch {} finally {
+    inFlight.delete(ck);
+  }
+}
+
 export function translateAppDom(lang: string) {
   localStorage.setItem("sov_lang", lang);
   document.documentElement.lang = lang;

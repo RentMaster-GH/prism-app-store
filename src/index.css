@@ -241,3 +241,35 @@ html.sov-theme-hc *:focus-visible {
   outline: 2.5px solid #fbbf24 !important;
   outline-offset: 2px !important;
 }
+
+/* === ☀️ DAYLIGHT: ANALYTICS DASHBOARD, TABLES & INDIGO/EMERALD BADGES === */
+html.sov-theme-day [class*="text-indigo-300"],
+html.sov-theme-day [class*="text-indigo-400"] {
+  color: #3730a3 !important;
+  font-weight: 700 !important;
+}
+html.sov-theme-day button[class*="bg-emerald-950"],
+html.sov-theme-day button[class*="bg-emerald-900"] {
+  background: #ecfdf5 !important;
+  border: 1px solid #6ee7b7 !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+}
+html.sov-theme-day button[class*="bg-emerald-950"]:hover,
+html.sov-theme-day button[class*="bg-emerald-900"]:hover {
+  background: #d1fae5 !important;
+}
+html.sov-theme-day thead,
+html.sov-theme-day thead[class*="bg-slate-950"],
+html.sov-theme-day thead[class*="bg-slate-900"] {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+}
+html.sov-theme-day th {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+html.sov-theme-day td {
+  color: #1e293b !important;
+}

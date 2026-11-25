@@ -704,6 +704,13 @@ export function App() {
               <option value="HKD">🇭🇰 HKD HK$</option>
               <option value="BRL">🇧🇷 BRL R$</option>
               <option value="MXN">🇲🇽 MXN Mex$</option>
+              <optgroup label="🦊 Web3 / MetaMask Crypto (P2P)">
+                <option value="USDT">🦊 USDT (Tether)</option>
+                <option value="USDC">🦊 USDC (USD Coin)</option>
+                <option value="ETH">🦊 ETH (Ethereum)</option>
+                <option value="POL">🦊 POL (Polygon)</option>
+                <option value="BNB">🦊 BNB (BNB Chain)</option>
+              </optgroup>
             </select>
             <button
               type="button"

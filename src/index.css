@@ -274,3 +274,19 @@ html.sov-theme-hc [class*="bg-emerald-500/15"] {
   border: 1.5px solid #34d399 !important;
   color: #ffffff !important;
 }
+
+html.sov-theme-day header button[class*="bg-indigo-500/"],
+html.sov-theme-day header [class*="text-indigo-300"],
+html.sov-theme-day header [class*="text-indigo-400"] {
+  background: #eef2ff !important;
+  border-color: #818cf8 !important;
+  color: #3730a3 !important;
+  font-weight: 700 !important;
+}
+html.sov-theme-day header button[title="Manage Developer Passkey"],
+html.sov-theme-day header button[title="Manage Developer Passkey"] span {
+  background: #ffffff !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}

@@ -79,8 +79,8 @@ function queueBatchTranslation(text: string, lang: string) {
     batchTimer = null;
     const curLang = localStorage.getItem("sov_lang") || "en";
     const curTl = ISO_MAP[curLang];
-    const batch = Array.from(pendingTexts).slice(0, 50);
-    pendingTexts.clear();
+    const batch = Array.from(pendingTexts).slice(0, 25);
+    batch.forEach((t) => pendingTexts.delete(t));
     if (!curTl || !batch.length) return;
     batch.forEach((t) => inFlight.add(curLang + "::" + t));
     try {
@@ -104,6 +104,9 @@ function queueBatchTranslation(text: string, lang: string) {
       }
     } catch {} finally {
       batch.forEach((t) => inFlight.delete(curLang + "::" + t));
+      if (pendingTexts.size > 0 && (localStorage.getItem("sov_lang") || "en") === curLang) {
+        setTimeout(() => translateAppDom(curLang), 120);
+      }
     }
   }, 150);
 }
@@ -131,9 +134,15 @@ if (typeof window !== "undefined") {
     const cur = localStorage.getItem("sov_lang") || "en";
     if (cur !== "en") translateAppDom(cur);
   });
-  window.addEventListener("DOMContentLoaded", () => {
+  const bootTranslator = () => {
+    if (!document.body) return;
     obs.observe(document.body, { childList: true, subtree: true });
     const cur = localStorage.getItem("sov_lang") || "en";
     if (cur !== "en") translateAppDom(cur);
-  });
+  };
+  if (document.readyState === "loading") {
+    window.addEventListener("DOMContentLoaded", bootTranslator);
+  } else {
+    bootTranslator();
+  }
 }

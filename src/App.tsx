@@ -1,3 +1,4 @@
+import { translateAppDom } from "./lib/i18nDom";
 import { useTheme } from './context/ThemeContext';
 import { SovereignSsoBadge } from './components/SovereignSsoBadge';
 import { InstallStoreButton } from './components/InstallStoreButton';
@@ -631,7 +632,7 @@ export function App() {
                 const l = e.target.value;
                 localStorage.setItem("sov_lang", l);
                 document.documentElement.lang = l;
-                document.documentElement.dir = l === "ar" ? "rtl" : "ltr"; if ((window as any).__translateAppDom) { (window as any).__translateAppDom(l); }
+                document.documentElement.dir = l === "ar" ? "rtl" : "ltr"; translateAppDom(l);
               }}
               className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-200 border border-slate-700/80 cursor-pointer"
             >

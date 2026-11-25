@@ -59,6 +59,17 @@ const ISO_MAP: Record<string, string> = {
   fr: "fr", es: "es", ar: "ar", pt: "pt", nl: "nl", "nl-BE": "nl",
   zh: "zh-CN", ru: "ru", ja: "ja"
 };
+
+let activeLang = "en";
+try { activeLang = getSafeLang(); } catch {}
+function getSafeLang(): string {
+  try { return localStorage.getItem("sov_lang") || activeLang || "en"; } catch { return activeLang || "en"; }
+}
+function setSafeLang(l: string) {
+  activeLang = l;
+  try { localStorage.setItem("sov_lang", l); } catch {}
+}
+
 const CACHE_KEY = "sov_dyn_tr_v2";
 let trCache: Record<string, string> = {};
 try { trCache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}"); } catch {}
@@ -78,7 +89,7 @@ function queueBatchTranslation(text: string, lang: string) {
   if (batchTimer) return;
   batchTimer = setTimeout(async () => {
     batchTimer = null;
-    const curLang = localStorage.getItem("sov_lang") || "en";
+    const curLang = getSafeLang();
     const curTl = ISO_MAP[curLang];
     const batch = Array.from(pendingTexts).slice(0, 25);
     batch.forEach((t) => pendingTexts.delete(t));
@@ -101,7 +112,7 @@ function queueBatchTranslation(text: string, lang: string) {
       }
       if (updated === 0) throw new Error("empty_backend_tr");
       try { localStorage.setItem(CACHE_KEY, JSON.stringify(trCache)); } catch {}
-      if ((localStorage.getItem("sov_lang") || "en") === curLang) {
+      if ((getSafeLang()) === curLang) {
         translateAppDom(curLang);
         window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: curLang }));
       }
@@ -122,14 +133,14 @@ function queueBatchTranslation(text: string, lang: string) {
       }));
       if (fbUpdated > 0) {
         try { localStorage.setItem(CACHE_KEY, JSON.stringify(trCache)); } catch {}
-        if ((localStorage.getItem("sov_lang") || "en") === curLang) {
+        if ((getSafeLang()) === curLang) {
           translateAppDom(curLang);
           window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: curLang }));
         }
       }
     } finally {
       batch.forEach((t) => inFlight.delete(curLang + "::" + t));
-      if (pendingTexts.size > 0 && (localStorage.getItem("sov_lang") || "en") === curLang) {
+      if (pendingTexts.size > 0 && (getSafeLang()) === curLang) {
         setTimeout(() => translateAppDom(curLang), 120);
       }
     }
@@ -137,7 +148,7 @@ function queueBatchTranslation(text: string, lang: string) {
 }
 
 export function translateAppDom(lang: string) {
-  localStorage.setItem("sov_lang", lang);
+  setSafeLang(lang);
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === "ar" ? "rtl" : "ltr"; if (typeof window !== "undefined") { window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: lang })); if (lang !== "en") { setTimeout(() => window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: lang })), 1600); } }
   const dict = DICT[lang] || {};
@@ -158,7 +169,7 @@ if (typeof window !== "undefined") {
   let mutating = false;
   const obs = new MutationObserver(() => {
     if (mutating) return;
-    const cur = localStorage.getItem("sov_lang") || "en";
+    const cur = getSafeLang();
     if (cur !== "en") {
       mutating = true;
       try { translateAppDom(cur); } finally { setTimeout(() => { mutating = false; }, 50); }
@@ -167,7 +178,7 @@ if (typeof window !== "undefined") {
   const bootTranslator = () => {
     if (!document.body) return;
     obs.observe(document.body, { childList: true, subtree: true });
-    const cur = localStorage.getItem("sov_lang") || "en";
+    const cur = getSafeLang();
     if (cur !== "en") translateAppDom(cur);
   };
   if (document.readyState === "loading") {
@@ -180,7 +191,7 @@ if (typeof window !== "undefined") {
 export function useTranslatedText(text: string): string {
   const [val, setVal] = useState<string>(() => {
     if (typeof window === "undefined") return text;
-    const lang = localStorage.getItem("sov_lang") || "en";
+    const lang = getSafeLang();
     if (lang === "en" || !text) return text;
     const raw = text.trim();
     const cached = trCache[lang + "::" + raw];
@@ -192,8 +203,8 @@ export function useTranslatedText(text: string): string {
   });
 
   useEffect(() => {
-    const sync = () => {
-      const lang = localStorage.getItem("sov_lang") || "en";
+    const sync = (ev?: any) => {
+      const lang = (ev && typeof ev.detail === "string" && ev.detail) ? ev.detail : getSafeLang();
       if (lang === "en" || !text) { setVal(text); return; }
       const raw = text.trim();
       const cached = trCache[lang + "::" + raw];

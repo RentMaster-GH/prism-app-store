@@ -58,15 +58,13 @@ const ISO_MAP: Record<string, string> = {
   fr: "fr", es: "es", ar: "ar", pt: "pt", nl: "nl", "nl-BE": "nl",
   zh: "zh-CN", ru: "ru", ja: "ja"
 };
-const CACHE_KEY = "sov_dyn_tr_v1";
+const CACHE_KEY = "sov_dyn_tr_v2";
 let trCache: Record<string, string> = {};
 try { trCache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}"); } catch {}
 const inFlight = new Set<string>();
-
-
-const BACKEND_TR_URL = "https://credibleartisans.com";
 const pendingTexts = new Set<string>();
 let batchTimer: any = null;
+const TR_ENDPOINT = "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/soulpay/store/translate";
 
 function queueBatchTranslation(text: string, lang: string) {
   const tl = ISO_MAP[lang];
@@ -86,13 +84,13 @@ function queueBatchTranslation(text: string, lang: string) {
     if (!curTl || !batch.length) return;
     batch.forEach((t) => inFlight.add(curLang + "::" + t));
     try {
-      const res = await fetch(BACKEND_TR_URL, {
+      const res = await fetch(TR_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tl: curTl, texts: batch })
       });
       const data = await res.json();
-      const map = data?.translations || {};
+      const map = (data && data.translations) ? data.translations : {};
       let updated = 0;
       for (const orig of Object.keys(map)) {
         if (map[orig]) {
@@ -107,9 +105,8 @@ function queueBatchTranslation(text: string, lang: string) {
     } catch {} finally {
       batch.forEach((t) => inFlight.delete(curLang + "::" + t));
     }
-  }, 180);
+  }, 150);
 }
-
 
 export function translateAppDom(lang: string) {
   localStorage.setItem("sov_lang", lang);

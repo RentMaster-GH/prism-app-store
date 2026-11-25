@@ -63,30 +63,53 @@ let trCache: Record<string, string> = {};
 try { trCache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}"); } catch {}
 const inFlight = new Set<string>();
 
-async function fetchDynamicTranslation(text: string, lang: string) {
+
+const BACKEND_TR_URL = "https://credibleartisans.com";
+const pendingTexts = new Set<string>();
+let batchTimer: any = null;
+
+function queueBatchTranslation(text: string, lang: string) {
   const tl = ISO_MAP[lang];
-  if (!tl || text.length < 3 || text.length > 320) return;
+  if (!tl || text.length < 3 || text.length > 350) return;
   if (!/[a-zA-Z]{2,}/.test(text)) return;
   if (/^(https?:|PRISM-)/i.test(text) || text.endsWith(".soul")) return;
   const ck = lang + "::" + text;
   if (trCache[ck] || inFlight.has(ck)) return;
-  inFlight.add(ck);
-  try {
-    const url = "https://googleapis.com" + encodeURIComponent(tl) + "&dt=t&q=" + encodeURIComponent(text);
-    const res = await fetch(url);
-    if (!res.ok) return;
-    const data = await res.json();
-    const first = Array.isArray(data) ? data.at(0) : null;
-    const out = Array.isArray(first) ? first.map((seg: any) => (Array.isArray(seg) ? seg.at(0) : "") || "").join("").trim() : "";
-    if (out && out.toLowerCase() !== text.toLowerCase()) {
-      trCache[ck] = out;
-      try { localStorage.setItem(CACHE_KEY, JSON.stringify(trCache)); } catch {}
-      if ((localStorage.getItem("sov_lang") || "en") === lang) translateAppDom(lang);
+  pendingTexts.add(text);
+  if (batchTimer) return;
+  batchTimer = setTimeout(async () => {
+    batchTimer = null;
+    const curLang = localStorage.getItem("sov_lang") || "en";
+    const curTl = ISO_MAP[curLang];
+    const batch = Array.from(pendingTexts).slice(0, 50);
+    pendingTexts.clear();
+    if (!curTl || !batch.length) return;
+    batch.forEach((t) => inFlight.add(curLang + "::" + t));
+    try {
+      const res = await fetch(BACKEND_TR_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tl: curTl, texts: batch })
+      });
+      const data = await res.json();
+      const map = data?.translations || {};
+      let updated = 0;
+      for (const orig of Object.keys(map)) {
+        if (map[orig]) {
+          trCache[curLang + "::" + orig] = map[orig];
+          updated++;
+        }
+      }
+      if (updated > 0) {
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(trCache)); } catch {}
+        if ((localStorage.getItem("sov_lang") || "en") === curLang) translateAppDom(curLang);
+      }
+    } catch {} finally {
+      batch.forEach((t) => inFlight.delete(curLang + "::" + t));
     }
-  } catch {} finally {
-    inFlight.delete(ck);
-  }
+  }, 180);
 }
+
 
 export function translateAppDom(lang: string) {
   localStorage.setItem("sov_lang", lang);
@@ -101,7 +124,7 @@ export function translateAppDom(lang: string) {
     if (!node.__origEn) node.__origEn = node.nodeValue || "";
     const raw = node.__origEn.trim();
     if (!raw) continue;
-    if (lang === "en") { node.nodeValue = node.__origEn; continue; } const m = raw.match(/^(.*?)(\s*\(\d+\))$/); const k = m ? m[1].trim() : raw; const tr = dict[k]; const cached = trCache[lang + "::" + raw]; if (tr) { node.nodeValue = node.__origEn.replace(raw, tr + (m ? m[2] : "")); } else if (cached) { node.nodeValue = node.__origEn.replace(raw, cached); } else { fetchDynamicTranslation(raw, lang); }
+    if (lang === "en") { node.nodeValue = node.__origEn; continue; } const m = raw.match(/^(.*?)(\s*\(\d+\))$/); const k = m ? m[1].trim() : raw; const tr = dict[k]; const cached = trCache[lang + "::" + raw]; if (tr) { node.nodeValue = node.__origEn.replace(raw, tr + (m ? m[2] : "")); } else if (cached) { node.nodeValue = node.__origEn.replace(raw, cached); } else { queueBatchTranslation(raw, lang); }
   }
 }
 

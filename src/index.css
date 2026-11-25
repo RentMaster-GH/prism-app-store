@@ -93,10 +93,13 @@ html.sov-theme-day article:hover {
   border-color: #6366f1 !important;
   box-shadow: 0 12px 26px -4px rgba(79, 70, 229, 0.15) !important;
 }
-html.sov-theme-day article span.rounded-lg {
-  background: #f1f5f9 !important;
-  border-color: #cbd5e1 !important;
-  color: #334155 !important;
+html.sov-theme-day article span.rounded-lg,
+html.sov-theme-day article span[class*="bg-slate-800"] {
+  background: #e2e8f0 !important;
+  border: 1px solid #94a3b8 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
 }
 html.sov-theme-day h1,
 html.sov-theme-day h2,

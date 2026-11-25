@@ -112,7 +112,7 @@ html.sov-theme-day .text-slate-400,
 html.sov-theme-day .text-slate-500 {
   color: #475569 !important;
 }
-html.sov-theme-day [class*="border-white/"] {
+html.sov-theme-day [class*="border-white/"], html.sov-theme-day [class*="border-slate-800"], html.sov-theme-day [class*="border-slate-700"] {
   border-color: #cbd5e1 !important;
 }
 html.sov-theme-day .bg-indigo-600,
@@ -206,7 +206,7 @@ html.sov-theme-hc .text-slate-400,
 html.sov-theme-hc .text-slate-500 {
   color: #ffffff !important;
 }
-html.sov-theme-hc [class*="border-white/"] {
+html.sov-theme-hc [class*="border-white/"], html.sov-theme-hc [class*="border-slate-800"], html.sov-theme-hc [class*="border-slate-700"] {
   border-color: #94a3b8 !important;
 }
 html.sov-theme-hc button[class*="bg-slate-800"],

@@ -132,6 +132,20 @@ export interface StoreApp {
 const CATALOG_CACHE_KEY = 'prism_cached_apps_v1';
 
 export function App() {
+  const [prismEyeMode, setPrismEyeMode] = useState<"night" | "day" | "hc">(() => {
+    try {
+      const v = localStorage.getItem("sov_eye_theme_v1");
+      return v === "day" || v === "hc" ? v : "night";
+    } catch { return "night"; }
+  });
+  const cyclePrismEyeMode = () => {
+    const order: ("night" | "day" | "hc")[] = ["night", "day", "hc"];
+    const next = order[(order.indexOf(prismEyeMode) + 1) % order.length];
+    setPrismEyeMode(next);
+    try { localStorage.setItem("sov_eye_theme_v1", next); } catch {}
+    document.documentElement.classList.remove("sov-theme-night", "sov-theme-day", "sov-theme-hc");
+    document.documentElement.classList.add("sov-theme-" + next);
+  };
   const [apps, setApps] = useState<StoreApp[]>(() => {
     if (typeof window === 'undefined') return [];
     try {

@@ -34,7 +34,7 @@ class PrismSafeBoundary extends React.Component<{ children: React.ReactNode }, {
     "html.sov-theme-day .text-slate-300, html.sov-theme-day .text-slate-400, html.sov-theme-day .text-slate-500 { color: #475569 !important; }" +
     "html.sov-theme-day button.bg-slate-800\/80, html.sov-theme-day button.bg-slate-800\/90, html.sov-theme-day button.bg-slate-900, html.sov-theme-day button.bg-slate-800 { background: #f1f5f9 !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important; }" +
     "html.sov-theme-day button.bg-slate-800\/80:hover, html.sov-theme-day button.bg-slate-800\/90:hover, html.sov-theme-day button.bg-slate-900:hover { background: #e2e8f0 !important; }" +
-    "html.sov-theme-day .bg-indigo-600, html.sov-theme-day .bg-indigo-600 *, html.sov-theme-day .h-40 span, html.sov-theme-day a.bg-white, html.sov-theme-day button.bg-white { color: #ffffff !important; }" +
+    "html.sov-theme-day .bg-indigo-600, html.sov-theme-day .bg-indigo-600 *, html.sov-theme-day .bg-emerald-600, html.sov-theme-day .bg-emerald-600 *, html.sov-theme-day .h-40 span, html.sov-theme-day a.bg-white, html.sov-theme-day button.bg-white { color: #ffffff !important; }" +
     "html.sov-theme-day a.bg-white, html.sov-theme-day button.bg-white { background: #0f172a !important; }" +
     "html.sov-theme-day a.bg-white:hover, html.sov-theme-day button.bg-white:hover { background: #1e293b !important; }" +
     "html.sov-theme-day .h-40 .bg-slate-950\/85 { background: rgba(15,23,42,0.85) !important; color: #fbbf24 !important; }" +

@@ -17,6 +17,10 @@ export const AppViewer: React.FC<AppViewerProps> = ({ app, onClose }) => {
   if (_selTheme && targetUrl && targetUrl.includes(".soul") && !targetUrl.includes("theme=")) {
     targetUrl += (targetUrl.includes("?") ? "&" : "?") + "theme=" + encodeURIComponent(_selTheme);
   }
+  const _selLang = (typeof localStorage !== "undefined" ? localStorage.getItem("sov_lang") : "") || "";
+  if (_selLang && _selLang !== "en" && targetUrl && targetUrl.includes(".soul") && !targetUrl.includes("lang=")) {
+    targetUrl += (targetUrl.includes("?") ? "&" : "?") + "lang=" + encodeURIComponent(_selLang);
+  }
   const isHttps = typeof targetUrl === 'string' && targetUrl.startsWith('https://');
 
   return (

@@ -126,6 +126,10 @@ export const AppCard: React.FC<AppCardProps> = ({
   if (_selTheme && rawUrl && rawUrl.includes(".soul") && !rawUrl.includes("theme=")) {
     rawUrl += (rawUrl.includes("?") ? "&" : "?") + "theme=" + encodeURIComponent(_selTheme);
   }
+  const _selLang = (typeof localStorage !== "undefined" ? localStorage.getItem("sov_lang") : "") || "";
+  if (_selLang && _selLang !== "en" && rawUrl && rawUrl.includes(".soul") && !rawUrl.includes("lang=")) {
+    rawUrl += (rawUrl.includes("?") ? "&" : "?") + "lang=" + encodeURIComponent(_selLang);
+  }
     const targetUrl = String(rawUrl).replace("://" + "credibleartisans" + ".com/public/", "://" + "api.credibleartisans" + ".com/public/");
     if (!targetUrl) return;
     const appTitle = String(typeof title !== "undefined" ? title : (app.title || "Sovereign App"));

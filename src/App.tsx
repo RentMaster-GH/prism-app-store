@@ -705,12 +705,19 @@ export function App() {
               <option value="HKD">🇭🇰 HKD HK$</option>
               <option value="BRL">🇧🇷 BRL R$</option>
               <option value="MXN">🇲🇽 MXN Mex$</option>
-              <optgroup label="🦊 Web3 / MetaMask Crypto (P2P)">
-                <option value="USDT">🦊 USDT (Tether)</option>
-                <option value="USDC">🦊 USDC (USD Coin)</option>
+              <optgroup label="🦊 Ethereum & Web3 Crypto (P2P)">
                 <option value="ETH">🦊 ETH (Ethereum)</option>
+                <option value="USDT">🦊 USDT (Tether ERC-20)</option>
+                <option value="USDC">🦊 USDC (USD Coin)</option>
+                <option value="DAI">🦊 DAI (Dai Stablecoin)</option>
+                <option value="WBTC">🦊 WBTC (Wrapped Bitcoin)</option>
+                <option value="stETH">🦊 stETH (Lido Staked ETH)</option>
                 <option value="POL">🦊 POL (Polygon)</option>
                 <option value="BNB">🦊 BNB (BNB Chain)</option>
+                <option value="ARB">🦊 ARB (Arbitrum)</option>
+                <option value="OP">🦊 OP (Optimism)</option>
+                <option value="LINK">🦊 LINK (Chainlink)</option>
+                <option value="UNI">🦊 UNI (Uniswap)</option>
               </optgroup>
             </select>
             <button

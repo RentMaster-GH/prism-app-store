@@ -74,6 +74,10 @@ export function AppDetailModal({ app, installedState, onClose, onInstall, onUnin
   if (_selCur && rawUrl && rawUrl.includes(".soul") && !rawUrl.includes("cur=")) {
     rawUrl += (rawUrl.includes("?") ? "&" : "?") + "cur=" + encodeURIComponent(_selCur);
   }
+  const _selTheme = (typeof localStorage !== "undefined" ? localStorage.getItem("sov_eye_theme_v1") : "") || "";
+  if (_selTheme && rawUrl && rawUrl.includes(".soul") && !rawUrl.includes("theme=")) {
+    rawUrl += (rawUrl.includes("?") ? "&" : "?") + "theme=" + encodeURIComponent(_selTheme);
+  }
     const targetUrl = String(rawUrl).replace("://" + "credibleartisans" + ".com/public/", "://" + "api.credibleartisans" + ".com/public/");
     if (!targetUrl) return;
     const appTitle = String(typeof title !== "undefined" ? title : (app.title || "Sovereign App"));

@@ -13,6 +13,10 @@ export const AppViewer: React.FC<AppViewerProps> = ({ app, onClose }) => {
   if (_selCur && targetUrl && targetUrl.includes(".soul") && !targetUrl.includes("cur=")) {
     targetUrl += (targetUrl.includes("?") ? "&" : "?") + "cur=" + encodeURIComponent(_selCur);
   }
+  const _selTheme = (typeof localStorage !== "undefined" ? localStorage.getItem("sov_eye_theme_v1") : "") || "";
+  if (_selTheme && targetUrl && targetUrl.includes(".soul") && !targetUrl.includes("theme=")) {
+    targetUrl += (targetUrl.includes("?") ? "&" : "?") + "theme=" + encodeURIComponent(_selTheme);
+  }
   const isHttps = typeof targetUrl === 'string' && targetUrl.startsWith('https://');
 
   return (

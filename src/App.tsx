@@ -673,6 +673,14 @@ export function App() {
               <option value="BRL">🇧🇷 BRL R$</option>
               <option value="MXN">🇲🇽 MXN Mex$</option>
             </select>
+            <button
+              type="button"
+              onClick={cyclePrismEyeMode}
+              title="Switch Display Mode for Eye Comfort: Night, Daylight, or High-Contrast Large Text"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 border border-amber-400/40 transition cursor-pointer"
+            >
+              {prismEyeMode === "day" ? "☀️ Day" : prismEyeMode === "hc" ? "👁️ High-Contrast" : "🌙 Night"}
+            </button>
             <EdgeStatusAndAlerts />
             <InstallStoreButton />
 

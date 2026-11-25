@@ -21,6 +21,7 @@ class PrismSafeBoundary extends React.Component<{ children: React.ReactNode }, {
 (function initPrismEyeComfort() {
   try {
     const saved = (localStorage.getItem("sov_eye_theme_v1") || "night").toLowerCase();
+    document.documentElement.classList.remove("sov-theme-night", "sov-theme-day", "sov-theme-hc");
     document.documentElement.classList.add("sov-theme-" + (["night", "day", "hc"].includes(saved) ? saved : "night"));
   } catch {}
 })();

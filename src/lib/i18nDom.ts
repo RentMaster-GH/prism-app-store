@@ -101,7 +101,10 @@ function queueBatchTranslation(text: string, lang: string) {
       }
       if (updated > 0) {
         try { localStorage.setItem(CACHE_KEY, JSON.stringify(trCache)); } catch {}
-        if ((localStorage.getItem("sov_lang") || "en") === curLang) { translateAppDom(curLang); window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: curLang })); }
+        if ((localStorage.getItem("sov_lang") || "en") === curLang) {
+          translateAppDom(curLang);
+          window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: curLang }));
+        }
       }
     } catch {} finally {
       batch.forEach((t) => inFlight.delete(curLang + "::" + t));
@@ -115,7 +118,7 @@ function queueBatchTranslation(text: string, lang: string) {
 export function translateAppDom(lang: string) {
   localStorage.setItem("sov_lang", lang);
   document.documentElement.lang = lang;
-  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr"; if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: lang }));
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr"; if (typeof window !== "undefined") { window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: lang })); if (lang !== "en") { setTimeout(() => window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: lang })), 1600); } }
   const dict = DICT[lang] || {};
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   let node: any;

@@ -1,3 +1,4 @@
+import { useTranslatedText } from "../lib/i18nDom";
 ﻿import { useState } from 'react';
 import { X, ExternalLink, Star, Shield, Download, Smartphone, Globe, Copy, Check } from 'lucide-react';
 import { AppItem } from '../types';

@@ -273,3 +273,11 @@ html.sov-theme-day th {
 html.sov-theme-day td {
   color: #1e293b !important;
 }
+
+html.sov-theme-day .prism-cat-badge {
+  background-color: #e2e8f0 !important;
+  border: 1px solid #94a3b8 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  -webkit-text-fill-color: #0f172a !important;
+}

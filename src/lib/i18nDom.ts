@@ -101,7 +101,7 @@ export function translateAppDom(lang: string) {
     if (!node.__origEn) node.__origEn = node.nodeValue || "";
     const raw = node.__origEn.trim();
     if (!raw) continue;
-    if (lang === "en") { node.nodeValue = node.__origEn; continue; } const m = raw.match(/^(.*?)(\s*\(\d+\))$/); const k = m ? m[1].trim() : raw; const tr = dict[k]; node.nodeValue = tr ? node.__origEn.replace(raw, tr + (m ? m[2] : "")) : node.__origEn;
+    if (lang === "en") { node.nodeValue = node.__origEn; continue; } const m = raw.match(/^(.*?)(\s*\(\d+\))$/); const k = m ? m[1].trim() : raw; const tr = dict[k]; const cached = trCache[lang + "::" + raw]; if (tr) { node.nodeValue = node.__origEn.replace(raw, tr + (m ? m[2] : "")); } else if (cached) { node.nodeValue = node.__origEn.replace(raw, cached); } else { fetchDynamicTranslation(raw, lang); }
   }
 }
 

@@ -1,3 +1,22 @@
+import React from 'react';
+class PrismSafeBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: any) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#020617", color: "#f8fafc", fontFamily: "system-ui, sans-serif", padding: "24px", textAlign: "center" }}>
+          <div>
+            <h2 style={{ fontSize: "20px", fontWeight: 800, marginBottom: "8px" }}>Refreshing Prism App Store...</h2>
+            <p style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "16px" }}>A display update occurred. Tap below to reload cleanly.</p>
+            <button onClick={() => location.reload()} style={{ padding: "10px 20px", borderRadius: "999px", background: "#10b981", color: "#022c22", fontWeight: 800, border: "none", cursor: "pointer" }}>Reload Store</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 (function initPrismEyeComfort() {
   const TKEY = "sov_eye_theme_v1";
@@ -32,9 +51,11 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 createRoot(document.getElementById('root')!).render(
+  <PrismSafeBoundary>
   <ThemeProvider>
     <App />
   </ThemeProvider>
+  </PrismSafeBoundary>
 );
 
 if ('serviceWorker' in navigator) {

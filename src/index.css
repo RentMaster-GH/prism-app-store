@@ -60,3 +60,133 @@
   will-change: transform;
   isolation: isolate;
 }
+
+/* === ☀️ DAYLIGHT: SUNLIT PEARL & ROYAL COBALT === */
+html.sov-theme-day,
+html.sov-theme-day body,
+html.sov-theme-day .min-h-screen {
+  background: radial-gradient(circle at 10% 0%, rgba(79, 70, 229, 0.08), transparent 40%),
+              radial-gradient(circle at 90% 12%, rgba(16, 185, 129, 0.07), transparent 40%),
+              #f1f5f9 !important;
+  color: #0f172a !important;
+}
+html.sov-theme-day header {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05) !important;
+}
+html.sov-theme-day footer {
+  background: #ffffff !important;
+  border-top: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+html.sov-theme-day article {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+}
+html.sov-theme-day article:hover {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 16px 32px -8px rgba(79, 70, 229, 0.16) !important;
+}
+html.sov-theme-day h1,
+html.sov-theme-day h2,
+html.sov-theme-day h3,
+html.sov-theme-day h4,
+html.sov-theme-day .text-white,
+html.sov-theme-day .text-slate-100,
+html.sov-theme-day .text-slate-200 {
+  color: #0f172a !important;
+}
+html.sov-theme-day .text-slate-300,
+html.sov-theme-day .text-slate-400,
+html.sov-theme-day .text-slate-500 {
+  color: #334155 !important;
+}
+html.sov-theme-day .bg-indigo-600,
+html.sov-theme-day .bg-indigo-600 *,
+html.sov-theme-day .bg-emerald-600,
+html.sov-theme-day .bg-emerald-600 *,
+html.sov-theme-day .h-40 span,
+html.sov-theme-day a.bg-white,
+html.sov-theme-day button.bg-white {
+  color: #ffffff !important;
+}
+html.sov-theme-day a.bg-white,
+html.sov-theme-day button.bg-white {
+  background: #0f172a !important;
+}
+html.sov-theme-day button[class*="bg-slate-800"],
+html.sov-theme-day button[class*="bg-slate-900"],
+html.sov-theme-day input,
+html.sov-theme-day select {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+html.sov-theme-day button.bg-slate-100 {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #0f172a !important;
+}
+html.sov-theme-day .text-emerald-300,
+html.sov-theme-day .text-emerald-400 {
+  color: #047857 !important;
+}
+html.sov-theme-day .text-sky-300,
+html.sov-theme-day .text-sky-400 {
+  color: #0369a1 !important;
+}
+html.sov-theme-day .text-amber-200,
+html.sov-theme-day .text-amber-300 {
+  color: #b45309 !important;
+}
+
+/* === 👁️ HIGH-CONTRAST: CYBER-OBSIDIAN & LUMINOUS GOLD X-FACTOR === */
+html.sov-theme-hc {
+  font-size: 110% !important;
+}
+html.sov-theme-hc,
+html.sov-theme-hc body,
+html.sov-theme-hc .min-h-screen {
+  background: radial-gradient(circle at 85% 5%, rgba(251, 191, 36, 0.12), transparent 38%),
+              radial-gradient(circle at 12% 90%, rgba(16, 185, 129, 0.10), transparent 40%),
+              #020308 !important;
+  color: #ffffff !important;
+}
+html.sov-theme-hc header {
+  background: rgba(3, 5, 12, 0.96) !important;
+  border-bottom: 1.5px solid rgba(251, 191, 36, 0.65) !important;
+}
+html.sov-theme-hc article {
+  background: linear-gradient(180deg, #090d1a 0%, #05070f 100%) !important;
+  border: 1.5px solid rgba(251, 191, 36, 0.55) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(251, 191, 36, 0.22) !important;
+}
+html.sov-theme-hc article:hover {
+  border-color: #34d399 !important;
+  box-shadow: 0 16px 38px rgba(52, 211, 153, 0.24) !important;
+}
+html.sov-theme-hc .text-slate-300,
+html.sov-theme-hc .text-slate-400,
+html.sov-theme-hc .text-slate-500 {
+  color: #f8fafc !important;
+}
+html.sov-theme-hc button[class*="bg-slate-800"],
+html.sov-theme-hc button[class*="bg-slate-900"],
+html.sov-theme-hc input,
+html.sov-theme-hc select {
+  background: #090d1a !important;
+  color: #ffffff !important;
+  border: 1.5px solid rgba(251, 191, 36, 0.55) !important;
+}
+html.sov-theme-hc button.bg-slate-100 {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+  color: #020308 !important;
+  font-weight: 900 !important;
+}
+html.sov-theme-hc *:focus {
+  outline: 2.5px solid #fbbf24 !important;
+  outline-offset: 2px !important;
+}

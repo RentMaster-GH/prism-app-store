@@ -293,3 +293,17 @@ html.sov-theme-day header button[title="Manage Developer Passkey"] span {
   color: #0f172a !important;
   font-weight: 700 !important;
 }
+
+html.sov-theme-day .prism-cat-badge {
+  background-color: #e2e8f0 !important;
+  border: 1px solid #94a3b8 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html.sov-theme-hc .prism-cat-badge {
+  background-color: #0f172a !important;
+  border: 1.5px solid #fbbf24 !important;
+  color: #fde68a !important;
+  font-weight: 800 !important;
+}

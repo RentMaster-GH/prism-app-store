@@ -274,7 +274,7 @@ export const AppCard: React.FC<AppCardProps> = ({
             </h3>
             <p className="truncate text-xs text-slate-400">{developer}</p>
           </div>
-          <span className="shrink-0 rounded-lg border border-slate-700/80 bg-slate-800/80 px-2 py-0.5 text-[11px] font-medium text-slate-300">
+          <span className="prism-cat-badge shrink-0 rounded-lg border border-slate-700/80 bg-slate-800/80 px-2 py-0.5 text-[11px] font-medium text-slate-300">
             {category}
           </span>
         </div>

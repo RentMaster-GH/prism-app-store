@@ -121,7 +121,7 @@ export function translateAppDom(lang: string) {
   let node: any;
   while ((node = walker.nextNode())) {
     const parent = node.parentElement;
-    if (!parent || ["SCRIPT", "STYLE", "OPTION", "TEXTAREA", "INPUT"].includes(parent.tagName)) continue;
+    if (!parent || ["SCRIPT", "STYLE", "OPTION", "TEXTAREA", "INPUT"].includes(parent.tagName) || parent.closest(".prism-react-tr")) continue;
     if (!node.__origEn) node.__origEn = node.nodeValue || "";
     const raw = node.__origEn.trim();
     if (!raw) continue;
@@ -131,9 +131,14 @@ export function translateAppDom(lang: string) {
 
 if (typeof window !== "undefined") {
   (window as any).__translateAppDom = translateAppDom;
+  let mutating = false;
   const obs = new MutationObserver(() => {
+    if (mutating) return;
     const cur = localStorage.getItem("sov_lang") || "en";
-    if (cur !== "en") translateAppDom(cur);
+    if (cur !== "en") {
+      mutating = true;
+      try { translateAppDom(cur); } finally { setTimeout(() => { mutating = false; }, 50); }
+    }
   });
   const bootTranslator = () => {
     if (!document.body) return;

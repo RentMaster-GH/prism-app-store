@@ -274,7 +274,7 @@ export const AppCard: React.FC<AppCardProps> = ({
       <div className="flex flex-1 flex-col p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="truncate text-base font-bold text-white group-hover:text-indigo-300">
+            <h3 className="prism-react-tr truncate text-base font-bold text-white group-hover:text-indigo-300">
               {useTranslatedText(title)}
             </h3>
             <p className="truncate text-xs text-slate-400">{developer}</p>
@@ -284,7 +284,7 @@ export const AppCard: React.FC<AppCardProps> = ({
           </span>
         </div>
 
-        <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed text-slate-300">
+        <p className="prism-react-tr mt-2.5 line-clamp-2 text-xs leading-relaxed text-slate-300">
           {useTranslatedText(description)}
         </p>
 

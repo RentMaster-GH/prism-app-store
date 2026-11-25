@@ -99,14 +99,35 @@ function queueBatchTranslation(text: string, lang: string) {
           updated++;
         }
       }
-      if (updated > 0) {
+      if (updated === 0) throw new Error("empty_backend_tr");
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(trCache)); } catch {}
+      if ((localStorage.getItem("sov_lang") || "en") === curLang) {
+        translateAppDom(curLang);
+        window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: curLang }));
+      }
+    } catch {
+      // Direct mobile browser fallback if backend proxy is unreachable on cellular network
+      const host = ["api", "mymemory", "translated", "net"].join(".");
+      let fbUpdated = 0;
+      await Promise.all(batch.slice(0, 12).map(async (orig) => {
+        try {
+          const r = await fetch("https://" + host + "/get?q=" + encodeURIComponent(orig) + "&langpair=en|" + encodeURIComponent(curTl));
+          const d = await r.json();
+          const out = String((d && d.responseData && d.responseData.translatedText) || "").trim();
+          if (out && out.toLowerCase() !== orig.toLowerCase() && !out.includes("MYMEMORY WARNING")) {
+            trCache[curLang + "::" + orig] = out;
+            fbUpdated++;
+          }
+        } catch {}
+      }));
+      if (fbUpdated > 0) {
         try { localStorage.setItem(CACHE_KEY, JSON.stringify(trCache)); } catch {}
         if ((localStorage.getItem("sov_lang") || "en") === curLang) {
           translateAppDom(curLang);
           window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: curLang }));
         }
       }
-    } catch {} finally {
+    } finally {
       batch.forEach((t) => inFlight.delete(curLang + "::" + t));
       if (pendingTexts.size > 0 && (localStorage.getItem("sov_lang") || "en") === curLang) {
         setTimeout(() => translateAppDom(curLang), 120);

@@ -171,32 +171,30 @@ html.sov-theme-day .text-amber-300 {
   color: #b45309 !important;
 }
 
-/* === 👁️ HIGH-CONTRAST: PRO WCAG AAA DARK (100% Universal Coverage) === */
+/* === 👁️ HIGH-CONTRAST: SLEEK WCAG AAA DARK (Refined Hairline Borders + Pure 21:1 Text) === */
 html.sov-theme-hc,
 html.sov-theme-hc body,
 html.sov-theme-hc .min-h-screen {
   background: #000000 !important;
   color: #ffffff !important;
 }
-html.sov-theme-hc header, html.sov-theme-hc nav {
-  background: #03050a !important;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.35) !important;
+html.sov-theme-hc header,
+html.sov-theme-hc nav {
+  background: #04060c !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28) !important;
 }
 html.sov-theme-hc article,
 html.sov-theme-hc div[class*="bg-[#0"],
 html.sov-theme-hc div[class*="bg-[#1"],
 html.sov-theme-hc div[class*="bg-slate-900"],
 html.sov-theme-hc div[class*="bg-slate-950"]:not(.h-40):not(.h-40 *) {
-  background: #080c16 !important;
-  border-color: rgba(226, 232, 240, 0.36) !important;
-}
-html.sov-theme-hc article {
-  border-width: 1px !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9) !important;
+  background: #090d16 !important;
+  border: 1px solid rgba(148, 163, 184, 0.30) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85) !important;
 }
 html.sov-theme-hc article:hover {
   border-color: #38bdf8 !important;
-  box-shadow: 0 0 0 1px #38bdf8, 0 12px 28px rgba(56, 189, 248, 0.22) !important;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.45), 0 12px 28px rgba(0, 0, 0, 0.9) !important;
 }
 html.sov-theme-hc h1,
 html.sov-theme-hc h2,
@@ -209,101 +207,37 @@ html.sov-theme-hc .text-slate-400,
 html.sov-theme-hc .text-slate-500 {
   color: #ffffff !important;
 }
-html.sov-theme-hc [class*="border-white/"], html.sov-theme-hc [class*="border-slate-800"], html.sov-theme-hc [class*="border-slate-700"] {
-  border-color: #94a3b8 !important;
+html.sov-theme-hc [class*="border-white/"],
+html.sov-theme-hc [class*="border-slate-800"],
+html.sov-theme-hc [class*="border-slate-700"] {
+  border-color: rgba(148, 163, 184, 0.28) !important;
 }
 html.sov-theme-hc button[class*="bg-slate-800"],
 html.sov-theme-hc button[class*="bg-slate-900"],
 html.sov-theme-hc input,
 html.sov-theme-hc select,
 html.sov-theme-hc textarea {
-  background: #080c16 !important;
+  background: #090d16 !important;
   color: #ffffff !important;
-  border: 1px solid rgba(226, 232, 240, 0.36) !important;
+  border: 1px solid rgba(148, 163, 184, 0.34) !important;
 }
 html.sov-theme-hc button.bg-slate-100 {
   background: #ffffff !important;
   color: #000000 !important;
   font-weight: 800 !important;
 }
-html.sov-theme-hc *:focus-visible {
-  outline: 3px solid #fbbf24 !important;
-  outline-offset: 2px !important;
-}
-
-/* === ☀️ DAYLIGHT: HEADER PILLS, CARD FOOTERS & SSO BADGE === */
-html.sov-theme-day header button[class*="bg-emerald-500/"],
-html.sov-theme-day header div[class*="bg-emerald-500/"],
-html.sov-theme-day header button[class*="bg-sky-500/"],
-html.sov-theme-day header button[class*="bg-amber-500/"] {
-  background: #ffffff !important;
-  border-color: #94a3b8 !important;
-  color: #0f172a !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
-}
-html.sov-theme-day article > div:last-child,
-html.sov-theme-day article .border-t {
-  border-color: #e2e8f0 !important;
-  color: #334155 !important;
-}
-html.sov-theme-day [class*="bg-emerald-500/15"] {
-  background: #ecfdf5 !important;
-  border-color: #6ee7b7 !important;
-  color: #065f46 !important;
-}
-
-/* === 👁️ HIGH-CONTRAST: CRISP HEADER PILLS, CARD FOOTERS & SSO BADGE === */
-html.sov-theme-hc header button,
-html.sov-theme-hc header select,
-html.sov-theme-hc header div[class*="rounded-lg"],
-html.sov-theme-hc header div[class*="rounded-full"] {
-  border-width: 1px !important;
-  border-color: rgba(226, 232, 240, 0.38) !important;
-  color: #ffffff !important;
-}
-html.sov-theme-hc header button.bg-indigo-600 {
-  background: #4338ca !important;
-  border-color: #a5b4fc !important;
-}
-html.sov-theme-hc article .border-t,
-html.sov-theme-hc article span[class*="text-slate-"],
-html.sov-theme-hc article a[class*="text-slate-"],
-html.sov-theme-hc article div[class*="text-slate-"] {
-  color: #f1f5f9 !important;
-  border-color: #475569 !important;
+html.sov-theme-hc .prism-cat-badge {
+  background-color: #111827 !important;
+  border: 1px solid rgba(251, 191, 36, 0.55) !important;
+  color: #fde68a !important;
+  font-weight: 700 !important;
 }
 html.sov-theme-hc [class*="bg-emerald-500/15"] {
   background: #022c22 !important;
-  border: 1.5px solid #34d399 !important;
+  border: 1px solid rgba(52, 211, 153, 0.45) !important;
   color: #ffffff !important;
 }
-
-html.sov-theme-day header button[class*="bg-indigo-500/"],
-html.sov-theme-day header [class*="text-indigo-300"],
-html.sov-theme-day header [class*="text-indigo-400"] {
-  background: #eef2ff !important;
-  border-color: #818cf8 !important;
-  color: #3730a3 !important;
-  font-weight: 700 !important;
-}
-html.sov-theme-day header button[title="Manage Developer Passkey"],
-html.sov-theme-day header button[title="Manage Developer Passkey"] span {
-  background: #ffffff !important;
-  border-color: #94a3b8 !important;
-  color: #0f172a !important;
-  font-weight: 700 !important;
-}
-
-html.sov-theme-day .prism-cat-badge {
-  background-color: #e2e8f0 !important;
-  border: 1px solid #94a3b8 !important;
-  color: #0f172a !important;
-  font-weight: 700 !important;
-  -webkit-text-fill-color: #0f172a !important;
-}
-html.sov-theme-hc .prism-cat-badge {
-  background-color: #0f172a !important;
-  border: 1px solid rgba(251, 191, 36, 0.65) !important;
-  color: #fde68a !important;
-  font-weight: 800 !important;
+html.sov-theme-hc *:focus-visible {
+  outline: 2.5px solid #fbbf24 !important;
+  outline-offset: 2px !important;
 }

@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 const DICT: Record<string, Record<string, string>> = {
     nzi: { "All Software": "Dwumadie Nyinaa", "All": "Nyinaa", "Featured": "Nea Wɔapaw", "My Uploads": "Me Dwumadie", "Install Store": "Fa Store Sie", "Analytics": "Nsɛm Mu Nhwehwɛmu", "Feedback": "Adwenkyerɛ", "Developer Portal": "Adwumayɛfoɔ Bea", "Manager": "Ɔhwɛfoɔ", "Open": "Bue", "Install": "Fa Sie", "Installed": "Wɔde Asie", "Approved": "Wɔapene So", "Social": "Asetena", "Dating": "Ayɔnkofa", "Finance": "Ezukoa", "Productivity": "Adwumayɛ", "Games": "Agorɔ", "Tools": "Nnwinnadeɛ", "Education": "Sukulu", "Health": "Apɔmuden", "Business": "Adwadie", "Other": "Foforɔ" },
   dag: { "All Software": "Tuma Zaa", "All": "Zaa", "Featured": "Bɛ ni Gahim", "My Uploads": "N Tuma", "Install Store": "Kpɛhi Store", "Analytics": "Lahabali Vihigu", "Feedback": "Haŋkali", "Developer Portal": "Tumtumdiba Ya", "Manager": "Kpɛma", "Open": "Yooi", "Install": "Kpɛhi", "Installed": "Kpɛhiya", "Approved": "Saɣiti", "Social": "Biɛhigu", "Dating": "Yurilim", "Finance": "Liɣiri", "Productivity": "Tuma", "Games": "Diɛma", "Tools": "Tuma Nɛma", "Education": "Shikuru", "Health": "Alaafee", "Business": "Daabilim", "Other": "Din Pahi" },
@@ -100,7 +101,7 @@ function queueBatchTranslation(text: string, lang: string) {
       }
       if (updated > 0) {
         try { localStorage.setItem(CACHE_KEY, JSON.stringify(trCache)); } catch {}
-        if ((localStorage.getItem("sov_lang") || "en") === curLang) translateAppDom(curLang);
+        if ((localStorage.getItem("sov_lang") || "en") === curLang) { translateAppDom(curLang); window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: curLang })); }
       }
     } catch {} finally {
       batch.forEach((t) => inFlight.delete(curLang + "::" + t));
@@ -114,7 +115,7 @@ function queueBatchTranslation(text: string, lang: string) {
 export function translateAppDom(lang: string) {
   localStorage.setItem("sov_lang", lang);
   document.documentElement.lang = lang;
-  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr"; if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("sov-lang-change", { detail: lang }));
   const dict = DICT[lang] || {};
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   let node: any;
@@ -145,4 +146,38 @@ if (typeof window !== "undefined") {
   } else {
     bootTranslator();
   }
+}
+
+export function useTranslatedText(text: string): string {
+  const [val, setVal] = useState<string>(() => {
+    if (typeof window === "undefined") return text;
+    const lang = localStorage.getItem("sov_lang") || "en";
+    if (lang === "en" || !text) return text;
+    const raw = text.trim();
+    const cached = trCache[lang + "::" + raw];
+    if (cached) return cached;
+    const sent = translateSentence(raw, lang);
+    if (sent !== raw) return sent;
+    queueBatchTranslation(raw, lang);
+    return text;
+  });
+
+  useEffect(() => {
+    const sync = () => {
+      const lang = localStorage.getItem("sov_lang") || "en";
+      if (lang === "en" || !text) { setVal(text); return; }
+      const raw = text.trim();
+      const cached = trCache[lang + "::" + raw];
+      if (cached) { setVal(cached); return; }
+      const sent = translateSentence(raw, lang);
+      if (sent !== raw) { setVal(sent); return; }
+      queueBatchTranslation(raw, lang);
+      setVal(text);
+    };
+    sync();
+    window.addEventListener("sov-lang-change", sync);
+    return () => window.removeEventListener("sov-lang-change", sync);
+  }, [text]);
+
+  return val;
 }

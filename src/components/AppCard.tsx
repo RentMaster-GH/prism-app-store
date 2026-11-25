@@ -1,3 +1,4 @@
+import { useTranslatedText } from "../lib/i18nDom";
 import React, { useState } from 'react';
 import {
   Download,
@@ -228,7 +229,7 @@ export const AppCard: React.FC<AppCardProps> = ({
         {coverImage ? (
           <img
             src={coverImage}
-            alt={title}
+            alt={useTranslatedText(title)}
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
@@ -284,7 +285,7 @@ export const AppCard: React.FC<AppCardProps> = ({
         </div>
 
         <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed text-slate-300">
-          {description}
+          {useTranslatedText(description)}
         </p>
 
         {/* Action Row: Open + Details + Manager/Owner Edit & Trash Delete Buttons */}

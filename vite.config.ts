@@ -5,6 +5,8 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [
     VitePWA({
+      registerType: 'autoUpdate',
+      workbox: { skipWaiting: true, clientsClaim: true },
       selfDestroying: true,
       cleanupOutdatedCaches: true,
       registerType: "autoUpdate",

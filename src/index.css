@@ -68,7 +68,7 @@ html.sov-theme-day .min-h-screen {
   background: #f4f6fa !important;
   color: #0f172a !important;
 }
-html.sov-theme-day header {
+html.sov-theme-day header, html.sov-theme-day nav {
   background: rgba(255, 255, 255, 0.96) !important;
   border-bottom: 1px solid #e2e8f0 !important;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05) !important;
@@ -175,7 +175,7 @@ html.sov-theme-hc .min-h-screen {
   background: #000000 !important;
   color: #ffffff !important;
 }
-html.sov-theme-hc header {
+html.sov-theme-hc header, html.sov-theme-hc nav {
   background: #03050a !important;
   border-bottom: 2px solid #94a3b8 !important;
 }

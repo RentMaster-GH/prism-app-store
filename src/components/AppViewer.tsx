@@ -7,7 +7,12 @@ interface AppViewerProps {
 
 export const AppViewer: React.FC<AppViewerProps> = ({ app, onClose }) => {
   if (!app) return null;
-  const targetUrl = app.live_web_url || app.liveAppUrl || app.websiteUrl || '';
+  let targetUrl = app.live_web_url || app.liveAppUrl || app.websiteUrl || '';
+
+  const _selCur = (typeof localStorage !== "undefined" ? localStorage.getItem("sov_display_currency") : "") || "";
+  if (_selCur && targetUrl && targetUrl.includes(".soul") && !targetUrl.includes("cur=")) {
+    targetUrl += (targetUrl.includes("?") ? "&" : "?") + "cur=" + encodeURIComponent(_selCur);
+  }
   const isHttps = typeof targetUrl === 'string' && targetUrl.startsWith('https://');
 
   return (

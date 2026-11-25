@@ -116,7 +116,12 @@ export const AppCard: React.FC<AppCardProps> = ({
   };
 
   const downloadWebShortcut = () => {
-    const rawUrl = (typeof liveUrl !== "undefined" ? liveUrl : (app.live_web_url || app.liveAppUrl || app.websiteUrl || app.url || ""));
+    let rawUrl = (typeof liveUrl !== "undefined" ? liveUrl : (app.live_web_url || app.liveAppUrl || app.websiteUrl || app.url || ""));
+
+  const _selCur = (typeof localStorage !== "undefined" ? localStorage.getItem("sov_display_currency") : "") || "";
+  if (_selCur && rawUrl && rawUrl.includes(".soul") && !rawUrl.includes("cur=")) {
+    rawUrl += (rawUrl.includes("?") ? "&" : "?") + "cur=" + encodeURIComponent(_selCur);
+  }
     const targetUrl = String(rawUrl).replace("://" + "credibleartisans" + ".com/public/", "://" + "api.credibleartisans" + ".com/public/");
     if (!targetUrl) return;
     const appTitle = String(typeof title !== "undefined" ? title : (app.title || "Sovereign App"));

@@ -229,7 +229,7 @@ export const AppCard: React.FC<AppCardProps> = ({
         {coverImage ? (
           <img
             src={coverImage}
-            alt={useTranslatedText(title)}
+            alt={title}
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
@@ -275,7 +275,7 @@ export const AppCard: React.FC<AppCardProps> = ({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="truncate text-base font-bold text-white group-hover:text-indigo-300">
-              {title}
+              {useTranslatedText(title)}
             </h3>
             <p className="truncate text-xs text-slate-400">{developer}</p>
           </div>

@@ -1,3 +1,4 @@
+import { usePortalTrustBadge } from "../lib/merchantTrust";
 import { isAppPinned, togglePinApp, recordRecentApp, useFavoritesAndRecents } from "../lib/favoritesStore";
 import { useTranslatedText } from "../lib/i18nDom";
 import React, { useState } from 'react';
@@ -150,6 +151,7 @@ export const AppCard: React.FC<AppCardProps> = ({
     window.open(targetUrl + sep + "autoinstall=1", "_blank", "noopener,noreferrer");
   };
 
+  const trustBadge = usePortalTrustBadge(liveUrl, developer);
   const { pinned: _allPinned } = useFavoritesAndRecents();
   const pinnedNow = _allPinned.some((x) => x.id === String(app.id || title));
   const [copiedShare, setCopiedShare] = React.useState(false);
@@ -295,6 +297,13 @@ export const AppCard: React.FC<AppCardProps> = ({
               {useTranslatedText(title)}
             </h3>
             <p className="truncate text-xs text-slate-400">{developer}</p>
+            {trustBadge && (
+              <div className="mt-1 inline-flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                <span>🛡️ Verified Merchant</span>
+                <span>•</span>
+                <span>{trustBadge.settlements} {trustBadge.settlements === 1 ? "Settlement" : "Settlements"}</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <button

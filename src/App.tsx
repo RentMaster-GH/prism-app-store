@@ -180,6 +180,7 @@ export function App() {
       else localStorage.removeItem("soul_active_handle");
     } catch {}
   };
+  const [showMobileToolsMenu, setShowMobileToolsMenu] = useState(false);
   const [showTourModal, setShowTourModal] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const [showMerchantsModal, setShowMerchantsModal] = useState(false);
@@ -890,52 +891,25 @@ export function App() {
                 <option value="UNI">🦊 UNI (Uniswap)</option>
               </optgroup>
             </select>
-            <button
-              type="button"
-              onClick={() => setPrismLiteMode((v) => !v)}
-              title="Toggle Low-Data Lite Mode for ultra-fast loading on mobile data"
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${prismLiteMode ? "bg-emerald-500/30 text-emerald-100 border-emerald-400" : "bg-slate-900 text-slate-300 border-slate-700/80 hover:text-emerald-200"}`}
-            >
-              {prismLiteMode ? "📶 Lite: ON" : "📶 Lite"}
-            </button>
-            <span
-              title={prismOnlineState ? "Connected — Live & Offline Cache Ready" : "Offline Mode — Cached Catalog & Offline Capsules Ready"}
-              className={`px-2 py-1.5 rounded-lg text-[11px] font-bold border ${prismOnlineState ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" : "bg-amber-500/20 text-amber-200 border-amber-400/50"}`}
-            >
-              {prismOnlineState ? "🟢 Online" : "📴 Offline Ready"}
-            </span>
-            <button
-              type="button"
-              onClick={promptSetSoulHandle}
-              title="Set your Sovereign @handle for instant cross-portal identity across all 58 .soul apps"
-              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-400/45 transition cursor-pointer"
-            >
-              {prismSoulHandle ? `🆔 ${prismSoulHandle}` : "🆔 Set @handle"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowSosModal(true)}
-              title="1-Tap Offline Emergency Numbers & GPS SOS Beacon"
-              className="px-2.5 py-1.5 rounded-lg text-xs font-extrabold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/50 transition cursor-pointer"
-            >
-              🆘 SOS
-            </button>
-            <button
-              type="button"
-              onClick={openMerchantsModal}
-              title="Browse Verified Ecosystem Merchants & Pay Directly P2P"
-              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 border border-amber-400/40 transition cursor-pointer"
-            >
-              🏪 Merchants
-            </button>
-            <button
-              type="button"
-              onClick={() => { setTourStep(0); setShowTourModal(true); }}
-              title="60-Second Interactive Guide to Prism App Store & All 58 .soul Apps"
-              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-violet-500/20 hover:bg-violet-500/30 text-violet-200 border border-violet-400/40 transition cursor-pointer"
-            >
-              🧭 Guide
-            </button>
+            <button type="button" onClick={promptSetSoulHandle} title="Set your Sovereign @handle across all 58 .soul apps" className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-400/45 transition cursor-pointer">{prismSoulHandle ? `🆔 ${prismSoulHandle}` : "🆔 @handle"}</button>
+            <span className={`hidden sm:inline-flex px-2 py-1.5 rounded-lg text-[11px] font-bold border ${prismOnlineState ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" : "bg-amber-500/20 text-amber-200 border-amber-400/50"}`}>{prismOnlineState ? "🟢 Online" : "📴 Offline"}</span>
+            <div className="hidden lg:flex items-center gap-1.5">
+              <button type="button" onClick={openMerchantsModal} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 border border-amber-400/40 transition cursor-pointer">🏪 Merchants</button>
+              <button type="button" onClick={() => { setTourStep(0); setShowTourModal(true); }} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-violet-500/20 hover:bg-violet-500/30 text-violet-200 border border-violet-400/40 transition cursor-pointer">🧭 Guide</button>
+              <button type="button" onClick={() => setPrismLiteMode((v) => !v)} className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${prismLiteMode ? "bg-emerald-500/30 text-emerald-100 border-emerald-400" : "bg-slate-900 text-slate-300 border-slate-700/80 hover:text-emerald-200"}`}>{prismLiteMode ? "📶 Lite: ON" : "📶 Lite"}</button>
+              <button type="button" onClick={() => setShowSosModal(true)} className="px-2.5 py-1.5 rounded-lg text-xs font-extrabold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/50 transition cursor-pointer">🆘 SOS</button>
+            </div>
+            <div className="relative lg:hidden">
+              <button type="button" onClick={() => setShowMobileToolsMenu((v) => !v)} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-600/70 transition cursor-pointer">⚡ Tools ▾</button>
+              {showMobileToolsMenu && (
+                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-700 bg-slate-900 p-1.5 shadow-2xl z-50 flex flex-col gap-1 text-xs font-bold">
+                  <button type="button" onClick={() => { setShowMobileToolsMenu(false); openMerchantsModal(); }} className="text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-amber-200">🏪 Verified Merchants</button>
+                  <button type="button" onClick={() => { setShowMobileToolsMenu(false); setTourStep(0); setShowTourModal(true); }} className="text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-violet-200">🧭 60s Ecosystem Guide</button>
+                  <button type="button" onClick={() => { setShowMobileToolsMenu(false); setPrismLiteMode((v) => !v); }} className="text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-emerald-200">{prismLiteMode ? "📶 Lite Mode: ON" : "📶 Low-Data Lite Mode"}</button>
+                  <button type="button" onClick={() => { setShowMobileToolsMenu(false); setShowSosModal(true); }} className="text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-rose-300">🆘 Offline SOS &amp; GPS</button>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               id="prism_receipts_btn"

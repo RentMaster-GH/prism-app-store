@@ -180,6 +180,24 @@ export function App() {
       else localStorage.removeItem("soul_active_handle");
     } catch {}
   };
+  const [showMerchantsModal, setShowMerchantsModal] = useState(false);
+  const [verifiedMerchants, setVerifiedMerchants] = useState<any[]>([]);
+  const [merchantsLoading, setMerchantsLoading] = useState(false);
+
+  const openMerchantsModal = async () => {
+    setShowMerchantsModal(true);
+    setMerchantsLoading(true);
+    try {
+      const ep = "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/p2p-router/metrics";
+      const r = await fetch(ep);
+      const d = await r.json();
+      setVerifiedMerchants(Array.isArray(d?.merchants) ? d.merchants : []);
+    } catch {
+      setVerifiedMerchants([]);
+    } finally {
+      setMerchantsLoading(false);
+    }
+  };
   const [showSosModal, setShowSosModal] = useState(false);
   const [sosGpsText, setSosGpsText] = useState<string>("");
   const shareCurrentGps = () => {
@@ -899,6 +917,14 @@ export function App() {
               className="px-2.5 py-1.5 rounded-lg text-xs font-extrabold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/50 transition cursor-pointer"
             >
               🆘 SOS
+            </button>
+            <button
+              type="button"
+              onClick={openMerchantsModal}
+              title="Browse Verified Ecosystem Merchants & Pay Directly P2P"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 border border-amber-400/40 transition cursor-pointer"
+            >
+              🏪 Merchants
             </button>
             <button
               type="button"
@@ -1636,6 +1662,62 @@ export function App() {
           <SovereignSsoBadge />
 
       
+      
+      {showMerchantsModal && (
+        <div
+          onClick={() => setShowMerchantsModal(false)}
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-2xl border border-amber-500/40 bg-slate-900 p-5 text-white shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h2 className="text-base font-extrabold text-amber-300">🏪 Verified Merchants &amp; 1-Tap Direct P2P Pay</h2>
+              <button type="button" onClick={() => setShowMerchantsModal(false)} className="text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
+            </div>
+            <p className="text-xs text-slate-400">
+              All merchants below settle 100% peer-to-peer with 4-digit Handover PIN protection and SHA-256 Official Receipts.
+            </p>
+            <div className="max-h-80 overflow-y-auto space-y-2">
+              {merchantsLoading ? (
+                <div className="py-6 text-center text-xs text-slate-400">Loading verified merchants...</div>
+              ) : verifiedMerchants.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400">No verified merchant records loaded yet.</div>
+              ) : (
+                verifiedMerchants.map((m: any, idx: number) => {
+                  const key = String(m.merchant_key || "");
+                  const name = String(m.merchant_name || key || "Verified Merchant");
+                  const isCrypto = key.startsWith("0x");
+                  const payUrl = "https://" + ["api", "credibleartisans", "com"].join(".") +
+                    "/public/aetherhost/live/soulpay.soul?pay=1&to=" + encodeURIComponent(name) +
+                    "&net=" + encodeURIComponent(isCrypto ? "CRYPTO" : "MTN") +
+                    "&acct=" + encodeURIComponent(key);
+                  return (
+                    <div key={key + idx} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/90 p-3 text-xs">
+                      <div className="min-w-0">
+                        <div className="font-bold text-emerald-300 truncate">🛡️ {name}</div>
+                        <div className="text-[11px] text-slate-400 font-mono truncate">
+                          {key.length > 10 ? key.slice(0, 6) + "..." + key.slice(-4) : key} • Routed Vol: {m.total_routed_volume || "0.00"}
+                        </div>
+                      </div>
+                      <a
+                        href={payUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 rounded-full bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-[11px] font-extrabold text-white transition"
+                      >
+                        📲 Pay Direct ↗
+                      </a>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showSosModal && (
         <div
           onClick={() => setShowSosModal(false)}

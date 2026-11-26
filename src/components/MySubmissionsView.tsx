@@ -8,6 +8,25 @@ export const MySubmissionsView = ({ userUID }: { userUID: string }) => {
   const [loading, setLoading] = useState(true);
   const [importUID, setImportUID] = useState('');
   const [activeUID, setActiveUID] = useState(userUID);
+  const [sandboxCode, setSandboxCode] = useState("P2P-3C01DE");
+  const [sandboxJson, setSandboxJson] = useState<string>("");
+  const [sandboxLoading, setSandboxLoading] = useState(false);
+
+  const runReceiptSandboxTest = async () => {
+    const clean = sandboxCode.trim().toUpperCase();
+    if (!clean) return;
+    setSandboxLoading(true);
+    try {
+      const ep = "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/p2p-router/receipt/" + encodeURIComponent(clean);
+      const r = await fetch(ep);
+      const d = await r.json();
+      setSandboxJson(JSON.stringify({ httpStatus: r.status, endpoint: ep, response: d }, null, 2));
+    } catch (e: any) {
+      setSandboxJson(JSON.stringify({ error: e?.message || "Network error" }, null, 2));
+    } finally {
+      setSandboxLoading(false);
+    }
+  };
   const [merchantStats, setMerchantStats] = useState<{ totalTx: number; confirmedTx: number; volume: string } | null>(null);
 
   useEffect(() => {
@@ -114,6 +133,48 @@ export const MySubmissionsView = ({ userUID }: { userUID: string }) => {
         >
           🛡️ Audit Ledger ↗
         </a>
+      </div>
+
+      
+      <div className="rounded-xl bg-[#12132a] border border-sky-500/30 p-4 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-xs font-extrabold uppercase tracking-wider text-sky-300">🧪 Developer P2P Receipt &amp; API Verification Sandbox</div>
+            <div className="text-[11px] text-slate-400">Test live SHA-256 settlement verification payloads before integrating into your app.</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const ep = "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/p2p-router/receipt/:code";
+              navigator.clipboard?.writeText(ep);
+              alert("Copied endpoint: " + ep);
+            }}
+            className="px-3 py-1 rounded-full bg-sky-500/15 border border-sky-400/40 text-sky-200 font-bold text-[11px] cursor-pointer"
+          >
+            📋 Copy Endpoint URL
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={sandboxCode}
+            onChange={(e) => setSandboxCode(e.target.value)}
+            placeholder="Enter P2P-XXXXXX receipt code..."
+            className="flex-1 h-9 px-3 rounded-lg bg-[#0a0b18] border border-white/10 text-emerald-300 font-mono text-xs outline-none"
+          />
+          <button
+            type="button"
+            onClick={runReceiptSandboxTest}
+            disabled={sandboxLoading}
+            className="h-9 px-4 rounded-full bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs cursor-pointer disabled:opacity-50"
+          >
+            {sandboxLoading ? "Testing..." : "▶ Test GET /receipt"}
+          </button>
+        </div>
+        {sandboxJson && (
+          <pre className="max-h-52 overflow-auto rounded-lg bg-[#070812] border border-slate-800 p-3 text-[11px] font-mono text-emerald-200">
+            {sandboxJson}
+          </pre>
+        )}
       </div>
 
       <div className="rounded-xl bg-[#12132a] border border-white/10 p-4">

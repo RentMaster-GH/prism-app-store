@@ -181,9 +181,14 @@ export function App() {
     const formatted = clean ? (clean.startsWith("@") ? clean : "@" + clean) : "";
     setPrismSoulHandle(formatted);
     try {
-      if (formatted) localStorage.setItem("soul_active_handle", formatted);
+      if (formatted) { localStorage.setItem("soul_active_handle", formatted); triggerPrismToast("🆔 Signed in as " + formatted + " across all 58 .soul apps"); }
       else localStorage.removeItem("soul_active_handle");
     } catch {}
+  };
+  const [prismToastMsg, setPrismToastMsg] = useState<string>("");
+  const triggerPrismToast = (msg: string) => {
+    setPrismToastMsg(msg);
+    setTimeout(() => setPrismToastMsg((prev) => (prev === msg ? "" : prev)), 3200);
   };
   const [showMobileToolsMenu, setShowMobileToolsMenu] = useState(false);
   const [showTourModal, setShowTourModal] = useState(false);
@@ -1931,6 +1936,12 @@ export function App() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {prismToastMsg && (
+        <div className="fixed bottom-4 right-4 z-50 max-w-xs rounded-xl border border-emerald-400/50 bg-slate-900/95 px-4 py-2.5 text-xs font-bold text-emerald-100 shadow-2xl backdrop-blur">
+          {prismToastMsg}
         </div>
       )}
     </div>

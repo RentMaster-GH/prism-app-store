@@ -7,6 +7,7 @@ export function AppReviews({ appId, isManager }: { appId: string; isManager: boo
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [avg, setAvg] = useState(0);
+  const [receiptCode, setReceiptCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
@@ -37,6 +38,20 @@ export function AppReviews({ appId, isManager }: { appId: string; isManager: boo
     if (!comment.trim() || submitting) return;
     setSubmitting(true);
     try {
+      
+      let verifiedReceipt = '';
+      const cleanCode = receiptCode.trim().toUpperCase();
+      if (cleanCode) {
+        const ep = 'https://' + ['api', 'credibleartisans', 'com'].join('.') + '/public/p2p-router/receipt/' + encodeURIComponent(cleanCode);
+        const vr = await fetch(ep).then((r) => r.json()).catch(() => null);
+        if (!vr?.receipt || vr.receipt.status !== 'CONFIRMED') {
+          alert('⚠️ Receipt code "' + cleanCode + '" was not found as a CONFIRMED P2P settlement. Leave it blank for a standard review or enter a confirmed P2P-XXXXXX code.');
+          setSubmitting(false);
+          return;
+        }
+        verifiedReceipt = cleanCode;
+      }
+
       const uid = localStorage.getItem('prism_user_uid') || 'anon';
       const uname = localStorage.getItem('prism_user_display') || 'User';
 
@@ -51,6 +66,7 @@ export function AppReviews({ appId, isManager }: { appId: string; isManager: boo
           user_name: uname,
           rating,
           comment: comment.trim(),
+          verified_receipt: verifiedReceipt || existing.verified_receipt || '',
           is_hidden: false,
         });
       } else {
@@ -60,11 +76,13 @@ export function AppReviews({ appId, isManager }: { appId: string; isManager: boo
           user_name: uname,
           rating,
           comment: comment.trim(),
+          verified_receipt: verifiedReceipt,
           is_hidden: false,
         });
       }
 
       setComment('');
+      setReceiptCode('');
       await load();
     } catch (err: any) {
       alert(err?.message || 'Failed to post review');
@@ -105,6 +123,12 @@ export function AppReviews({ appId, isManager }: { appId: string; isManager: boo
         className="w-full p-2.5 border border-white/10 rounded-xl bg-white/[0.04] text-white text-sm"
         rows={2}
       />
+      <input
+        value={receiptCode}
+        onChange={(e) => setReceiptCode(e.target.value)}
+        placeholder="Optional: Confirmed P2P Receipt Code (e.g. P2P-3C01DE) for 🛡️ Verified Buyer badge"
+        className="w-full mt-2 px-3 py-1.5 border border-emerald-500/30 rounded-xl bg-emerald-950/20 text-emerald-100 text-xs font-mono"
+      />
       <button
         onClick={submit}
         disabled={submitting || !comment.trim()}
@@ -118,6 +142,11 @@ export function AppReviews({ appId, isManager }: { appId: string; isManager: boo
             <div className="flex justify-between">
               <span className="font-semibold">
                 {r.user_name} - {'⭐'.repeat(Number(r.rating || 5))}
+                {r.verified_receipt && (
+                  <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-emerald-400/50 bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-200">
+                    🛡️ Verified Settlement ({r.verified_receipt})
+                  </span>
+                )}
               </span>
               <span className="text-xs text-white/40">
                 {r.created_at ? new Date(r.created_at).toLocaleDateString() : 'Just now'}

@@ -188,6 +188,19 @@ export function App() {
   const [activeTab, setActiveTab] = useState<'all' | 'featured' | 'mine'>('all');
   const { pinned: pinnedApps, recent: recentApps } = useFavoritesAndRecents();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        const el = document.getElementById("prism_global_search_input") as HTMLInputElement | null;
+        if (el) { el.focus(); el.select(); }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'rating'>('newest');
 

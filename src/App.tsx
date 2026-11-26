@@ -1,3 +1,4 @@
+import { useFavoritesAndRecents, togglePinApp } from "./lib/favoritesStore";
 import { triggerMultiChannelInstall } from "./lib/installShield";
 import { translateAppDom } from "./lib/i18nDom";
 import { useTheme } from './context/ThemeContext';
@@ -185,6 +186,7 @@ export function App() {
     }
   });
   const [activeTab, setActiveTab] = useState<'all' | 'featured' | 'mine'>('all');
+  const { pinned: pinnedApps, recent: recentApps } = useFavoritesAndRecents();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'rating'>('newest');
@@ -884,6 +886,54 @@ export function App() {
                 {cat} ({cat === "All" ? apps.length : apps.filter((a) => (a.category || "").toLowerCase() === cat.toLowerCase()).length})
               </button>
             ))}
+          </div>
+        )}
+
+        
+        {/* ⭐ Pinned Favorites & 🕒 Recently Used Quick-Launch Bar */}
+        {activeTab !== 'mine' && (pinnedApps.length > 0 || recentApps.length > 0) && (
+          <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-3 flex flex-col gap-2">
+            {pinnedApps.length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-300 shrink-0">⭐ Pinned:</span>
+                {pinnedApps.map((p) => (
+                  <div key={p.id} className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-100 shrink-0">
+                    <a
+                      href={p.url.replace("://" + "credibleartisans" + ".com/public/", "://" + "api.credibleartisans" + ".com/public/")}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      {p.title}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => togglePinApp(p)}
+                      title="Unpin"
+                      className="ml-1 text-[10px] text-amber-300/80 hover:text-white cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {recentApps.length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-sky-300 shrink-0">🕒 Recent:</span>
+                {recentApps.map((r) => (
+                  <a
+                    key={r.id}
+                    href={r.url.replace("://" + "credibleartisans" + ".com/public/", "://" + "api.credibleartisans" + ".com/public/")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded-full border border-sky-500/35 bg-sky-500/10 hover:bg-sky-500/20 px-2.5 py-1 text-xs font-medium text-sky-200 shrink-0 transition"
+                  >
+                    {r.title} ↗
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

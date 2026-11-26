@@ -1,3 +1,4 @@
+import { isAppPinned, togglePinApp, recordRecentApp, useFavoritesAndRecents } from "../lib/favoritesStore";
 import { useTranslatedText } from "../lib/i18nDom";
 import React, { useState } from 'react';
 import {
@@ -149,8 +150,16 @@ export const AppCard: React.FC<AppCardProps> = ({
     window.open(targetUrl + sep + "autoinstall=1", "_blank", "noopener,noreferrer");
   };
 
+  const { pinned: _allPinned } = useFavoritesAndRecents();
+  const pinnedNow = _allPinned.some((x) => x.id === String(app.id || title));
+  const handlePinClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const u = String(liveUrl || apkUrl || "");
+    togglePinApp({ id: String(app.id || title), title: String(title || "App"), url: u, category: String(category || "") });
+  };
   const handleInstallClick = async (e: React.MouseEvent) => {
     trackListedAppMetric('app_install');
+    recordRecentApp({ id: String(app.id || title), title: String(title || "App"), url: String(liveUrl || apkUrl || ""), category: String(category || "") });
     e.stopPropagation();
     // 1. Increment install count in PostgreSQL (core_platform)
     if (app.id) {
@@ -279,9 +288,19 @@ export const AppCard: React.FC<AppCardProps> = ({
             </h3>
             <p className="truncate text-xs text-slate-400">{developer}</p>
           </div>
-          <span className="prism-cat-badge shrink-0 rounded-lg border border-slate-700/80 bg-slate-800/80 px-2 py-0.5 text-[11px] font-medium text-slate-300">
-            {category}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handlePinClick}
+              title={pinnedNow ? "Unpin from Favorites" : "Pin to Favorites"}
+              className={`rounded-lg border px-1.5 py-0.5 text-xs font-bold transition cursor-pointer ${pinnedNow ? "border-amber-400/70 bg-amber-500/20 text-amber-300" : "border-slate-700/80 bg-slate-800/80 text-slate-400 hover:text-amber-200"}`}
+            >
+              {pinnedNow ? "⭐" : "☆"}
+            </button>
+            <span className="prism-cat-badge rounded-lg border border-slate-700/80 bg-slate-800/80 px-2 py-0.5 text-[11px] font-medium text-slate-300">
+              {category}
+            </span>
+          </div>
         </div>
 
         <p className="prism-react-tr mt-2.5 line-clamp-2 text-xs leading-relaxed text-slate-300">

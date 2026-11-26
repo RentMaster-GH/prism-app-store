@@ -144,6 +144,28 @@ export function App() {
     window.addEventListener("offline", onDown);
     return () => { window.removeEventListener("online", onUp); window.removeEventListener("offline", onDown); };
   }, []);
+  const [prismSelectedCur, setPrismSelectedCur] = useState<string>(() => {
+    try { return localStorage.getItem("sov_display_currency") || "GHS"; } catch { return "GHS"; }
+  });
+  const CUR_GHS_LABEL: Record<string, string> = {
+    GHS: "1 GHS = 2.5 SOUL",
+    USD: "1 USD ≈ GH₵ 15.40",
+    EUR: "1 EUR ≈ GH₵ 16.63",
+    GBP: "1 GBP ≈ GH₵ 19.56",
+    NGN: "1,000 NGN ≈ GH₵ 9.75",
+    ETH: "1 ETH ≈ GH₵ 53,130",
+    USDT: "1 USDT ≈ GH₵ 15.40",
+    USDC: "1 USDC ≈ GH₵ 15.40",
+    DAI: "1 DAI ≈ GH₵ 15.40",
+    WBTC: "1 WBTC ≈ GH₵ 1.45M",
+    stETH: "1 stETH ≈ GH₵ 52,976",
+    POL: "1 POL ≈ GH₵ 8.01",
+    BNB: "1 BNB ≈ GH₵ 9,933",
+    ARB: "1 ARB ≈ GH₵ 13.55",
+    OP: "1 OP ≈ GH₵ 28.49",
+    LINK: "1 LINK ≈ GH₵ 234",
+    UNI: "1 UNI ≈ GH₵ 160"
+  };
   const [prismLiteMode, setPrismLiteMode] = useState<boolean>(() => {
     try { return localStorage.getItem("sov_lite_mode") === "1"; } catch { return false; }
   });
@@ -706,7 +728,7 @@ export function App() {
               defaultValue={typeof window !== "undefined" ? localStorage.getItem("sov_display_currency") || "USD" : "USD"}
               onChange={(e) => {
                 const cur = e.target.value;
-                localStorage.setItem("sov_display_currency", cur);
+                localStorage.setItem("sov_display_currency", cur); setPrismSelectedCur(cur);
                 window.dispatchEvent(new CustomEvent("sov-currency-change", { detail: cur }));
               }}
               className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-sky-300 border border-sky-500/40 cursor-pointer"

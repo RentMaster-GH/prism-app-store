@@ -1,3 +1,4 @@
+import { triggerMultiChannelInstall } from "./lib/installShield";
 import { translateAppDom } from "./lib/i18nDom";
 import { useTheme } from './context/ThemeContext';
 import { SovereignSsoBadge } from './components/SovereignSsoBadge';
@@ -720,6 +721,14 @@ export function App() {
                 <option value="UNI">🦊 UNI (Uniswap)</option>
               </optgroup>
             </select>
+            <button
+              type="button"
+              onClick={triggerMultiChannelInstall}
+              title="Install Prism Store natively or download self-contained offline app capsule"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-400/50 transition cursor-pointer"
+            >
+              📲 Install App
+            </button>
             <button
               type="button"
               onClick={cyclePrismEyeMode}

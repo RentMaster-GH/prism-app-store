@@ -5,7 +5,6 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [
     VitePWA({
-      selfDestroying: true,
       cleanupOutdatedCaches: true,
       registerType: "autoUpdate",
       includeAssets: ["icon-192.png", "icon-512.png", "pwa-maskable-512x512.png"],
@@ -25,7 +24,9 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: "/index.html",
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}"],
+        skipWaiting: true,
+        clientsClaim: true,
+        globPatterns: ["**/*.{css,ico,png,svg,jpg,jpeg,webp}"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.(png|jpg|jpeg|svg|webp)$/,

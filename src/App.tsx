@@ -762,6 +762,16 @@ export function App() {
             >
               {prismLiteMode ? "📶 Lite: ON" : "📶 Lite"}
             </button>
+            <a
+              id="prism_receipts_btn"
+              href="https://credibleartisans.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Verify SHA-256 P2P Receipts & Live Ecosystem Settlement Ledger"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border border-sky-400/40 transition"
+            >
+              🔔 Receipts
+            </a>
             <button
               type="button"
               onClick={triggerMultiChannelInstall}

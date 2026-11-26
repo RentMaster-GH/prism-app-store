@@ -180,6 +180,8 @@ export function App() {
       else localStorage.removeItem("soul_active_handle");
     } catch {}
   };
+  const [showTourModal, setShowTourModal] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
   const [showMerchantsModal, setShowMerchantsModal] = useState(false);
   const [verifiedMerchants, setVerifiedMerchants] = useState<any[]>([]);
   const [merchantsLoading, setMerchantsLoading] = useState(false);
@@ -928,6 +930,14 @@ export function App() {
             </button>
             <button
               type="button"
+              onClick={() => { setTourStep(0); setShowTourModal(true); }}
+              title="60-Second Interactive Guide to Prism App Store & All 58 .soul Apps"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-violet-500/20 hover:bg-violet-500/30 text-violet-200 border border-violet-400/40 transition cursor-pointer"
+            >
+              🧭 Guide
+            </button>
+            <button
+              type="button"
               id="prism_receipts_btn"
               onClick={openReceiptsModal}
               title="Verify SHA-256 P2P Receipts & Live Ecosystem Settlements"
@@ -1663,6 +1673,97 @@ export function App() {
 
       
       
+      
+      {showTourModal && (
+        <div
+          onClick={() => setShowTourModal(false)}
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-violet-500/50 bg-slate-900 p-5 text-white shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-violet-300">
+                🧭 60-Second Ecosystem Tour • Step {tourStep + 1} of 4
+              </span>
+              <button type="button" onClick={() => setShowTourModal(false)} className="text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
+            </div>
+            {[
+              {
+                title: "1. Zero-Custody Direct P2P Payments",
+                body: "Pay merchants, riders, artisans, and creators directly via Mobile Money, Bank Transfer, GhQR, or MetaMask Web3 Crypto (ETH, USDT, USDC, WBTC)—secured with a 4-digit Handover PIN and SHA-256 Official Receipt.",
+                linkLabel: "Open SoulPay Wallet ↗",
+                url: "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/aetherhost/live/soulpay.soul"
+              },
+              {
+                title: "2. Offline QR Receipt Scanner & Global USSD",
+                body: "Scan any P2P Receipt QR with your phone camera, verify SHA-256 receipts offline, and dial Mobile Money or Bank USSD shortcodes across Africa and global carriers with zero mobile data.",
+                linkLabel: "Open Offline Pass & QR Scanner ↗",
+                url: "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/aetherhost/live/pass.soul"
+              },
+              {
+                title: "3. Cross-Device 6-Digit Sync & PIN Recovery",
+                body: "Transfer your Pinned Favorites, Language, Currency, and Offline Passes between laptop and mobile using a one-time 6-digit code—and protect your wallet with a 12-character Recovery Key.",
+                linkLabel: "Open Quick-Start & Sync Vault ↗",
+                url: "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/aetherhost/live/start.soul"
+              },
+              {
+                title: "4. Multi-Channel App Installation",
+                body: "Install Prism App Store or any of the 58+ .soul apps directly to your Home Screen, download Android APKs, or save self-contained Offline App Capsules (.html) that run without internet.",
+                linkLabel: "Explore Master Ecosystem Hub ↗",
+                url: "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/aetherhost/live/hub.soul"
+              }
+            ].slice(tourStep, tourStep + 1).map((step) => (
+              <div key={step.title} className="space-y-3">
+                <h3 className="text-base font-extrabold text-white">{step.title}</h3>
+                <p className="text-xs leading-relaxed text-slate-300">{step.body}</p>
+                <a
+                  href={step.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-500/25"
+                >
+                  {step.linkLabel}
+                </a>
+              </div>
+            ))}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                disabled={tourStep === 0}
+                onClick={() => setTourStep((s) => Math.max(0, s - 1))}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-bold disabled:opacity-40 cursor-pointer"
+              >
+                ← Back
+              </button>
+              <div className="flex gap-1.5">
+                {[0, 1, 2, 3].map((i) => (
+                  <span key={i} className={`h-1.5 w-5 rounded-full ${i === tourStep ? "bg-violet-400" : "bg-slate-700"}`} />
+                ))}
+              </div>
+              {tourStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => setTourStep((s) => Math.min(3, s + 1))}
+                  className="px-4 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-xs font-extrabold cursor-pointer"
+                >
+                  Next →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowTourModal(false)}
+                  className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-extrabold cursor-pointer"
+                >
+                  Done ✓
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showMerchantsModal && (
         <div
           onClick={() => setShowMerchantsModal(false)}

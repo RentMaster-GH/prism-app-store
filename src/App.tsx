@@ -249,6 +249,21 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const [prismVoiceListening, setPrismVoiceListening] = useState(false);
+  const startPrismVoiceSearch = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { alert("🎙️ Voice search is supported in Chrome, Edge, and Android browsers."); return; }
+    const rec = new SR();
+    rec.lang = document.documentElement.lang || "en-GH";
+    setPrismVoiceListening(true);
+    rec.onresult = (ev: any) => {
+      const said = String(ev?.results?.[0]?.[0]?.transcript || "").trim();
+      if (said) setSearchQuery(said);
+    };
+    rec.onerror = () => setPrismVoiceListening(false);
+    rec.onend = () => setPrismVoiceListening(false);
+    rec.start();
+  };
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'rating'>('newest');
 
@@ -932,6 +947,14 @@ export function App() {
                 placeholder="Search apps, creators, categories..."
                 className="w-full pl-9 pr-8 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
               />
+              <button
+                type="button"
+                onClick={startPrismVoiceSearch}
+                title="Voice Search Apps Hands-Free"
+                className={`absolute right-8 top-1/2 -translate-y-1/2 text-xs px-1.5 py-0.5 rounded cursor-pointer ${prismVoiceListening ? "text-rose-400 animate-pulse" : "text-slate-400 hover:text-indigo-300"}`}
+              >
+                {prismVoiceListening ? "🔴" : "🎙️"}
+              </button>
               {searchQuery && (
                 <button
                   type="button"

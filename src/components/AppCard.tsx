@@ -152,6 +152,14 @@ export const AppCard: React.FC<AppCardProps> = ({
 
   const { pinned: _allPinned } = useFavoritesAndRecents();
   const pinnedNow = _allPinned.some((x) => x.id === String(app.id || title));
+  const [copiedShare, setCopiedShare] = React.useState(false);
+  const handleShareCardClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const raw = String(liveUrl || apkUrl || window.location.href).replace("://" + "credibleartisans" + ".com/public/", "://" + "api.credibleartisans" + ".com/public/");
+    if (navigator.clipboard) navigator.clipboard.writeText(raw).catch(() => {});
+    setCopiedShare(true);
+    setTimeout(() => setCopiedShare(false), 1800);
+  };
   const handlePinClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     const u = String(liveUrl || apkUrl || "");
@@ -289,6 +297,14 @@ export const AppCard: React.FC<AppCardProps> = ({
             <p className="truncate text-xs text-slate-400">{developer}</p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleShareCardClick}
+              title="Copy direct shareable app link"
+              className="rounded-lg border border-slate-700/80 bg-slate-800/80 px-1.5 py-0.5 text-[11px] font-bold text-sky-300 hover:border-sky-400/60 transition cursor-pointer"
+            >
+              {copiedShare ? "✅" : "🔗"}
+            </button>
             <button
               type="button"
               onClick={handlePinClick}

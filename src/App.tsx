@@ -166,6 +166,20 @@ export function App() {
     LINK: "1 LINK ≈ GH₵ 234",
     UNI: "1 UNI ≈ GH₵ 160"
   };
+  const [prismSoulHandle, setPrismSoulHandle] = useState<string>(() => {
+    try { return localStorage.getItem("soul_active_handle") || ""; } catch { return ""; }
+  });
+  const promptSetSoulHandle = () => {
+    const next = window.prompt("Enter your Sovereign @handle (e.g. @kwame) to sign in across Prism Store & all 58 .soul apps:", prismSoulHandle || "@");
+    if (next === null) return;
+    const clean = next.trim().toLowerCase().replace(/[^a-z0-9_@]/g, "");
+    const formatted = clean ? (clean.startsWith("@") ? clean : "@" + clean) : "";
+    setPrismSoulHandle(formatted);
+    try {
+      if (formatted) localStorage.setItem("soul_active_handle", formatted);
+      else localStorage.removeItem("soul_active_handle");
+    } catch {}
+  };
   const [showReceiptsModal, setShowReceiptsModal] = useState(false);
   const [receiptFeed, setReceiptFeed] = useState<any[]>([]);
   const [receiptQuery, setReceiptQuery] = useState("");
@@ -854,6 +868,14 @@ export function App() {
             >
               {prismOnlineState ? "🟢 Online" : "📴 Offline Ready"}
             </span>
+            <button
+              type="button"
+              onClick={promptSetSoulHandle}
+              title="Set your Sovereign @handle for instant cross-portal identity across all 58 .soul apps"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-400/45 transition cursor-pointer"
+            >
+              {prismSoulHandle ? `🆔 ${prismSoulHandle}` : "🆔 Set @handle"}
+            </button>
             <button
               type="button"
               id="prism_receipts_btn"

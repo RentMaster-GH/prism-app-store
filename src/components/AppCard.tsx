@@ -129,6 +129,10 @@ export const AppCard: React.FC<AppCardProps> = ({
   if (_selTheme && rawUrl && rawUrl.includes(".soul") && !rawUrl.includes("theme=")) {
     rawUrl += (rawUrl.includes("?") ? "&" : "?") + "theme=" + encodeURIComponent(_selTheme);
   }
+  const _selHandle = (typeof localStorage !== "undefined" ? localStorage.getItem("soul_active_handle") : "") || "";
+  if (_selHandle && rawUrl && rawUrl.includes(".soul") && !rawUrl.includes("handle=")) {
+    rawUrl += (rawUrl.includes("?") ? "&" : "?") + "handle=" + encodeURIComponent(_selHandle);
+  }
   const _selLang = (typeof localStorage !== "undefined" ? localStorage.getItem("sov_lang") : "") || "";
   if (_selLang && _selLang !== "en" && rawUrl && rawUrl.includes(".soul") && !rawUrl.includes("lang=")) {
     rawUrl += (rawUrl.includes("?") ? "&" : "?") + "lang=" + encodeURIComponent(_selLang);

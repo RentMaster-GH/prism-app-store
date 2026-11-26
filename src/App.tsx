@@ -136,6 +136,24 @@ export interface StoreApp {
 const CATALOG_CACHE_KEY = 'prism_cached_apps_v1';
 
 export function App() {
+  const [prismLiteMode, setPrismLiteMode] = useState<boolean>(() => {
+    try { return localStorage.getItem("sov_lite_mode") === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    const id = "prism-lite-css";
+    let el = document.getElementById(id);
+    if (prismLiteMode) {
+      if (!el) {
+        el = document.createElement("style");
+        el.id = id;
+        el.textContent = "*{animation:none!important;transition:none!important;backdrop-filter:none!important;box-shadow:none!important}img{display:none!important}";
+        document.head.appendChild(el);
+      }
+    } else if (el) {
+      el.remove();
+    }
+    try { localStorage.setItem("sov_lite_mode", prismLiteMode ? "1" : "0"); } catch {}
+  }, [prismLiteMode]);
   const [prismEyeMode, setPrismEyeMode] = useState<"night" | "day" | "hc">(() => {
     try {
       const v = localStorage.getItem("sov_eye_theme_v1");
@@ -736,6 +754,14 @@ export function App() {
                 <option value="UNI">🦊 UNI (Uniswap)</option>
               </optgroup>
             </select>
+            <button
+              type="button"
+              onClick={() => setPrismLiteMode((v) => !v)}
+              title="Toggle Low-Data Lite Mode for ultra-fast loading on mobile data"
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${prismLiteMode ? "bg-emerald-500/30 text-emerald-100 border-emerald-400" : "bg-slate-900 text-slate-300 border-slate-700/80 hover:text-emerald-200"}`}
+            >
+              {prismLiteMode ? "📶 Lite: ON" : "📶 Lite"}
+            </button>
             <button
               type="button"
               onClick={triggerMultiChannelInstall}

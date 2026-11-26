@@ -136,6 +136,14 @@ export interface StoreApp {
 const CATALOG_CACHE_KEY = 'prism_cached_apps_v1';
 
 export function App() {
+  const [prismOnlineState, setPrismOnlineState] = useState<boolean>(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  useEffect(() => {
+    const onUp = () => setPrismOnlineState(true);
+    const onDown = () => setPrismOnlineState(false);
+    window.addEventListener("online", onUp);
+    window.addEventListener("offline", onDown);
+    return () => { window.removeEventListener("online", onUp); window.removeEventListener("offline", onDown); };
+  }, []);
   const [prismLiteMode, setPrismLiteMode] = useState<boolean>(() => {
     try { return localStorage.getItem("sov_lite_mode") === "1"; } catch { return false; }
   });
@@ -762,6 +770,12 @@ export function App() {
             >
               {prismLiteMode ? "📶 Lite: ON" : "📶 Lite"}
             </button>
+            <span
+              title={prismOnlineState ? "Connected — Live & Offline Cache Ready" : "Offline Mode — Cached Catalog & Offline Capsules Ready"}
+              className={`px-2 py-1.5 rounded-lg text-[11px] font-bold border ${prismOnlineState ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" : "bg-amber-500/20 text-amber-200 border-amber-400/50"}`}
+            >
+              {prismOnlineState ? "🟢 Online" : "📴 Offline Ready"}
+            </span>
             <a
               id="prism_receipts_btn"
               href="https://credibleartisans.com"

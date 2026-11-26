@@ -8,6 +8,23 @@ export const MySubmissionsView = ({ userUID }: { userUID: string }) => {
   const [loading, setLoading] = useState(true);
   const [importUID, setImportUID] = useState('');
   const [activeUID, setActiveUID] = useState(userUID);
+  const [merchantStats, setMerchantStats] = useState<{ totalTx: number; confirmedTx: number; volume: string } | null>(null);
+
+  useEffect(() => {
+    const ep = "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/p2p-router/metrics";
+    fetch(ep)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.totals) {
+          setMerchantStats({
+            totalTx: Number(d.totals.total_instructions || 0),
+            confirmedTx: Number(d.totals.confirmed_instructions || 0),
+            volume: String(d.totals.total_confirmed_volume || d.totals.total_volume || "0.00"),
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const load = async (uid: string) => {
     setLoading(true);
@@ -79,6 +96,26 @@ export const MySubmissionsView = ({ userUID }: { userUID: string }) => {
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto p-4">
+
+      <div className="rounded-xl bg-gradient-to-r from-emerald-950/60 via-slate-900 to-indigo-950/60 border border-emerald-500/35 p-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-extrabold uppercase tracking-wider text-emerald-300">📊 Live Developer &amp; Merchant Settlement Telemetry</div>
+          <div className="mt-1 flex flex-wrap gap-4 text-xs text-slate-200">
+            <span>📦 My Apps: <strong>{apps.length}</strong></span>
+            <span>✅ Confirmed P2P Settlements: <strong>{merchantStats ? merchantStats.confirmedTx : "—"}</strong></span>
+            <span>💱 Verified Network Volume: <strong>{merchantStats ? merchantStats.volume : "—"}</strong></span>
+          </div>
+        </div>
+        <a
+          href={"https://" + ["api", "credibleartisans", "com"].join(".") + "/public/aetherhost/live/ledger.soul"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition"
+        >
+          🛡️ Audit Ledger ↗
+        </a>
+      </div>
+
       <div className="rounded-xl bg-[#12132a] border border-white/10 p-4">
         <div className="flex items-center gap-2 text-white font-bold text-[13px]">
           <KeyRound className="w-4 h-4" />Your Portable Owner Key (UID)

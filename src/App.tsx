@@ -166,6 +166,47 @@ export function App() {
     LINK: "1 LINK ≈ GH₵ 234",
     UNI: "1 UNI ≈ GH₵ 160"
   };
+  const [showReceiptsModal, setShowReceiptsModal] = useState(false);
+  const [receiptFeed, setReceiptFeed] = useState<any[]>([]);
+  const [receiptQuery, setReceiptQuery] = useState("");
+  const [receiptLookupResult, setReceiptLookupResult] = useState<any>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+
+  const openReceiptsModal = async () => {
+    setShowReceiptsModal(true);
+    setReceiptLookupResult(null);
+    setReceiptLoading(true);
+    try {
+      const ep = "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/p2p-router/feed";
+      const r = await fetch(ep);
+      const d = await r.json();
+      setReceiptFeed(Array.isArray(d?.items) ? d.items : []);
+    } catch {
+      setReceiptFeed([]);
+    } finally {
+      setReceiptLoading(false);
+    }
+  };
+
+  const verifyReceiptByCode = async (rawCode: string) => {
+    const c = String(rawCode || "").trim().toUpperCase();
+    if (!c) return;
+    setReceiptLoading(true);
+    try {
+      const ep = "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/p2p-router/receipt/" + encodeURIComponent(c);
+      const r = await fetch(ep);
+      const d = await r.json();
+      if (r.ok && d?.receipt) {
+        setReceiptLookupResult({ ok: true, receipt: d.receipt });
+      } else {
+        setReceiptLookupResult({ ok: false, error: "Receipt code " + c + " not found." });
+      }
+    } catch {
+      setReceiptLookupResult({ ok: false, error: "Network error checking receipt." });
+    } finally {
+      setReceiptLoading(false);
+    }
+  };
   const [prismLiteMode, setPrismLiteMode] = useState<boolean>(() => {
     try { return localStorage.getItem("sov_lite_mode") === "1"; } catch { return false; }
   });
@@ -813,16 +854,15 @@ export function App() {
             >
               {prismOnlineState ? "🟢 Online" : "📴 Offline Ready"}
             </span>
-            <a
+            <button
+              type="button"
               id="prism_receipts_btn"
-              href="https://credibleartisans.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Verify SHA-256 P2P Receipts & Live Ecosystem Settlement Ledger"
-              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border border-sky-400/40 transition"
+              onClick={openReceiptsModal}
+              title="Verify SHA-256 P2P Receipts & Live Ecosystem Settlements"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border border-sky-400/40 transition cursor-pointer"
             >
               🔔 Receipts
-            </a>
+            </button>
             <button
               type="button"
               onClick={triggerMultiChannelInstall}
@@ -1548,6 +1588,99 @@ export function App() {
         />
       )}
           <SovereignSsoBadge />
+
+      {showReceiptsModal && (
+        <div
+          onClick={() => setShowReceiptsModal(false)}
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-2xl border border-emerald-500/40 bg-slate-900 p-5 text-white shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h2 className="text-base font-extrabold text-emerald-300">🔔 Live P2P Settlements &amp; SHA-256 Receipts</h2>
+              <button
+                type="button"
+                onClick={() => setShowReceiptsModal(false)}
+                className="text-slate-400 hover:text-white text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                value={receiptQuery}
+                onChange={(e) => setReceiptQuery(e.target.value)}
+                placeholder="Enter Receipt Code (e.g. P2P-3C01DE)"
+                className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-mono text-white"
+              />
+              <button
+                type="button"
+                onClick={() => verifyReceiptByCode(receiptQuery)}
+                className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white cursor-pointer"
+              >
+                Verify
+              </button>
+            </div>
+
+            {receiptLookupResult && (
+              <div className={`rounded-xl border p-3 text-xs space-y-1 ${receiptLookupResult.ok ? "border-emerald-500/50 bg-emerald-950/30" : "border-rose-500/50 bg-rose-950/30 text-rose-200"}`}>
+                {receiptLookupResult.ok ? (
+                  <>
+                    <div className="font-extrabold text-emerald-300">
+                      ✅ {receiptLookupResult.receipt.instruction_code} • {receiptLookupResult.receipt.status}
+                    </div>
+                    <div>
+                      Amount: <strong>{receiptLookupResult.receipt.gross_amount} {receiptLookupResult.receipt.currency}</strong> via <strong>{receiptLookupResult.receipt.recipient_network}</strong>
+                    </div>
+                    <div>
+                      Recipient: {receiptLookupResult.receipt.recipient_name || "—"} ({receiptLookupResult.receipt.recipient_account})
+                    </div>
+                    <div className="font-mono text-[10px] text-slate-400 break-all">
+                      SHA-256: {receiptLookupResult.receipt.receipt_proof_hash || "Pending 4-Digit Handover PIN"}
+                    </div>
+                  </>
+                ) : (
+                  <div>❌ {receiptLookupResult.error}</div>
+                )}
+              </div>
+            )}
+
+            <div className="max-h-72 overflow-y-auto space-y-2">
+              {receiptLoading ? (
+                <div className="py-6 text-center text-xs text-slate-400">Loading live settlements...</div>
+              ) : receiptFeed.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400">No settlements recorded yet.</div>
+              ) : (
+                receiptFeed.map((it: any) => (
+                  <div
+                    key={it.instruction_code}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/90 p-2.5 text-xs"
+                  >
+                    <div>
+                      <div className="font-bold text-emerald-300">
+                        {it.status === "CONFIRMED" ? "✅" : "⏳"} {it.instruction_code} • {it.gross_amount} {it.currency}
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {it.recipient_network} → {it.recipient_name || it.masked_account} ({it.portal_slug})
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setReceiptQuery(it.instruction_code); verifyReceiptByCode(it.instruction_code); }}
+                      className="rounded-lg border border-sky-500/40 bg-sky-500/15 px-2.5 py-1 text-[11px] font-bold text-sky-200 hover:bg-sky-500/25 cursor-pointer"
+                    >
+                      Inspect
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -144,6 +144,11 @@ export function App() {
     window.addEventListener("offline", onDown);
     return () => { window.removeEventListener("online", onUp); window.removeEventListener("offline", onDown); };
   }, []);
+  const [liveFxToUsd, setLiveFxToUsd] = useState<Record<string, number> | null>(null);
+  useEffect(() => {
+    const ep = "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/p2p-router/fx-rates";
+    fetch(ep).then((r) => r.json()).then((d) => { if (d?.ratesToUsd) setLiveFxToUsd(d.ratesToUsd); }).catch(() => {});
+  }, []);
   const [prismSelectedCur, setPrismSelectedCur] = useState<string>(() => {
     try { return localStorage.getItem("sov_display_currency") || "GHS"; } catch { return "GHS"; }
   });

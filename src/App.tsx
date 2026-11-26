@@ -180,6 +180,22 @@ export function App() {
       else localStorage.removeItem("soul_active_handle");
     } catch {}
   };
+  const [showSosModal, setShowSosModal] = useState(false);
+  const [sosGpsText, setSosGpsText] = useState<string>("");
+  const shareCurrentGps = () => {
+    if (!navigator.geolocation) { setSosGpsText("GPS unavailable on this browser."); return; }
+    setSosGpsText("Locating GPS...");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+        const link = `https://google.com${pos.coords.latitude},${pos.coords.longitude}`;
+        setSosGpsText(`📍 ${coords} (${link})`);
+        if (navigator.clipboard) navigator.clipboard.writeText(`SOS Location: ${coords} ${link}`).catch(() => {});
+      },
+      () => setSosGpsText("⚠️ Allow location permission to copy GPS pin."),
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
   const [showReceiptsModal, setShowReceiptsModal] = useState(false);
   const [receiptFeed, setReceiptFeed] = useState<any[]>([]);
   const [receiptQuery, setReceiptQuery] = useState("");
@@ -875,6 +891,14 @@ export function App() {
               className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-400/45 transition cursor-pointer"
             >
               {prismSoulHandle ? `🆔 ${prismSoulHandle}` : "🆔 Set @handle"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSosModal(true)}
+              title="1-Tap Offline Emergency Numbers & GPS SOS Beacon"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-extrabold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/50 transition cursor-pointer"
+            >
+              🆘 SOS
             </button>
             <button
               type="button"
@@ -1610,6 +1634,50 @@ export function App() {
         />
       )}
           <SovereignSsoBadge />
+
+      
+      {showSosModal && (
+        <div
+          onClick={() => setShowSosModal(false)}
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-rose-500/50 bg-slate-900 p-5 text-white shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h2 className="text-base font-extrabold text-rose-300">🆘 Offline SOS &amp; Global Emergency Quick-Dial</h2>
+              <button type="button" onClick={() => setShowSosModal(false)} className="text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+              <a href="tel:112" className="rounded-xl border border-rose-500/40 bg-rose-950/40 p-2.5 text-center text-rose-100 hover:bg-rose-900/50">🚨 Unified SOS: 112</a>
+              <a href="tel:193" className="rounded-xl border border-amber-500/40 bg-amber-950/40 p-2.5 text-center text-amber-100 hover:bg-amber-900/50">🚑 Ambulance: 193</a>
+              <a href="tel:191" className="rounded-xl border border-sky-500/40 bg-sky-950/40 p-2.5 text-center text-sky-100 hover:bg-sky-900/50">🚓 Police: 191</a>
+              <a href="tel:192" className="rounded-xl border border-orange-500/40 bg-orange-950/40 p-2.5 text-center text-orange-100 hover:bg-orange-900/50">🚒 Fire Service: 192</a>
+              <a href="tel:999" className="rounded-xl border border-slate-700 bg-slate-800/80 p-2.5 text-center text-slate-200">🌍 UK / KE / UG: 999</a>
+              <a href="tel:emergency services" className="rounded-xl border border-slate-700 bg-slate-800/80 p-2.5 text-center text-slate-200">🌎 US / CA: emergency services</a>
+            </div>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={shareCurrentGps}
+                className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 py-2.5 text-xs font-extrabold text-white cursor-pointer"
+              >
+                📍 Copy Live GPS Coordinates for Responder
+              </button>
+              {sosGpsText && <div className="rounded-lg bg-slate-950 border border-slate-800 p-2 text-[11px] text-emerald-300 break-all">{sosGpsText}</div>}
+              <a
+                href={"https://" + ["api", "credibleartisans", "com"].join(".") + "/public/aetherhost/live/safety.soul"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full rounded-xl border border-rose-400/50 bg-rose-500/15 py-2 text-center text-xs font-bold text-rose-200 hover:bg-rose-500/25"
+              >
+                🛡️ Open Full Live GPS Trip Beacon (safety.soul) ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showReceiptsModal && (
         <div

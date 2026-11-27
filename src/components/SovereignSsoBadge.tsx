@@ -19,6 +19,12 @@ export const SovereignSsoBadge: React.FC = () => {
   const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [curPin, setCurPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinMsg, setPinMsg] = useState("");
+  const [pinSaving, setPinSaving] = useState(false);
   const [showOnline, setShowOnline] = useState<boolean>(() => typeof window !== "undefined" && localStorage.getItem("sov_show_online_status") === "true");
 
   const apiBase = "https://" + "api." + "credibleartisans" + ".com";
@@ -116,6 +122,48 @@ export const SovereignSsoBadge: React.FC = () => {
     } catch {}
   };
 
+  
+  const handleChangePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^\d{4,6}$/.test(newPin.trim())) {
+      setPinMsg("New PIN must be 4–6 numeric digits.");
+      return;
+    }
+    if (newPin.trim() !== confirmPin.trim()) {
+      setPinMsg("New PIN and confirmation do not match.");
+      return;
+    }
+    setPinSaving(true);
+    setPinMsg("");
+    try {
+      const tok = localStorage.getItem("soul_trader_token") || "";
+      const r = await fetch(`${apiBase}/public/soulpay/wallet/change-pin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerToken: tok,
+          handle: profile?.handle || "",
+          currentPin: curPin.trim(),
+          newPin: newPin.trim(),
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setPinMsg(d.error || "Could not update PIN");
+        return;
+      }
+      setCurPin("");
+      setNewPin("");
+      setConfirmPin("");
+      setShowPinModal(false);
+      alert("🔑 " + (d.message || "Security PIN updated across the ecosystem!"));
+    } catch {
+      setPinMsg("Network error updating PIN.");
+    } finally {
+      setPinSaving(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = handleInput.trim().toLowerCase().replace(/^@+/, "").replace(/[^a-z0-9_]/g, "");
@@ -204,6 +252,14 @@ export const SovereignSsoBadge: React.FC = () => {
             >
               {showOnline ? "🟢 Online" : "⚫ Stealth"}
             </button>
+            <button
+              type="button"
+              onClick={() => { setPinMsg(""); setShowPinModal(true); }}
+              title="Change your @handle Security PIN"
+              className="text-[10px] text-sky-300 hover:text-sky-200 border-l border-slate-700 pl-2 cursor-pointer"
+            >
+              🔑 PIN
+            </button>
           </>
         ) : (
           <button
@@ -286,6 +342,52 @@ export const SovereignSsoBadge: React.FC = () => {
               className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs cursor-pointer"
             >
               {submitting ? "⏳ Verifying..." : mode === "create" ? "✅ Claim Unique @Handle" : "🔓 Unlock @Handle"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {showPinModal && profile?.authenticated && (
+        <div className="fixed inset-0 z- flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <form onSubmit={handleChangePinSubmit} className="w-full max-w-sm rounded-2xl bg-slate-900 border border-sky-500/40 p-5 text-slate-100 shadow-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-sky-300">🔑 Change PIN ({profile.handle})</h3>
+              <button type="button" onClick={() => setShowPinModal(false)} className="text-slate-400 hover:text-white text-sm">✕</button>
+            </div>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              value={curPin}
+              onChange={(e) => setCurPin(e.target.value)}
+              placeholder="Current 4–6 Digit PIN"
+              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-400"
+            />
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              value={newPin}
+              onChange={(e) => setNewPin(e.target.value)}
+              placeholder="New 4–6 Digit PIN"
+              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-400"
+            />
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              value={confirmPin}
+              onChange={(e) => setConfirmPin(e.target.value)}
+              placeholder="Confirm New 4–6 Digit PIN"
+              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-400"
+            />
+            {pinMsg && <p className="text-[11px] font-semibold text-rose-300">⚠️ {pinMsg}</p>}
+            <button
+              type="submit"
+              disabled={pinSaving}
+              className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs cursor-pointer"
+            >
+              {pinSaving ? "⏳ Updating PIN..." : "✅ Update Security PIN"}
             </button>
           </form>
         </div>

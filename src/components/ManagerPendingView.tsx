@@ -1,3 +1,4 @@
+import { ManagerHandleVerificationPanel } from './ManagerHandleVerificationPanel';
 import { useEffect, useState } from 'react';
 import { Check, X, Trash2, ExternalLink } from 'lucide-react';
 import { backend } from '../lib/backend';
@@ -65,6 +66,7 @@ export function ManagerPendingView({ managerKey }: { managerKey: string }) {
 
   return (
     <div className="space-y-3">
+      <ManagerHandleVerificationPanel />
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-bold text-sm flex items-center gap-2">
           Submissions

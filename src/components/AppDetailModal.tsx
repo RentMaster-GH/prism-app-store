@@ -227,6 +227,18 @@ export function AppDetailModal({ app, installedState, onClose, onInstall, onUnin
                 <p className="text-[11px] text-white/40 text-center">Want instant try? Click Open. Want full native app? Click Download APK.</p>
               )}
 
+              
+              {(app.changelog || app.raw?.changelog) && String(app.changelog || app.raw?.changelog).trim() !== "Live" && (
+                <div className="prism-whats-new-box p-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl space-y-1">
+                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300">
+                    📋 What&apos;s New ({safeVersion})
+                  </div>
+                  <p className="text-xs text-slate-200 whitespace-pre-line">
+                    {String(app.changelog || app.raw?.changelog)}
+                  </p>
+                </div>
+              )}
+
               <div className="prism-app-qr-share p-3.5 bg-white/[0.04] border border-white/10 rounded-2xl flex items-center gap-3.5">
                 <img
                   src={`https://qrserver.com${encodeURIComponent(`${window.location.origin}/?app=${encodeURIComponent(String(app.id || app.uuid || safeName))}`)}`}

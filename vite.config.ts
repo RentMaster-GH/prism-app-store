@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       cleanupOutdatedCaches: true,
-      registerType: "autoUpdate",
+      registerType: "prompt",
       includeAssets: ["icon-192.png", "icon-512.png", "pwa-maskable-512x512.png"],
       manifest: {
         name: "Prism App Store",
@@ -24,8 +24,8 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: "/index.html",
-        skipWaiting: true,
-        clientsClaim: true,
+        skipWaiting: false,
+        clientsClaim: false,
         globPatterns: ["**/*.{css,ico,png,svg,jpg,jpeg,webp}"],
         runtimeCaching: [
           {

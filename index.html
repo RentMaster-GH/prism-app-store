@@ -1,29 +1,7 @@
 <!doctype html>
 <html lang="en">
   <head>
-<script>
-(function(){
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(regs) {
-      if (regs && regs.length) {
-        Promise.all(regs.map(function(r){ return r.unregister(); })).then(function(){
-          if ('caches' in window) {
-            caches.keys().then(function(keys){
-              Promise.all(keys.map(function(k){ return caches.delete(k); })).then(function(){
-                if (!sessionStorage.getItem('prism_sw_purged_v1')) {
-                  sessionStorage.setItem('prism_sw_purged_v1', '1');
-                  location.reload();
-                }
-              });
-            });
-          }
-        });
-      }
-    });
-  }
-})();
-</script>
-    <meta charset="UTF-8" />
+<meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Prism App Store</title>
     <meta name="description" content="The next-generation open application store featuring interactive test-drive playgrounds, privacy nutrition audits, version rollback, and side-by-side app comparisons." />

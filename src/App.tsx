@@ -149,6 +149,7 @@ export function App() {
     const ep = "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/p2p-router/fx-rates";
     fetch(ep).then((r) => r.json()).then((d) => { if (d?.ratesToUsd) setLiveFxToUsd(d.ratesToUsd); }).catch(() => {});
   }, []);
+  const [prismCurMenuOpen, setPrismCurMenuOpen] = useState<boolean>(false);
   const [prismSelectedCur, setPrismSelectedCur] = useState<string>(() => {
     try { return localStorage.getItem("sov_display_currency") || "GHS"; } catch { return "GHS"; }
   });
@@ -839,68 +840,96 @@ export function App() {
               <option value="ru">🇷🇺 Русский (Russian)</option>
               <option value="ja">🇯🇵 日本語 (Japanese)</option>
             </select>
-            <select
-              id="sov_currency_select"
-              title="Display currency across Prism Store & all .soul apps (All currencies accepted)"
-              defaultValue={typeof window !== "undefined" ? localStorage.getItem("sov_display_currency") || "GHS" : "GHS"}
-              onChange={(e) => {
-                const cur = e.target.value;
-                localStorage.setItem("sov_display_currency", cur); setPrismSelectedCur(cur);
-                window.dispatchEvent(new CustomEvent("sov-currency-change", { detail: cur }));
-              }}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-sky-300 border border-sky-500/40 cursor-pointer"
-            >
-              <option value="GHS">🇬🇭 GHS GH₵</option>
-              <option value="USD">🇺🇸 USD $</option>
-              <option value="EUR">🇪🇺 EUR €</option>
-              <option value="GBP">🇬🇧 GBP £</option>
-              <option value="NGN">🇳🇬 NGN ₦</option>
-              <option value="KES">🇰🇪 KES KSh</option>
-              <option value="ZAR">🇿🇦 ZAR R</option>
-              <option value="XOF">🌍 XOF CFA</option>
-              <option value="XAF">🌍 XAF FCFA</option>
-              <option value="UGX">🇺🇬 UGX USh</option>
-              <option value="TZS">🇹🇿 TZS TSh</option>
-              <option value="RWF">🇷🇼 RWF RF</option>
-              <option value="ETB">🇪🇹 ETB Br</option>
-              <option value="EGP">🇪🇬 EGP E£</option>
-              <option value="MAD">🇲🇦 MAD DH</option>
-              <option value="ZMW">🇿🇲 ZMW ZK</option>
-              <option value="BWP">🇧🇼 BWP P</option>
-              <option value="NAD">🇳🇦 NAD N$</option>
-              <option value="MZN">🇲🇿 MZN MT</option>
-              <option value="GMD">🇬🇲 GMD D</option>
-              <option value="SLE">🇸🇱 SLE Le</option>
-              <option value="LRD">🇱🇷 LRD L$</option>
-              <option value="CAD">🇨🇦 CAD C$</option>
-              <option value="AUD">🇦🇺 AUD A$</option>
-              <option value="NZD">🇳🇿 NZD NZ$</option>
-              <option value="CHF">🇨🇭 CHF</option>
-              <option value="JPY">🇯🇵 JPY ¥</option>
-              <option value="CNY">🇨🇳 CNY ¥</option>
-              <option value="INR">🇮🇳 INR ₹</option>
-              <option value="AED">🇦🇪 AED</option>
-              <option value="SAR">🇸🇦 SAR</option>
-              <option value="QAR">🇶🇦 QAR</option>
-              <option value="SGD">🇸🇬 SGD S$</option>
-              <option value="HKD">🇭🇰 HKD HK$</option>
-              <option value="BRL">🇧🇷 BRL R$</option>
-              <option value="MXN">🇲🇽 MXN Mex$</option>
-              <optgroup label="🦊 Ethereum & Web3 Crypto (P2P)">
-                <option value="ETH">🦊 ETH (Ethereum)</option>
-                <option value="USDT">🦊 USDT (Tether ERC-20)</option>
-                <option value="USDC">🦊 USDC (USD Coin)</option>
-                <option value="DAI">🦊 DAI (Dai Stablecoin)</option>
-                <option value="WBTC">🦊 WBTC (Wrapped Bitcoin)</option>
-                <option value="stETH">🦊 stETH (Lido Staked ETH)</option>
-                <option value="POL">🦊 POL (Polygon)</option>
-                <option value="BNB">🦊 BNB (BNB Chain)</option>
-                <option value="ARB">🦊 ARB (Arbitrum)</option>
-                <option value="OP">🦊 OP (Optimism)</option>
-                <option value="LINK">🦊 LINK (Chainlink)</option>
-                <option value="UNI">🦊 UNI (Uniswap)</option>
-              </optgroup>
-            </select>
+            {/* Native Rich Currency Selector with Dark-Brown Mask + Black Top-Hat SOUL Icon */}
+            <div className="relative inline-block">
+              <button
+                type="button"
+                id="sov_currency_select"
+                onClick={() => setPrismCurMenuOpen((v) => !v)}
+                title="Display currency across Prism Store & all .soul apps (All currencies accepted)"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-sky-300 border border-sky-500/40 cursor-pointer whitespace-nowrap"
+              >
+                {prismSelectedCur === "SOUL" ? (
+                  <>
+                    <svg viewBox="0 0 128 128" width="20" height="20" className="w-5 h-5 min-w-[20px] rounded-full bg-slate-50 border border-amber-400 p-0.5 shrink-0">
+                      <path d="M34 10 Q64 5 94 10 L90 42 Q64 38 38 42 Z" fill="#09090b"/>
+                      <path d="M18 43 Q64 35 110 43 Q114 49 104 54 Q64 46 24 54 Q14 49 18 43 Z" fill="#09090b"/>
+                      <path d="M33 49 Q64 45 95 49 L97 77 Q93 101 64 122 Q35 101 31 77 Z" fill="#4a3728" stroke="#09090b" strokeWidth="3"/>
+                      <path d="M39 61 Q50 54 59 60" fill="none" stroke="#09090b" strokeWidth="4" strokeLinecap="round"/>
+                      <path d="M89 61 Q78 54 69 60" fill="none" stroke="#09090b" strokeWidth="4" strokeLinecap="round"/>
+                      <path d="M40 69 Q50 63 59 69 Q50 73 40 69 Z" fill="#09090b"/>
+                      <path d="M88 69 Q78 63 69 69 Q78 73 88 69 Z" fill="#09090b"/>
+                      <path d="M61 62 L59 81 Q64 84 69 81 L67 62" fill="none" stroke="#09090b" strokeWidth="2.5" strokeLinecap="round"/>
+                      <path d="M42 85 Q53 95 64 89 Q75 95 86 85 Q81 98 64 94 Q47 98 42 85 Z" fill="#09090b"/>
+                      <path d="M51 97 Q64 103 77 97" fill="none" stroke="#09090b" strokeWidth="2.8" strokeLinecap="round"/>
+                      <path d="M59 101 L64 119 L69 101 Z" fill="#09090b"/>
+                    </svg>
+                    <span>SOUL (Sovereign Coin)</span>
+                  </>
+                ) : (
+                  <span>{prismSelectedCur}</span>
+                )}
+                <span className="text-[10px] opacity-75">▼</span>
+              </button>
+              {prismCurMenuOpen && (
+                <div className="absolute right-0 mt-1 w-60 max-h-80 overflow-y-auto rounded-xl bg-slate-900 border border-sky-400/50 shadow-2xl p-1 z-[9999] text-left">
+                  {[
+                    ["GHS", "🇬🇭 GHS GH₵"], ["USD", "🇺🇸 USD $"], ["EUR", "🇪🇺 EUR €"], ["GBP", "🇬🇧 GBP £"],
+                    ["NGN", "🇳🇬 NGN ₦"], ["KES", "🇰🇪 KES KSh"], ["ZAR", "🇿🇦 ZAR R"], ["XOF", "🌍 XOF CFA"],
+                    ["XAF", "🌍 XAF FCFA"], ["UGX", "🇺🇬 UGX USh"], ["TZS", "🇹🇿 TZS TSh"], ["RWF", "🇷🇼 RWF RF"],
+                    ["ETB", "🇪🇹 ETB Br"], ["EGP", "🇪🇬 EGP E£"], ["MAD", "🇲🇦 MAD DH"], ["ZMW", "🇿🇲 ZMW ZK"],
+                    ["BWP", "🇧🇼 BWP P"], ["NAD", "🇳🇦 NAD N$"], ["MZN", "🇲🇿 MZN MT"], ["GMD", "🇬🇲 GMD D"],
+                    ["SLE", "🇸🇱 SLE Le"], ["LRD", "🇱🇷 LRD L$"], ["CAD", "🇨🇦 CAD C$"], ["AUD", "🇦🇺 AUD A$"],
+                    ["NZD", "🇳🇿 NZD NZ$"], ["CHF", "🇨🇭 CHF"], ["JPY", "🇯🇵 JPY ¥"], ["CNY", "🇨🇳 CNY ¥"],
+                    ["INR", "🇮🇳 INR ₹"], ["AED", "🇦🇪 AED"], ["SAR", "🇸🇦 SAR"], ["QAR", "🇶🇦 QAR"],
+                    ["SGD", "🇸🇬 SGD S$"], ["HKD", "🇭🇰 HKD HK$"], ["BRL", "🇧🇷 BRL R$"], ["MXN", "🇲🇽 MXN Mex$"],
+                    ["ETH", "🦊 ETH (Ethereum)"], ["USDT", "🦊 USDT (Tether ERC-20)"], ["USDC", "🦊 USDC (USD Coin)"],
+                    ["DAI", "🦊 DAI (Dai Stablecoin)"], ["WBTC", "🦊 WBTC (Wrapped Bitcoin)"], ["stETH", "🦊 stETH (Lido Staked ETH)"],
+                    ["POL", "🦊 POL (Polygon)"], ["BNB", "🦊 BNB (BNB Chain)"], ["ARB", "🦊 ARB (Arbitrum)"],
+                    ["OP", "🦊 OP (Optimism)"], ["LINK", "🦊 LINK (Chainlink)"], ["UNI", "🦊 UNI (Uniswap)"],
+                  ].map(([code, label]) => (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => {
+                        localStorage.setItem("sov_display_currency", code);
+                        setPrismSelectedCur(code);
+                        window.dispatchEvent(new CustomEvent("sov-currency-change", { detail: code }));
+                        setPrismCurMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 ${prismSelectedCur === code ? "bg-sky-500/25 text-sky-100" : "text-slate-200 hover:bg-white/10"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem("sov_display_currency", "SOUL");
+                      setPrismSelectedCur("SOUL");
+                      window.dispatchEvent(new CustomEvent("sov-currency-change", { detail: "SOUL" }));
+                      setPrismCurMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 mt-1 border-t border-white/10 pt-2 ${prismSelectedCur === "SOUL" ? "bg-sky-500/25 text-sky-100" : "text-amber-200 hover:bg-white/10"}`}
+                  >
+                    <svg viewBox="0 0 128 128" width="20" height="20" className="w-5 h-5 min-w-[20px] rounded-full bg-slate-50 border border-amber-400 p-0.5 shrink-0">
+                      <path d="M34 10 Q64 5 94 10 L90 42 Q64 38 38 42 Z" fill="#09090b"/>
+                      <path d="M18 43 Q64 35 110 43 Q114 49 104 54 Q64 46 24 54 Q14 49 18 43 Z" fill="#09090b"/>
+                      <path d="M33 49 Q64 45 95 49 L97 77 Q93 101 64 122 Q35 101 31 77 Z" fill="#4a3728" stroke="#09090b" strokeWidth="3"/>
+                      <path d="M39 61 Q50 54 59 60" fill="none" stroke="#09090b" strokeWidth="4" strokeLinecap="round"/>
+                      <path d="M89 61 Q78 54 69 60" fill="none" stroke="#09090b" strokeWidth="4" strokeLinecap="round"/>
+                      <path d="M40 69 Q50 63 59 69 Q50 73 40 69 Z" fill="#09090b"/>
+                      <path d="M88 69 Q78 63 69 69 Q78 73 88 69 Z" fill="#09090b"/>
+                      <path d="M61 62 L59 81 Q64 84 69 81 L67 62" fill="none" stroke="#09090b" strokeWidth="2.5" strokeLinecap="round"/>
+                      <path d="M42 85 Q53 95 64 89 Q75 95 86 85 Q81 98 64 94 Q47 98 42 85 Z" fill="#09090b"/>
+                      <path d="M51 97 Q64 103 77 97" fill="none" stroke="#09090b" strokeWidth="2.8" strokeLinecap="round"/>
+                      <path d="M59 101 L64 119 L69 101 Z" fill="#09090b"/>
+                    </svg>
+                    <span>SOUL (Sovereign Coin)</span>
+                  </button>
+                </div>
+              )}
+            </div>
             <button type="button" onClick={promptSetSoulHandle} title="Set your Sovereign @handle across all 58 .soul apps" className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-400/45 transition cursor-pointer">{prismSoulHandle ? `🆔 ${prismSoulHandle}` : "🆔 @handle"}</button>
             <span className={`hidden sm:inline-flex px-2 py-1.5 rounded-lg text-[11px] font-bold border ${prismOnlineState ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" : "bg-amber-500/20 text-amber-200 border-amber-400/50"}`}>{prismOnlineState ? "🟢 Online" : "📴 Offline"}</span>
             <div className="hidden lg:flex items-center gap-1.5">

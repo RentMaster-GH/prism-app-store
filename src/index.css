@@ -285,6 +285,12 @@ html.sov-theme-day .prism-cat-badge {
 
 /* === ☀️ DAYLIGHT: HIGH-CONTRAST HEADER PILLS (@Handle, Guide, SOS, Receipts, Install App) === */
 html.sov-theme-day header button[class*="bg-indigo-"],
+html.sov-theme-day header a[class*="bg-indigo-"],
+html.sov-theme-day header button[class*="bg-indigo-"] *,
+html.sov-theme-day header a[class*="bg-indigo-"] * {
+  color: #3730a3 !important;
+}
+html.sov-theme-day header button[class*="bg-indigo-"],
 html.sov-theme-day header a[class*="bg-indigo-"] {
   background: #eef2ff !important;
   border-color: #818cf8 !important;

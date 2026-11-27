@@ -11,10 +11,20 @@ interface SsoProfile {
 export const SovereignSsoBadge: React.FC = () => {
   const [profile, setProfile] = useState<SsoProfile | null>(null);
   const [minimized, setMinimized] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [mode, setMode] = useState<"create" | "unlock">("create");
+  const [handleInput, setHandleInput] = useState("");
+  const [pinInput, setPinInput] = useState("");
+  const [checkMsg, setCheckMsg] = useState<string>("");
+  const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  const apiBase = "https://" + "api." + "credibleartisans" + ".com";
+  const hubUrl = apiBase + "/public/aetherhost/live/id.soul";
 
   useEffect(() => {
     let active = true;
-    const apiBase = "https://" + "api." + "credibleartisans" + ".com";
     try {
       const params = new URLSearchParams(window.location.search);
       const incoming = params.get("soul_sso");
@@ -45,7 +55,73 @@ export const SovereignSsoBadge: React.FC = () => {
     };
   }, []);
 
-  const hubUrl = "https://" + "api." + "credibleartisans" + ".com/public/aetherhost/live/id.soul";
+  useEffect(() => {
+    if (!showAuthModal) return;
+    const clean = handleInput.trim().toLowerCase().replace(/^@+/, "").replace(/[^a-z0-9_]/g, "");
+    if (clean.length < 2) {
+      setCheckMsg("");
+      setHandleAvailable(null);
+      setSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const tok = localStorage.getItem("soul_trader_token") || "";
+        const r = await fetch(`${apiBase}/public/soulpay/handle-check?handle=${encodeURIComponent("@" + clean)}&ownerToken=${encodeURIComponent(tok)}`);
+        const d = await r.json();
+        if (d && d.ok) {
+          setHandleAvailable(Boolean(d.available));
+          setCheckMsg(d.message || "");
+          setSuggestions(Array.isArray(d.suggestions) ? d.suggestions : []);
+        }
+      } catch {}
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [handleInput, showAuthModal]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = handleInput.trim().toLowerCase().replace(/^@+/, "").replace(/[^a-z0-9_]/g, "");
+    if (clean.length < 2 || pinInput.trim().length < 4) {
+      setCheckMsg("Enter a valid @handle (2+ characters) and 4–6 digit PIN.");
+      return;
+    }
+    if (mode === "create" && handleAvailable === false) {
+      setCheckMsg(`@${clean} is already taken. Pick one of the available suggestions below or add a number/character.`);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const endpoint = mode === "create" ? "/public/soulpay/wallet/create" : "/public/soulpay/wallet/unlock";
+      const r = await fetch(`${apiBase}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle: clean, pin: pinInput.trim(), fullName: clean }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setCheckMsg(d.error || "Unable to complete request");
+        if (Array.isArray(d.suggestions)) setSuggestions(d.suggestions);
+        setHandleAvailable(false);
+        return;
+      }
+      if (d.ownerToken) localStorage.setItem("soul_trader_token", d.ownerToken);
+      const finalHandle = d.handle || `@${clean}`;
+      localStorage.setItem("soul_active_handle", finalHandle);
+      setProfile({
+        authenticated: true,
+        handle: finalHandle,
+        soulBalance: Number(d.wallet?.soul_balance || 0),
+        kycVerified: Boolean(d.wallet?.kyc_verified),
+      });
+      setShowAuthModal(false);
+      setPinInput("");
+    } catch {
+      setCheckMsg("Network error connecting to Sovereign Identity server.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (minimized) {
     return (
@@ -62,45 +138,113 @@ export const SovereignSsoBadge: React.FC = () => {
   }
 
   return (
-    <div
-      style={{ position: "fixed", bottom: 14, right: 14, zIndex: 9990 }}
-      className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-emerald-500/40 text-xs font-semibold text-slate-100 shadow-xl backdrop-blur"
-    >
-      {profile?.authenticated ? (
-        <>
-          <a
-            href={hubUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-emerald-300 hover:text-emerald-200 font-mono"
-          >
-            {profile.kycVerified ? "✅" : "🪙"} {profile.handle} • {Number(profile.soulBalance || 0).toLocaleString()} SOUL
-          </a>
+    <>
+      <div
+        style={{ position: "fixed", bottom: 14, right: 14, zIndex: 9990 }}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-emerald-500/40 text-xs font-semibold text-slate-100 shadow-xl backdrop-blur"
+      >
+        {profile?.authenticated ? (
+          <>
+            <a href={hubUrl} target="_blank" rel="noreferrer" className="text-emerald-300 hover:text-emerald-200 font-mono">
+              {profile.kycVerified ? "✅" : "🪙"} {profile.handle} • {Number(profile.soulBalance || 0).toLocaleString()} SOUL
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("soul_trader_token");
+                localStorage.removeItem("soul_active_handle");
+                setProfile(null);
+              }}
+              className="text-[10px] text-slate-400 hover:text-rose-300 border-l border-slate-700 pl-2"
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
           <button
             type="button"
             onClick={() => {
-              localStorage.removeItem("soul_trader_token");
-              localStorage.removeItem("soul_active_handle");
-              setProfile(null);
+              setMode("create");
+              setShowAuthModal(true);
             }}
-            className="text-[10px] text-slate-400 hover:text-rose-300 border-l border-slate-700 pl-2"
+            className="text-sky-300 hover:text-sky-200 cursor-pointer"
           >
-            Sign out
+            🔐 Claim Unique @Handle / SSO
           </button>
-        </>
-      ) : (
-        <a href={hubUrl} target="_blank" rel="noreferrer" className="text-sky-300 hover:text-sky-200">
-          🔐 Sovereign SSO
-        </a>
+        )}
+        <button
+          type="button"
+          onClick={() => setMinimized(true)}
+          aria-label="Minimize SSO badge"
+          className="text-slate-400 hover:text-white border-l border-slate-700 pl-1.5 font-mono"
+        >
+          −
+        </button>
+      </div>
+
+      {showAuthModal && (
+        <div className="fixed inset-0 z- flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl bg-slate-900 border border-emerald-500/40 p-5 text-slate-100 shadow-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-emerald-300">🔐 Sovereign Unique @Handle</h3>
+              <button type="button" onClick={() => setShowAuthModal(false)} className="text-slate-400 hover:text-white text-sm">✕</button>
+            </div>
+            <div className="flex gap-2 text-xs">
+              <button type="button" onClick={() => setMode("create")} className={`flex-1 py-1.5 rounded-lg font-bold ${mode === "create" ? "bg-emerald-500 text-slate-950" : "bg-slate-800 text-slate-300"}`}>
+                Create New @Handle
+              </button>
+              <button type="button" onClick={() => setMode("unlock")} className={`flex-1 py-1.5 rounded-lg font-bold ${mode === "unlock" ? "bg-sky-500 text-slate-950" : "bg-slate-800 text-slate-300"}`}>
+                Unlock Existing
+              </button>
+            </div>
+            <div>
+              <input
+                type="text"
+                value={handleInput}
+                onChange={(e) => setHandleInput(e.target.value)}
+                placeholder="Choose unique handle (e.g. @anon1)"
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm font-mono text-emerald-300 focus:outline-none focus:border-emerald-400"
+              />
+              {checkMsg && (
+                <p className={`mt-1.5 text-[11px] font-semibold ${handleAvailable === false && mode === "create" ? "text-amber-300" : "text-emerald-300"}`}>
+                  {handleAvailable === false && mode === "create" ? "⚠️ " : "✅ "}
+                  {checkMsg}
+                </p>
+              )}
+              {mode === "create" && handleAvailable === false && suggestions.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {suggestions.map((sug) => (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() => setHandleInput(sug)}
+                      className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-200 text-[11px] font-mono hover:bg-emerald-500/30"
+                    >
+                      {sug}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={6}
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              placeholder="4–6 Digit Security PIN"
+              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-emerald-400"
+            />
+            <button
+              type="submit"
+              disabled={submitting || (mode === "create" && handleAvailable === false)}
+              className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs cursor-pointer"
+            >
+              {submitting ? "⏳ Verifying..." : mode === "create" ? "✅ Claim Unique @Handle" : "🔓 Unlock @Handle"}
+            </button>
+          </form>
+        </div>
       )}
-      <button
-        type="button"
-        onClick={() => setMinimized(true)}
-        aria-label="Minimize SSO badge"
-        className="text-slate-400 hover:text-white border-l border-slate-700 pl-1.5 font-mono"
-      >
-        −
-      </button>
-    </div>
+    </>
   );
 };

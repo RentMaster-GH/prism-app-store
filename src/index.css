@@ -281,3 +281,67 @@ html.sov-theme-day .prism-cat-badge {
   font-weight: 700 !important;
   -webkit-text-fill-color: #0f172a !important;
 }
+
+
+/* === ☀️ DAYLIGHT: HIGH-CONTRAST HEADER PILLS (@Handle, Guide, SOS, Receipts, Install App) === */
+html.sov-theme-day header button[class*="bg-indigo-"],
+html.sov-theme-day header a[class*="bg-indigo-"] {
+  background: #eef2ff !important;
+  border-color: #818cf8 !important;
+  color: #3730a3 !important;
+}
+html.sov-theme-day header button[class*="bg-fuchsia-"],
+html.sov-theme-day header button[class*="bg-purple-"],
+html.sov-theme-day header button[class*="bg-violet-"],
+html.sov-theme-day header a[class*="bg-violet-"] {
+  background: #f5f3ff !important;
+  border-color: #a78bfa !important;
+  color: #5b21b6 !important;
+}
+html.sov-theme-day header button[class*="bg-rose-"],
+html.sov-theme-day header a[class*="bg-rose-"],
+html.sov-theme-day header button[class*="bg-red-"],
+html.sov-theme-day header a[class*="bg-red-"] {
+  background: #ffe4e6 !important;
+  border-color: #fb7185 !important;
+  color: #be123c !important;
+}
+html.sov-theme-day header button[class*="bg-sky-"],
+html.sov-theme-day header button[class*="bg-cyan-"],
+html.sov-theme-day header button[class*="bg-blue-"] {
+  background: #e0f2fe !important;
+  border-color: #38bdf8 !important;
+  color: #0369a1 !important;
+}
+html.sov-theme-day header button[class*="bg-emerald-"],
+html.sov-theme-day header a[class*="bg-emerald-"] {
+  background: #dcfce7 !important;
+  border-color: #34d399 !important;
+  color: #065f46 !important;
+}
+html.sov-theme-day header button[class*="bg-amber-"] {
+  background: #fef3c7 !important;
+  border-color: #fbbf24 !important;
+  color: #92400e !important;
+}
+html.sov-theme-day .text-indigo-200,
+html.sov-theme-day .text-violet-200,
+html.sov-theme-day .text-fuchsia-200,
+html.sov-theme-day .text-purple-200 {
+  color: #3730a3 !important;
+}
+html.sov-theme-day .text-rose-200,
+html.sov-theme-day .text-rose-300,
+html.sov-theme-day .text-red-200,
+html.sov-theme-day .text-red-300 {
+  color: #be123c !important;
+}
+html.sov-theme-day .text-emerald-200,
+html.sov-theme-day .text-teal-200 {
+  color: #065f46 !important;
+}
+html.sov-theme-day .text-sky-200,
+html.sov-theme-day .text-cyan-200,
+html.sov-theme-day .text-blue-200 {
+  color: #0369a1 !important;
+}

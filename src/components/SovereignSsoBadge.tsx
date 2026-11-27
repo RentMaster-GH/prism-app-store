@@ -19,6 +19,7 @@ export const SovereignSsoBadge: React.FC = () => {
   const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [showOnline, setShowOnline] = useState<boolean>(() => typeof window !== "undefined" && localStorage.getItem("sov_show_online_status") === "true");
 
   const apiBase = "https://" + "api." + "credibleartisans" + ".com";
   const hubUrl = apiBase + "/public/aetherhost/live/id.soul";
@@ -78,6 +79,42 @@ export const SovereignSsoBadge: React.FC = () => {
     }, 280);
     return () => clearTimeout(timer);
   }, [handleInput, showAuthModal]);
+
+  
+  useEffect(() => {
+    if (!profile?.authenticated) return;
+    const ping = async (explicit?: boolean) => {
+      const activeOptIn = typeof explicit === "boolean" ? explicit : showOnline;
+      if (!activeOptIn && typeof explicit !== "boolean") return;
+      const tok = localStorage.getItem("soul_trader_token") || "";
+      try {
+        const body: any = { ownerToken: tok, handle: profile.handle || "" };
+        if (typeof explicit === "boolean") body.showOnline = explicit;
+        await fetch(`${apiBase}/public/soulpay/presence/ping`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      } catch {}
+    };
+    ping();
+    const iv = setInterval(() => { if (!document.hidden) ping(); }, 45000);
+    return () => clearInterval(iv);
+  }, [profile?.authenticated, profile?.handle, showOnline]);
+
+  const toggleOnlineVisibility = async () => {
+    const next = !showOnline;
+    setShowOnline(next);
+    localStorage.setItem("sov_show_online_status", next ? "true" : "false");
+    const tok = localStorage.getItem("soul_trader_token") || "";
+    try {
+      await fetch(`${apiBase}/public/soulpay/presence/ping`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ownerToken: tok, handle: profile?.handle || "", showOnline: next }),
+      });
+    } catch {}
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,7 +183,7 @@ export const SovereignSsoBadge: React.FC = () => {
         {profile?.authenticated ? (
           <>
             <a href={hubUrl} target="_blank" rel="noreferrer" className="text-emerald-300 hover:text-emerald-200 font-mono">
-              {profile.kycVerified ? "✅" : "🪙"} {profile.handle} • {Number(profile.soulBalance || 0).toLocaleString()} SOUL
+              {showOnline ? "🟢" : "⚫"} {profile.kycVerified ? "✅" : "🪙"} {profile.handle} • {Number(profile.soulBalance || 0).toLocaleString()} SOUL
             </a>
             <button
               type="button"
@@ -158,6 +195,14 @@ export const SovereignSsoBadge: React.FC = () => {
               className="text-[10px] text-slate-400 hover:text-rose-300 border-l border-slate-700 pl-2"
             >
               Sign out
+            </button>
+            <button
+              type="button"
+              onClick={toggleOnlineVisibility}
+              title="Optional: Toggle whether the public can see you are online"
+              className={`text-[10px] border-l border-slate-700 pl-2 cursor-pointer ${showOnline ? "text-emerald-300 font-bold" : "text-slate-400 hover:text-slate-200"}`}
+            >
+              {showOnline ? "🟢 Online" : "⚫ Stealth"}
             </button>
           </>
         ) : (

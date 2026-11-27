@@ -314,6 +314,13 @@ html.sov-theme-day header button[class*="bg-blue-"] {
   color: #0369a1 !important;
 }
 html.sov-theme-day header button[class*="bg-emerald-"],
+html.sov-theme-day header a[class*="bg-emerald-"],
+html.sov-theme-day header button[class*="bg-emerald-"] *,
+html.sov-theme-day header a[class*="bg-emerald-"] * {
+  background-color: transparent !important;
+  color: #065f46 !important;
+}
+html.sov-theme-day header button[class*="bg-emerald-"],
 html.sov-theme-day header a[class*="bg-emerald-"] {
   background: #dcfce7 !important;
   border-color: #34d399 !important;

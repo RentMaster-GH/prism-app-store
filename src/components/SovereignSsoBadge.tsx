@@ -31,6 +31,13 @@ export const SovereignSsoBadge: React.FC = () => {
   const [verifyFile, setVerifyFile] = useState<File | null>(null);
   const [verifyAppStatus, setVerifyAppStatus] = useState<any>(null);
   const [verifySubmitting, setVerifySubmitting] = useState(false);
+  const [showRecModal, setShowRecModal] = useState(false);
+  const [recTarget, setRecTarget] = useState("");
+  const [recRecipient, setRecRecipient] = useState("");
+  const [recCategory, setRecCategory] = useState("Trusted & Reliable");
+  const [recOpinion, setRecOpinion] = useState("");
+  const [recInbox, setRecInbox] = useState<any[]>([]);
+  const [recSending, setRecSending] = useState(false);
   const [showOnline, setShowOnline] = useState<boolean>(() => typeof window !== "undefined" && localStorage.getItem("sov_show_online_status") === "true");
 
   const apiBase = "https://" + "api." + "credibleartisans" + ".com";
@@ -219,6 +226,57 @@ export const SovereignSsoBadge: React.FC = () => {
     }
   };
 
+  
+  const openRecommendModal = async () => {
+    setShowRecModal(true);
+    try {
+      const tok = localStorage.getItem("soul_trader_token") || "";
+      const r = await fetch(`${apiBase}/public/soulpay/recommendations/inbox?token=${encodeURIComponent(tok)}&handle=${encodeURIComponent(profile?.handle || "")}`);
+      const d = await r.json();
+      if (d && d.ok) {
+        const merged = [...(d.forMe || []), ...(d.communityFeed || []).filter((x: any) => !(d.forMe || []).some((y: any) => y.id === x.id))];
+        setRecInbox(merged.slice(0, 12));
+      }
+    } catch {}
+  };
+
+  const submitRecommendation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recTarget.trim() || !recRecipient.trim() || !recOpinion.trim()) {
+      alert("Enter the @handle you are recommending, the recipient @handle (or public), and your opinion.");
+      return;
+    }
+    setRecSending(true);
+    try {
+      const tok = localStorage.getItem("soul_trader_token") || "";
+      const r = await fetch(`${apiBase}/public/soulpay/recommendations/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerToken: tok,
+          fromHandle: profile?.handle || "",
+          recommendedHandle: recTarget.trim(),
+          recipientHandle: recRecipient.trim(),
+          category: recCategory,
+          opinion: recOpinion.trim(),
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        alert(d.error || "Could not send recommendation");
+        return;
+      }
+      setRecTarget("");
+      setRecRecipient("");
+      setRecOpinion("");
+      openRecommendModal();
+    } catch {
+      alert("Network error sending recommendation.");
+    } finally {
+      setRecSending(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = handleInput.trim().toLowerCase().replace(/^@+/, "").replace(/[^a-z0-9_]/g, "");
@@ -314,6 +372,14 @@ export const SovereignSsoBadge: React.FC = () => {
               className="text-[10px] text-sky-300 hover:text-sky-200 border-l border-slate-700 pl-2 cursor-pointer"
             >
               🔑 PIN
+            </button>
+            <button
+              type="button"
+              onClick={openRecommendModal}
+              title="Recommend a @handle owner to another @handle owner"
+              className="text-[10px] text-amber-300 hover:text-amber-200 border-l border-slate-700 pl-2 font-bold cursor-pointer"
+            >
+              🌟 Recs
             </button>
             {!profile.kycVerified && (
               <button
@@ -510,6 +576,78 @@ export const SovereignSsoBadge: React.FC = () => {
               {verifySubmitting ? "⏳ Submitting..." : "📤 Submit Verification Application"}
             </button>
           </form>
+        </div>
+      )}
+
+      {showRecModal && profile?.authenticated && (
+        <div className="fixed inset-0 z- flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-slate-900 border border-amber-500/40 p-5 text-slate-100 shadow-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-amber-300">🌟 Recommend a @Handle Owner</h3>
+              <button type="button" onClick={() => setShowRecModal(false)} className="text-slate-400 hover:text-white text-sm">✕</button>
+            </div>
+            <form onSubmit={submitRecommendation} className="space-y-2.5">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={recTarget}
+                  onChange={(e) => setRecTarget(e.target.value)}
+                  placeholder="Recommend @handle"
+                  className="w-full px-2.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono text-emerald-300"
+                />
+                <input
+                  type="text"
+                  value={recRecipient}
+                  onChange={(e) => setRecRecipient(e.target.value)}
+                  placeholder="To (@friend or public)"
+                  className="w-full px-2.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono text-sky-300"
+                />
+              </div>
+              <select
+                value={recCategory}
+                onChange={(e) => setRecCategory(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
+              >
+                <option value="Trusted & Reliable">🤝 Trusted &amp; Reliable Soul</option>
+                <option value="Skilled Artisan / Pro">🛠️ Skilled Artisan / Service Pro</option>
+                <option value="Great Developer / Creator">💻 Great Developer / Creator</option>
+                <option value="Verified Relief / Care">🏥 Helpful Care / Community Relief</option>
+                <option value="Honest Merchant">🏪 Honest Merchant / Seller</option>
+              </select>
+              <textarea
+                rows={2}
+                value={recOpinion}
+                onChange={(e) => setRecOpinion(e.target.value)}
+                placeholder="Your personal feeling or opinion on why you recommend them..."
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
+              />
+              <button
+                type="submit"
+                disabled={recSending}
+                className="w-full py-2 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-slate-950 font-extrabold text-xs cursor-pointer"
+              >
+                {recSending ? "⏳ Sending..." : "🌟 Send Personal Recommendation"}
+              </button>
+            </form>
+            <div className="border-t border-slate-800 pt-2.5 space-y-1.5">
+              <div className="text-[11px] font-bold text-sky-300">📬 Recommendations Sent to You ({profile.handle})</div>
+              {recInbox.length === 0 ? (
+                <p className="text-[11px] text-slate-400">No recommendations yet.</p>
+              ) : (
+                recInbox.map((r) => (
+                  <div key={r.id} className="p-2 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px]">
+                    <div className="flex justify-between gap-1">
+                      <span>
+                        <strong className="text-amber-300">{r.from_handle}</strong> → <strong className="text-emerald-300">{r.recommended_handle}</strong>
+                      </span>
+                      <span className="text-[10px] text-slate-400">{r.category}</span>
+                    </div>
+                    <p className="text-slate-200 mt-0.5">“{r.opinion}”</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       )}
     </>

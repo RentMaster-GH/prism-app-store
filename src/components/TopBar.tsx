@@ -1,3 +1,4 @@
+import { EcosystemInboxBell } from './EcosystemInboxBell';
 import React, { useState } from 'react';
 import { Shield, Eye, EyeOff, Key, Copy, Check, Menu, X, MessageSquare, Library, Compass, AppWindow } from 'lucide-react';
 import { backend } from '../lib/backend';
@@ -125,6 +126,7 @@ export function TopBar({
               <Key className="w-3.5 h-3.5" />{creating ? '...' : portalSlug ? portalSlug : 'Create Portal'}
             </button>
 
+            <EcosystemInboxBell />
             <button onClick={onOpenManagerAuth} className="h-9 w-9 sm:w-auto sm:px-3 rounded-full bg-white/[0.06] border border-white/10 text-white/70 flex items-center justify-center gap-1.5">
               <Shield className="w-4 h-4" /><span className="hidden sm:block text-[11px]">{isStoreManager ? (showFull ? userUID.slice(0, 12) : maskUID(userUID)) : 'Manager'}</span>
             </button>

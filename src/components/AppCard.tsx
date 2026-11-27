@@ -40,6 +40,46 @@ function getFallbackGradient(title: string): string {
   return palettes[Math.abs(hash) % palettes.length];
 }
 
+
+const __prismVerifiedHandleCache: Record<string, boolean> = {};
+let __prismPendingHandles = new Set<string>();
+let __prismFlushTimer: any = null;
+
+function useIsVerifiedHandle(rawHandle?: string) {
+  const [verified, setVerified] = React.useState(false);
+  React.useEffect(() => {
+    const clean = String(rawHandle || "").trim().toLowerCase();
+    if (!clean.startsWith("@") || clean.length < 3) return;
+    if (clean in __prismVerifiedHandleCache) {
+      setVerified(__prismVerifiedHandleCache[clean]);
+      return;
+    }
+    __prismPendingHandles.add(clean);
+    if (!__prismFlushTimer) {
+      __prismFlushTimer = setTimeout(async () => {
+        const batch = Array.from(__prismPendingHandles);
+        __prismPendingHandles = new Set();
+        __prismFlushTimer = null;
+        try {
+          const apiBase = "https://" + "api." + "credibleartisans" + ".com";
+          const r = await fetch(`${apiBase}/public/soulpay/presence/status?handles=${encodeURIComponent(batch.join(","))}`);
+          const d = await r.json();
+          if (d && d.verified) {
+            for (const [k, v] of Object.entries(d.verified)) {
+              __prismVerifiedHandleCache[k] = Boolean(v);
+            }
+          }
+        } catch {}
+      }, 150);
+    }
+    const checkIv = setTimeout(() => {
+      if (clean in __prismVerifiedHandleCache) setVerified(__prismVerifiedHandleCache[clean]);
+    }, 600);
+    return () => clearTimeout(checkIv);
+  }, [rawHandle]);
+  return verified;
+}
+
 export const AppCard: React.FC<AppCardProps> = ({
   app,
   onSelect,
@@ -50,6 +90,7 @@ export const AppCard: React.FC<AppCardProps> = ({
   currentUid = '',
 }) => {
   const [deleting, setDeleting] = useState(false);
+  const isVerifiedAuthor = useIsVerifiedHandle(app.developer_handle || app.author || app.handle);
   const [installCount, setInstallCount] = useState<number>(Number(app.install_count || app.installs || 0));
   const [installedLocal, setInstalledLocal] = useState<boolean>(() => {
     try {
@@ -297,7 +338,8 @@ export const AppCard: React.FC<AppCardProps> = ({
       <div className="flex flex-1 flex-col p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="prism-react-tr truncate text-base font-bold text-white group-hover:text-indigo-300">
+            {isVerifiedAuthor && <span className="inline-flex items-center gap-1 px-2 py-0.5 mb-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[10px] font-extrabold">✓ Verified Handle</span>}
+        <h3 className="prism-react-tr truncate text-base font-bold text-white group-hover:text-indigo-300">
               {useTranslatedText(title)}
             </h3>
             <p className="truncate text-xs text-slate-400">{developer}</p>

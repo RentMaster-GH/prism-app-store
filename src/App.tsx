@@ -842,7 +842,7 @@ export function App() {
             <select
               id="sov_currency_select"
               title="Display currency across Prism Store & all .soul apps (All currencies accepted)"
-              defaultValue={typeof window !== "undefined" ? localStorage.getItem("sov_display_currency") || "USD" : "USD"}
+              defaultValue={typeof window !== "undefined" ? localStorage.getItem("sov_display_currency") || "GHS" : "GHS"}
               onChange={(e) => {
                 const cur = e.target.value;
                 localStorage.setItem("sov_display_currency", cur); setPrismSelectedCur(cur);
@@ -850,10 +850,10 @@ export function App() {
               }}
               className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-sky-300 border border-sky-500/40 cursor-pointer"
             >
+              <option value="GHS">🇬🇭 GHS GH₵</option>
               <option value="USD">🇺🇸 USD $</option>
               <option value="EUR">🇪🇺 EUR €</option>
               <option value="GBP">🇬🇧 GBP £</option>
-              <option value="GHS">🇬🇭 GHS GH₵</option>
               <option value="NGN">🇳🇬 NGN ₦</option>
               <option value="KES">🇰🇪 KES KSh</option>
               <option value="ZAR">🇿🇦 ZAR R</option>

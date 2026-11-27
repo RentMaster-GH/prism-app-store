@@ -226,6 +226,32 @@ export function AppDetailModal({ app, installedState, onClose, onInstall, onUnin
               {hasWeb && hasApk && (
                 <p className="text-[11px] text-white/40 text-center">Want instant try? Click Open. Want full native app? Click Download APK.</p>
               )}
+
+              <div className="prism-app-qr-share p-3.5 bg-white/[0.04] border border-white/10 rounded-2xl flex items-center gap-3.5">
+                <img
+                  src={`https://qrserver.com${encodeURIComponent(`${window.location.origin}/?app=${encodeURIComponent(String(app.id || app.uuid || safeName))}`)}`}
+                  alt="Scan to open app"
+                  className="w-16 h-16 rounded-xl bg-white p-1 shrink-0"
+                />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="text-xs font-bold text-white">📲 Scan or Share App</div>
+                  <p className="text-[11px] text-white/50 truncate">
+                    {window.location.origin}/?app={String(app.id || app.uuid || safeName)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const shareUrl = `${window.location.origin}/?app=${encodeURIComponent(String(app.id || app.uuid || safeName))}`;
+                      try { await navigator.clipboard.writeText(shareUrl); } catch {}
+                      alert("🔗 Shareable app link copied!\n\n" + shareUrl);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400/40 text-indigo-200 text-[11px] font-bold cursor-pointer"
+                  >
+                    <Copy className="w-3 h-3" /> Copy Share Link
+                  </button>
+                </div>
+              </div>
+
             </>
           )}
           {tab === 'reviews' && <AppReviews appId={String(app.id || app.uuid || '')} isManager={!!isStoreManager} />}

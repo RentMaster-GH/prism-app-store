@@ -25,6 +25,12 @@ export const SovereignSsoBadge: React.FC = () => {
   const [confirmPin, setConfirmPin] = useState("");
   const [pinMsg, setPinMsg] = useState("");
   const [pinSaving, setPinSaving] = useState(false);
+  const [showVerifyApplyModal, setShowVerifyApplyModal] = useState(false);
+  const [verifyRole, setVerifyRole] = useState("Individual Creator");
+  const [verifyNote, setVerifyNote] = useState("");
+  const [verifyFile, setVerifyFile] = useState<File | null>(null);
+  const [verifyAppStatus, setVerifyAppStatus] = useState<any>(null);
+  const [verifySubmitting, setVerifySubmitting] = useState(false);
   const [showOnline, setShowOnline] = useState<boolean>(() => typeof window !== "undefined" && localStorage.getItem("sov_show_online_status") === "true");
 
   const apiBase = "https://" + "api." + "credibleartisans" + ".com";
@@ -164,6 +170,55 @@ export const SovereignSsoBadge: React.FC = () => {
     }
   };
 
+  
+  const openVerifyApplyModal = async () => {
+    setShowVerifyApplyModal(true);
+    try {
+      const r = await fetch(`${apiBase}/public/soulpay/handle-verify/status?handle=${encodeURIComponent(profile?.handle || "")}`);
+      const d = await r.json();
+      if (d && d.ok) setVerifyAppStatus(d);
+    } catch {}
+  };
+
+  const submitVerifyApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerifySubmitting(true);
+    try {
+      let evidenceUrl = "";
+      if (verifyFile) {
+        const fd = new FormData();
+        fd.append("file", verifyFile);
+        const up = await fetch(`${apiBase}/public/soulmarket/upload`, { method: "POST", body: fd }).then((r) => r.json()).catch(() => ({}));
+        if (up && up.mediaUrl) evidenceUrl = up.mediaUrl;
+      }
+      const tok = localStorage.getItem("soul_trader_token") || "";
+      const r = await fetch(`${apiBase}/public/soulpay/handle-verify/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerToken: tok,
+          handle: profile?.handle || "",
+          roleCategory: verifyRole,
+          evidenceUrl,
+          note: verifyNote.trim(),
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        alert(d.error || "Could not submit verification application");
+        return;
+      }
+      setShowVerifyApplyModal(false);
+      setVerifyNote("");
+      setVerifyFile(null);
+      alert("✅ " + (d.message || "Verification application submitted for Store Manager review!"));
+    } catch {
+      alert("Network error submitting verification application.");
+    } finally {
+      setVerifySubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = handleInput.trim().toLowerCase().replace(/^@+/, "").replace(/[^a-z0-9_]/g, "");
@@ -260,6 +315,16 @@ export const SovereignSsoBadge: React.FC = () => {
             >
               🔑 PIN
             </button>
+            {!profile.kycVerified && (
+              <button
+                type="button"
+                onClick={openVerifyApplyModal}
+                title="Apply for Official Verified Handle Badge"
+                className="text-[10px] text-emerald-300 hover:text-emerald-200 border-l border-slate-700 pl-2 font-bold cursor-pointer"
+              >
+                ✓ Verify
+              </button>
+            )}
           </>
         ) : (
           <button
@@ -388,6 +453,61 @@ export const SovereignSsoBadge: React.FC = () => {
               className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs cursor-pointer"
             >
               {pinSaving ? "⏳ Updating PIN..." : "✅ Update Security PIN"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {showVerifyApplyModal && profile?.authenticated && (
+        <div className="fixed inset-0 z- flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <form onSubmit={submitVerifyApplication} className="w-full max-w-sm rounded-2xl bg-slate-900 border border-emerald-500/40 p-5 text-slate-100 shadow-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-emerald-300">✓ Apply for Verified Handle ({profile.handle})</h3>
+              <button type="button" onClick={() => setShowVerifyApplyModal(false)} className="text-slate-400 hover:text-white text-sm">✕</button>
+            </div>
+            {verifyAppStatus?.latestApplication?.status === "PENDING" && (
+              <div className="p-2 rounded-lg bg-amber-500/15 border border-amber-400/40 text-amber-200 text-[11px]">
+                ⏳ Application currently pending Store Manager review.
+              </div>
+            )}
+            {verifyAppStatus?.latestApplication?.status === "REJECTED" && (
+              <div className="p-2 rounded-lg bg-rose-500/15 border border-rose-400/40 text-rose-200 text-[11px]">
+                ❌ Returned: {verifyAppStatus.latestApplication.manager_reason}
+                {verifyAppStatus.latestApplication.manager_guidance && (
+                  <div className="mt-1 text-amber-200">💡 {verifyAppStatus.latestApplication.manager_guidance}</div>
+                )}
+              </div>
+            )}
+            <select
+              value={verifyRole}
+              onChange={(e) => setVerifyRole(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
+            >
+              <option value="Individual Creator">🎨 Individual Creator / Developer</option>
+              <option value="Clinic / Hospital">🏥 Clinic, Hospital or Health Worker</option>
+              <option value="School / NGO">🎓 School, Church or Community NGO</option>
+              <option value="Verified Merchant / Artisan">🛠️ Verified Merchant or Artisan</option>
+              <option value="Community Leader">🤝 Community Elder / Organizer</option>
+            </select>
+            <input
+              type="file"
+              accept="image/*,video/*,.pdf"
+              onChange={(e) => setVerifyFile(e.target.files?.item(0) || null)}
+              className="w-full text-xs text-slate-300"
+            />
+            <textarea
+              rows={2}
+              value={verifyNote}
+              onChange={(e) => setVerifyNote(e.target.value)}
+              placeholder="Optional verification note (redact any sensitive personal details you feel uncomfortable sharing)"
+              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
+            />
+            <button
+              type="submit"
+              disabled={verifySubmitting}
+              className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs cursor-pointer"
+            >
+              {verifySubmitting ? "⏳ Submitting..." : "📤 Submit Verification Application"}
             </button>
           </form>
         </div>

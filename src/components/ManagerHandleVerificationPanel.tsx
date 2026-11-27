@@ -16,6 +16,7 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
   const [query, setQuery] = useState("");
   const [directHandle, setDirectHandle] = useState("");
   const [handles, setHandles] = useState<HandleRecord[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
 
@@ -39,6 +40,11 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
       }
       localStorage.setItem("prism_admin_secret", activeSec);
       setHandles(Array.isArray(d.handles) ? d.handles : []);
+      const reqRes = await fetch(`${apiBase}/public/soulpay/admin/verification-requests`, {
+        headers: { "x-admin-secret": activeSec },
+      });
+      const reqData = await reqRes.json().catch(() => ({}));
+      if (reqRes.ok && Array.isArray(reqData.requests)) setRequests(reqData.requests);
     } catch {
       setStatusMsg("Network error connecting to Sovereign Identity registry.");
     } finally {
@@ -49,6 +55,35 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
   useEffect(() => {
     if (secret) fetchHandles(secret, "");
   }, []);
+
+  
+  const reviewApplication = async (reqId: number, decision: "APPROVED" | "REJECTED", handleLabel: string) => {
+    const activeSec = secret.trim() || prompt("Enter Prism App Store Manager Secret:") || "";
+    if (!activeSec) return;
+    let reason = "";
+    let guidance = "";
+    if (decision === "REJECTED") {
+      reason = (prompt(`Reason why ${handleLabel}'s verification application was rejected:`) || "").trim();
+      if (!reason) return;
+      guidance = (prompt(`How ${handleLabel} can address the issue & reapply (remind them they may redact private ID numbers):`, "Upload clearer proof of role/organization with private details redacted and reapply.") || "").trim();
+    }
+    try {
+      const r = await fetch(`${apiBase}/public/soulpay/admin/verification-requests/${reqId}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": activeSec },
+        body: JSON.stringify({ decision, reason, guidance }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        alert(d.error || "Review failed");
+        return;
+      }
+      setStatusMsg(decision === "APPROVED" ? `✅ Approved Verified Status for ${handleLabel}!` : `❌ Returned ${handleLabel}'s application with remediation guidance.`);
+      fetchHandles(activeSec, query);
+    } catch {
+      alert("Network error submitting review.");
+    }
+  };
 
   const toggleVerify = async (targetHandle: string, nextVerified: boolean) => {
     const activeSec = secret.trim() || prompt("Enter Prism App Store Manager Secret:") || "";
@@ -140,6 +175,47 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
           />
         </div>
       </div>
+
+      
+      {requests.filter((r) => r.status === "PENDING").length > 0 && (
+        <div className="rounded-xl bg-amber-950/30 border border-amber-500/40 p-3 space-y-2">
+          <div className="text-xs font-extrabold text-amber-300">
+            🔔 Pending Handle Verification Applications ({requests.filter((r) => r.status === "PENDING").length})
+          </div>
+          {requests.filter((r) => r.status === "PENDING").map((req) => (
+            <div key={req.id} className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-xs">
+              <div className="min-w-0 space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-emerald-300">{req.handle}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-[10px] font-bold">{req.role_category}</span>
+                </div>
+                {req.note && <p className="text-[11px] text-slate-300">{req.note}</p>}
+                {req.evidence_url && (
+                  <a href={req.evidence_url} target="_blank" rel="noreferrer" className="inline-block text-[11px] text-sky-400 underline font-semibold">
+                    🔍 Inspect Attached Proof ↗
+                  </a>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => reviewApplication(req.id, "APPROVED", req.handle)}
+                  className="h-7 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-extrabold cursor-pointer"
+                >
+                  ✅ Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => reviewApplication(req.id, "REJECTED", req.handle)}
+                  className="h-7 px-3 rounded-lg bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/50 text-rose-200 text-[11px] font-bold cursor-pointer"
+                >
+                  ❌ Reject &amp; Guide
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {statusMsg && (
         <div className="text-xs font-semibold text-emerald-300 bg-emerald-950/50 border border-emerald-500/30 rounded-lg px-3 py-1.5">

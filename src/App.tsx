@@ -150,6 +150,24 @@ export function App() {
     fetch(ep).then((r) => r.json()).then((d) => { if (d?.ratesToUsd) setLiveFxToUsd(d.ratesToUsd); }).catch(() => {});
   }, []);
   const [prismCurMenuOpen, setPrismCurMenuOpen] = useState<boolean>(false);
+  const [ambassadorLeaders, setAmbassadorLeaders] = useState<{ ambassador_handle: string; referrals_count: number }[]>([]);
+  const [ecosystemMembersCount, setEcosystemMembersCount] = useState<number>(0);
+  useEffect(() => {
+    try {
+      const qp = new URLSearchParams(window.location.search);
+      const refParam = (qp.get("ref") || "").trim();
+      if (refParam) localStorage.setItem("soul_pending_ref", refParam.startsWith("@") ? refParam : "@" + refParam);
+    } catch {}
+    fetch("https://" + ["api", "credibleartisans", "com"].join(".") + "/public/soulpay/ambassadors/leaderboard")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.ok) {
+          setEcosystemMembersCount(Number(d.totalMembers || 0));
+          if (Array.isArray(d.leaders)) setAmbassadorLeaders(d.leaders);
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [prismSelectedCur, setPrismSelectedCur] = useState<string>(() => {
     try { return localStorage.getItem("sov_display_currency") || "GHS"; } catch { return "GHS"; }
   });

@@ -136,14 +136,26 @@ export interface StoreApp {
 const CATALOG_CACHE_KEY = 'prism_cached_apps_v1';
 
 export function App() {
-  const [prismOnlineState, setPrismOnlineState] = useState<boolean>(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  const [prismManualOffline, setPrismManualOffline] = useState<boolean>(() => {
+    try { return localStorage.getItem("prism_manual_offline") === "1"; } catch { return false; }
+  });
+  const [prismBrowserOnline, setPrismBrowserOnline] = useState<boolean>(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   useEffect(() => {
-    const onUp = () => setPrismOnlineState(true);
-    const onDown = () => setPrismOnlineState(false);
+    const onUp = () => setPrismBrowserOnline(true);
+    const onDown = () => setPrismBrowserOnline(false);
     window.addEventListener("online", onUp);
     window.addEventListener("offline", onDown);
     return () => { window.removeEventListener("online", onUp); window.removeEventListener("offline", onDown); };
   }, []);
+  const prismOnlineState = !prismManualOffline && prismBrowserOnline;
+  const toggleManualOnlineStatus = () => {
+    const nextManualOffline = !prismManualOffline;
+    setPrismManualOffline(nextManualOffline);
+    try {
+      if (nextManualOffline) localStorage.setItem("prism_manual_offline", "1");
+      else localStorage.removeItem("prism_manual_offline");
+    } catch {}
+  };
   const [liveFxToUsd, setLiveFxToUsd] = useState<Record<string, number> | null>(null);
   useEffect(() => {
     const ep = "https://" + ["api", "credibleartisans", "com"].join(".") + "/public/p2p-router/fx-rates";
@@ -949,7 +961,14 @@ export function App() {
               )}
             </div>
             <button type="button" onClick={promptSetSoulHandle} title="Set your Sovereign @handle across all 58 .soul apps" className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-400/45 transition cursor-pointer">{prismSoulHandle ? `🆔 ${prismSoulHandle}` : "🆔 @handle"}</button>
-            <span className={`hidden sm:inline-flex px-2 py-1.5 rounded-lg text-[11px] font-bold border ${prismOnlineState ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" : "bg-amber-500/20 text-amber-200 border-amber-400/50"}`}>{prismOnlineState ? "🟢 Online" : "📴 Offline"}</span>
+            <button
+              type="button"
+              onClick={toggleManualOnlineStatus}
+              title={prismOnlineState ? "Currently Online (Click to switch to Manual Offline Mode)" : "Currently Offline (Click to go back Online)"}
+              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition cursor-pointer ${prismOnlineState ? "bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/40" : "bg-amber-500/25 hover:bg-amber-500/35 text-amber-200 border-amber-400/60"}`}
+            >
+              {prismOnlineState ? "🟢 Online" : (prismManualOffline ? "📴 Offline (Manual)" : "📴 Offline")}
+            </button>
             <div className="hidden lg:flex items-center gap-1.5">
               <button type="button" onClick={openMerchantsModal} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 border border-amber-400/40 transition cursor-pointer">🏪 Merchants</button>
               <button type="button" onClick={() => { setTourStep(0); setShowTourModal(true); }} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-violet-500/20 hover:bg-violet-500/30 text-violet-200 border border-violet-400/40 transition cursor-pointer">🧭 Guide</button>

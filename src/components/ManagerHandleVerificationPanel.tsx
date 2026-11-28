@@ -368,6 +368,17 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
                       >
                         Shadow-Ban
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm("Soft-delete " + item.handle + "? Their wallet code and SOUL balance remain preserved so you can restore them later if they appeal.")) {
+                            moderateHandle(item.handle, "DELETED");
+                          }
+                        }}
+                        className="h-7 px-2 rounded-lg bg-slate-800 hover:bg-rose-950/70 border border-rose-500/40 text-rose-300 text-[10.5px] font-semibold cursor-pointer"
+                      >
+                        🗑️ Delete
+                      </button>
                     </>
                   )}
                   {item.kyc_verified ? (

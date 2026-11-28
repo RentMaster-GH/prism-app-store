@@ -1036,6 +1036,60 @@ export function App() {
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* PRISM_SHARE_PROMO_KIT */}
+        <div className="rounded-2xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-indigo-950/70 border border-emerald-500/40 p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/35 text-emerald-300 text-[11px] font-extrabold">
+              <span>📣 Share &amp; Earn • Launch Ambassador Kit</span>
+            </div>
+            <h2 className="text-sm sm:text-base font-extrabold text-white">
+              Invite Friends &amp; Merchants: 1 <span className="text-amber-300">@handle</span> Unlocks All 65 Portals + Zero-Fee MoMo &amp; Global Payments
+            </h2>
+            <p className="text-xs text-slate-300">
+              Your personal invite link:{" "}
+              <code className="text-emerald-300 font-mono">
+                {typeof window !== "undefined"
+                  ? `${window.location.origin}/?ref=${encodeURIComponent(prismSoulHandle || "@founder")}`
+                  : "https://vercel.app"}
+              </code>
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                const h = prismSoulHandle || "@founder";
+                const link = `${window.location.origin}/?ref=${encodeURIComponent(h)}`;
+                navigator.clipboard?.writeText(link).catch(() => {});
+                alert(`📋 Referral Link Copied for ${h}!\n\n${link}`);
+              }}
+              className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-sky-400/50 text-sky-300 text-xs font-bold cursor-pointer"
+            >
+              📋 Copy Invite Link
+            </button>
+            <a
+              href={`https://wa.me${encodeURIComponent(
+                `🌍 Join me on Prism App Store! One @handle unlocks 65 live apps (SoulPay, Farm, Biz, Rides, Chop, Vibe) with 0% transfer fees (₵1 = 2.5 SOUL). Claim your @handle here: ${typeof window !== "undefined" ? window.location.origin : "https://vercel.app"}/?ref=${encodeURIComponent(prismSoulHandle || "@founder")}`
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold"
+            >
+              💬 Share on WhatsApp ↗
+            </a>
+            <a
+              href={`https://twitter.com${encodeURIComponent(
+                `One @handle. 65 live apps. Zero middleman fees. Built from Accra for Africa & the diaspora 🌍🚀 Claim your @handle on Prism App Store: ${typeof window !== "undefined" ? window.location.origin : "https://vercel.app"}/?ref=${encodeURIComponent(prismSoulHandle || "@founder")}`
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold"
+            >
+              𝕏 Post Launch Thread ↗
+            </a>
+          </div>
+        </div>
+
         {/* Filter Tabs + Search + Sort */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-2 flex-wrap">

@@ -1052,7 +1052,25 @@ export function App() {
                   ? `${window.location.origin}/?ref=${encodeURIComponent(prismSoulHandle || "@founder")}`
                   : "https://vercel.app"}
               </code>
+              {ecosystemMembersCount > 0 && (
+                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[11px]">
+                  🌍 {ecosystemMembersCount.toLocaleString()} Active @Handles
+                </span>
+              )}
             </p>
+            {ambassadorLeaders.length > 0 && (
+              <div className="pt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className="font-extrabold text-amber-300">🏆 Top Ambassadors:</span>
+                {ambassadorLeaders.slice(0, 5).map((row, idx) => (
+                  <span
+                    key={row.ambassador_handle}
+                    className="px-2 py-0.5 rounded-full bg-slate-950/80 border border-slate-700 font-mono text-sky-300"
+                  >
+                    {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "#" + (idx + 1)} {row.ambassador_handle} ({row.referrals_count})
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <button

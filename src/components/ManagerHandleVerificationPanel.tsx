@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ShieldCheck, Search, RefreshCw, XCircle, CheckCircle2, RotateCcw, AlertTriangle } from "lucide-react";
+import { ShieldCheck, Search, RefreshCw, XCircle, CheckCircle2, RotateCcw, AlertTriangle, Globe } from "lucide-react";
 
 interface HandleRecord {
   id: number;
@@ -12,12 +12,28 @@ interface HandleRecord {
   kyc_verified: boolean;
   account_status?: "ACTIVE" | "SUSPENDED" | "SHADOW_BANNED" | "DELETED";
   moderation_reason?: string;
+  portal_restrictions?: Record<string, { status: string; reason?: string }>;
 }
+
+const PORTAL_SCOPES = [
+  { value: "ALL", label: "🌐 Option 1: Entire Ecosystem (All 65 Portals)" },
+  { value: "farm.soul", label: "🚜 Option 2: farm.soul Only" },
+  { value: "biz.soul", label: "🏪 Option 2: biz.soul Only" },
+  { value: "vibe.soul", label: "🎵 Option 2: vibe.soul Only" },
+  { value: "soulpay.soul", label: "🪙 Option 2: soulpay.soul Only" },
+  { value: "work.soul", label: "🛠️ Option 2: work.soul Only" },
+  { value: "rides.soul", label: "🚕 Option 2: rides.soul Only" },
+  { value: "chop.soul", label: "🍲 Option 2: chop.soul Only" },
+  { value: "rent.soul", label: "🏠 Option 2: rent.soul Only" },
+  { value: "studio.soul", label: "🎨 Option 2: studio.soul Only" },
+  { value: "academy.soul", label: "🎓 Option 2: academy.soul Only" },
+];
 
 export const ManagerHandleVerificationPanel: React.FC = () => {
   const [secret, setSecret] = useState<string>(() => localStorage.getItem("prism_admin_secret") || "");
   const [query, setQuery] = useState("");
   const [directHandle, setDirectHandle] = useState("");
+  const [selectedScope, setSelectedScope] = useState("ALL");
   const [handles, setHandles] = useState<HandleRecord[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [appeals, setAppeals] = useState<any[]>([]);
@@ -110,39 +126,49 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
     }
   };
 
-  const moderateHandle = async (targetHandle: string, nextStatus: "ACTIVE" | "SUSPENDED" | "SHADOW_BANNED" | "DELETED") => {
+  const moderateHandle = async (
+    targetHandle: string,
+    nextStatus: "ACTIVE" | "SUSPENDED" | "SHADOW_BANNED" | "DELETED",
+    scopeOverride?: string
+  ) => {
     const activeSec = secret.trim() || prompt("Enter Prism App Store Manager Secret:") || "";
     if (!activeSec) return;
+    const scope = (scopeOverride || selectedScope || "ALL").trim();
     let reason = "";
     if (nextStatus !== "ACTIVE") {
-      reason = (prompt(`Reason for setting ${targetHandle} to ${nextStatus}:`) || "").trim();
+      reason = (prompt(`Reason for setting ${targetHandle} [${scope}] to ${nextStatus}:`) || "").trim();
       if (!reason) return;
     }
     try {
       const r = await fetch(`${apiBase}/public/soulpay/admin/moderate-handle`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-secret": activeSec },
-        body: JSON.stringify({ handle: targetHandle, status: nextStatus, reason }),
+        body: JSON.stringify({ handle: targetHandle, status: nextStatus, portalScope: scope, reason }),
       });
       const d = await r.json();
       if (!r.ok) { alert(d.error || "Moderation update failed"); return; }
-      setStatusMsg(`Updated ${targetHandle} status to ${nextStatus}.`);
+      setStatusMsg(
+        scope === "ALL"
+          ? `Updated ${targetHandle} across ENTIRE ECOSYSTEM to ${nextStatus}.`
+          : `Updated ${targetHandle} on ${scope} ONLY to ${nextStatus} (other portals remain active).`
+      );
       fetchHandles(activeSec, query);
     } catch {
       alert("Network error updating handle status.");
     }
   };
 
-  const handleRestoreAction = async (targetHandle: string, decision: "RESTORED" | "DENIED") => {
+  const handleRestoreAction = async (targetHandle: string, decision: "RESTORED" | "DENIED", scopeOverride?: string) => {
     const activeSec = secret.trim() || prompt("Enter Prism App Store Manager Secret:") || "";
     if (!activeSec) return;
+    const scope = (scopeOverride || selectedScope || "ALL").trim();
     const managerNote = (prompt(
       decision === "RESTORED"
-        ? `Restoration note for ${targetHandle}:`
-        : `Reason for denying restoration appeal for ${targetHandle}:`,
+        ? `Restoration note for ${targetHandle} [${scope}]:`
+        : `Reason for denying restoration appeal for ${targetHandle} [${scope}]:`,
       decision === "RESTORED"
-        ? "Appeal approved — @handle, wallet code, and SOUL balance fully restored to ACTIVE status."
-        : "Appeal denied — policy violation unresolved. You may submit updated evidence."
+        ? `Appeal approved — ${targetHandle} (${scope}) restored to ACTIVE status.`
+        : "Appeal denied — policy violation unresolved."
     ) || "").trim();
     if (!managerNote) return;
 
@@ -150,14 +176,14 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
       const r = await fetch(`${apiBase}/public/soulpay/admin/restore-handle`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-secret": activeSec },
-        body: JSON.stringify({ handle: targetHandle, decision, managerNote }),
+        body: JSON.stringify({ handle: targetHandle, portalScope: scope, decision, managerNote }),
       });
       const d = await r.json();
       if (!r.ok) { alert(d.error || "Restoration action failed"); return; }
       setStatusMsg(
         decision === "RESTORED"
-          ? `♻️ Restored ${d.wallet?.handle || targetHandle} back to ACTIVE status across all 65 portals!`
-          : `Denied restoration appeal for ${targetHandle}.`
+          ? `♻️ Restored ${d.wallet?.handle || targetHandle} (${scope}) back to ACTIVE status!`
+          : `Denied restoration appeal for ${targetHandle} (${scope}).`
       );
       setDirectHandle("");
       fetchHandles(activeSec, query);
@@ -174,8 +200,8 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-emerald-400" />
           <div>
-            <h3 className="text-sm font-bold text-white">Ecosystem @Handle Verification, Appeals &amp; Restoration Control</h3>
-            <p className="text-[11px] text-slate-400">Verify handles, review restoration appeals, and reinstate suspended, shadow-banned, or deleted accounts</p>
+            <h3 className="text-sm font-bold text-white">Ecosystem @Handle Verification, Appeals &amp; Dual-Scope Control</h3>
+            <p className="text-[11px] text-slate-400">Choose Option 1 (Entire Ecosystem) or Option 2 (Individual Portal) to suspend, delete, or restore @handles</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -196,6 +222,30 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
         </div>
       </div>
 
+      {/* Two-Option Scope Selector Bar */}
+      <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-slate-950/90 border border-sky-500/35">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-sky-300">
+          <Globe className="w-4 h-4 text-sky-400" />
+          <span>Moderation / Restoration Scope:</span>
+        </div>
+        <select
+          value={selectedScope}
+          onChange={(e) => setSelectedScope(e.target.value)}
+          className="h-8 px-2.5 rounded-lg bg-slate-900 border border-sky-500/40 text-xs font-bold text-amber-200 cursor-pointer"
+        >
+          {PORTAL_SCOPES.map((sc) => (
+            <option key={sc.value} value={sc.value}>
+              {sc.label}
+            </option>
+          ))}
+        </select>
+        <span className="text-[11px] text-slate-400">
+          {selectedScope === "ALL"
+            ? "Applies across all 65 .soul portals."
+            : `Applies ONLY to ${selectedScope} — user keeps full access to other portals.`}
+        </span>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div className="flex items-center gap-1.5">
           <input
@@ -214,7 +264,7 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => directHandle.trim() && handleRestoreAction(directHandle.trim(), "RESTORED")}
+            onClick={() => directHandle.trim() && handleRestoreAction(directHandle.trim(), "RESTORED", selectedScope)}
             className="h-8 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold shrink-0 cursor-pointer"
           >
             ♻️ Restore
@@ -246,6 +296,9 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
               <div className="min-w-0 space-y-0.5">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono font-bold text-emerald-300">{ap.handle}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-sky-500/20 border border-sky-400/40 text-sky-200 text-[10px] font-bold">
+                    Scope: {ap.portal_scope || "ALL"}
+                  </span>
                   <span className="px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-400/40 text-rose-200 text-[10px] font-bold">
                     Prior: {ap.prior_status}
                   </span>
@@ -256,14 +309,14 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
-                  onClick={() => handleRestoreAction(ap.handle, "RESTORED")}
+                  onClick={() => handleRestoreAction(ap.handle, "RESTORED", ap.portal_scope || "ALL")}
                   className="h-7 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer"
                 >
-                  <RotateCcw className="w-3 h-3" /> ♻️ Approve &amp; Restore
+                  <RotateCcw className="w-3 h-3" /> ♻️ Approve &amp; Restore ({ap.portal_scope || "ALL"})
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleRestoreAction(ap.handle, "DENIED")}
+                  onClick={() => handleRestoreAction(ap.handle, "DENIED", ap.portal_scope || "ALL")}
                   className="h-7 px-2.5 rounded-lg bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/50 text-rose-200 text-[11px] font-bold cursor-pointer"
                 >
                   Deny
@@ -319,7 +372,9 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
         <div className="max-h-72 overflow-y-auto divide-y divide-slate-800 border border-slate-800 rounded-xl bg-slate-950/70">
           {handles.map((item) => {
             const st = item.account_status || "ACTIVE";
-            const isRestricted = st !== "ACTIVE";
+            const pMap = item.portal_restrictions || {};
+            const restrictedPortals = Object.keys(pMap);
+            const isRestricted = st !== "ACTIVE" || restrictedPortals.length > 0;
             return (
               <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs">
                 <div className="min-w-0">
@@ -335,8 +390,24 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
                         ? "bg-slate-800 text-slate-300"
                         : "bg-rose-500/20 border border-rose-400/40 text-rose-200"
                     }`}>
-                      {st}
+                      {st === "ACTIVE" ? "ECOSYSTEM: ACTIVE" : `ECOSYSTEM: ${st}`}
                     </span>
+                    {restrictedPortals.map((slug) => (
+                      <span
+                        key={slug}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-200 text-[10px] font-bold"
+                      >
+                        {slug}: {pMap[slug]?.status}
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreAction(item.handle, "RESTORED", slug)}
+                          title={`Restore ${item.handle} on ${slug}`}
+                          className="underline text-emerald-300 ml-0.5 cursor-pointer"
+                        >
+                          ♻️
+                        </button>
+                      </span>
+                    ))}
                   </div>
                   <div className="text-[10.5px] text-slate-400 truncate">
                     {item.full_name || item.display_name || "Sovereign Member"} • {Number(item.soul_balance || 0).toLocaleString()} SOUL
@@ -344,43 +415,40 @@ export const ManagerHandleVerificationPanel: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                  {isRestricted ? (
+                  {isRestricted && (
                     <button
                       type="button"
-                      onClick={() => handleRestoreAction(item.handle, "RESTORED")}
+                      onClick={() => handleRestoreAction(item.handle, "RESTORED", "ALL")}
                       className="h-7 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-extrabold flex items-center gap-1 cursor-pointer"
                     >
-                      <RotateCcw className="w-3 h-3" /> ♻️ Restore Account
+                      <RotateCcw className="w-3 h-3" /> ♻️ Restore All
                     </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => moderateHandle(item.handle, "SUSPENDED")}
-                        className="h-7 px-2 rounded-lg bg-slate-800 hover:bg-amber-900/50 border border-slate-700 text-amber-200 text-[10.5px] font-semibold cursor-pointer"
-                      >
-                        Suspend
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moderateHandle(item.handle, "SHADOW_BANNED")}
-                        className="h-7 px-2 rounded-lg bg-slate-800 hover:bg-purple-900/50 border border-slate-700 text-purple-200 text-[10.5px] font-semibold cursor-pointer"
-                      >
-                        Shadow-Ban
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm("Soft-delete " + item.handle + "? Their wallet code and SOUL balance remain preserved so you can restore them later if they appeal.")) {
-                            moderateHandle(item.handle, "DELETED");
-                          }
-                        }}
-                        className="h-7 px-2 rounded-lg bg-slate-800 hover:bg-rose-950/70 border border-rose-500/40 text-rose-300 text-[10.5px] font-semibold cursor-pointer"
-                      >
-                        🗑️ Delete
-                      </button>
-                    </>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => moderateHandle(item.handle, "SUSPENDED", selectedScope)}
+                    className="h-7 px-2 rounded-lg bg-slate-800 hover:bg-amber-900/50 border border-slate-700 text-amber-200 text-[10.5px] font-semibold cursor-pointer"
+                  >
+                    Suspend ({selectedScope === "ALL" ? "All" : selectedScope})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moderateHandle(item.handle, "SHADOW_BANNED", selectedScope)}
+                    className="h-7 px-2 rounded-lg bg-slate-800 hover:bg-purple-900/50 border border-slate-700 text-purple-200 text-[10.5px] font-semibold cursor-pointer"
+                  >
+                    Shadow-Ban
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Soft-delete ${item.handle} on ${selectedScope}? Their wallet code and SOUL balance remain preserved for future appeal.`)) {
+                        moderateHandle(item.handle, "DELETED", selectedScope);
+                      }
+                    }}
+                    className="h-7 px-2 rounded-lg bg-slate-800 hover:bg-rose-950/70 border border-rose-500/40 text-rose-300 text-[10.5px] font-semibold cursor-pointer"
+                  >
+                    🗑️ Delete ({selectedScope === "ALL" ? "All" : selectedScope})
+                  </button>
                   {item.kyc_verified ? (
                     <button
                       type="button"
